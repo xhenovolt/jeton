@@ -196,6 +196,25 @@ async function initializeDatabase() {
       `);
       console.log('✅ Deals table created\n');
 
+      // Create snapshots table
+      console.log('📝 Creating snapshots table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS snapshots (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          type TEXT NOT NULL,
+          name TEXT,
+          data JSONB NOT NULL,
+          created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT valid_snapshot_type CHECK (type IN ('NET_WORTH', 'PIPELINE_VALUE', 'FINANCIAL_SUMMARY', 'MANUAL'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_snapshots_type ON snapshots(type);
+        CREATE INDEX IF NOT EXISTS idx_snapshots_created_by ON snapshots(created_by);
+        CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON snapshots(created_at);
+      `);
+      console.log('✅ Snapshots table created\n');
+
       console.log('✨ Database initialization complete!');
     } finally {
       client.release();

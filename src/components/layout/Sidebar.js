@@ -25,12 +25,13 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { label: 'Overview', href: '/app/overview', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+  { label: 'Overview', href: '/app/overview', icon: TrendingUp },
   { label: 'Assets', href: '/app/assets', icon: Boxes },
   { label: 'Liabilities', href: '/app/liabilities', icon: CreditCard },
   { label: 'Deals', href: '/app/deals', icon: Handshake },
-  { label: 'Pipeline', href: '/app/pipeline', icon: TrendingUp },
-  { label: 'Valuation', href: '/app/valuation', icon: LineChart },
+  { label: 'Pipeline', href: '/app/pipeline', icon: LineChart },
+  { label: 'Reports', href: '/app/reports', icon: BookOpen },
   { label: 'Audit Logs', href: '/app/audit', icon: BookOpen },
 ];
 

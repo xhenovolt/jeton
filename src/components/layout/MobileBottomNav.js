@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 const primaryRoutes = [
-  { label: 'Overview', href: '/app/overview', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
   { label: 'Deals', href: '/app/deals', icon: Handshake },
   { label: 'Assets', href: '/app/assets', icon: Boxes },
 ];

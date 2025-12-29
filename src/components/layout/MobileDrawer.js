@@ -20,11 +20,11 @@ import {
 } from 'lucide-react';
 
 const drawerItems = [
+  { label: 'Overview', href: '/app/overview', icon: TrendingUp },
   { label: 'Liabilities', href: '/app/liabilities', icon: CreditCard },
-  { label: 'Pipeline', href: '/app/pipeline', icon: TrendingUp },
-  { label: 'Valuation', href: '/app/valuation', icon: LineChart },
+  { label: 'Pipeline', href: '/app/pipeline', icon: LineChart },
+  { label: 'Reports', href: '/app/reports', icon: BookOpen },
   { label: 'Audit Logs', href: '/app/audit', icon: BookOpen },
-  { label: 'Settings', href: '/app/settings', icon: Settings },
 ];
 
 export function MobileDrawer({ isOpen, onClose }) {
