@@ -1,0 +1,131 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Semantic color system
+        primary: {
+          50: '#caf0f8',
+          100: '#90e0ef',
+          200: '#00b4d8',
+          300: '#0077b6',
+          400: '#0077b6',
+          500: '#0077b6',
+          600: '#03045e',
+          700: '#03045e',
+          800: '#03045e',
+          900: '#03045e',
+        },
+        secondary: {
+          50: '#e0aaff',
+          100: '#c77dff',
+          200: '#9d4edd',
+          300: '#7b2cbf',
+          400: '#5a189a',
+          500: '#3c096c',
+          600: '#240046',
+          700: '#10002b',
+          800: '#10002b',
+          900: '#10002b',
+        },
+        accent: {
+          50: '#ffba08',
+          100: '#faa307',
+          200: '#f48c06',
+          300: '#e85d04',
+          400: '#dc2f02',
+          500: '#d00000',
+          600: '#9d0208',
+          700: '#6a040f',
+          800: '#370617',
+          900: '#03071e',
+        },
+        danger: {
+          50: '#ffba08',
+          100: '#faa307',
+          200: '#f48c06',
+          300: '#e85d04',
+          400: '#dc2f02',
+          500: '#d00000',
+          600: '#9d0208',
+          700: '#6a040f',
+          800: '#370617',
+          900: '#03071e',
+        },
+        surface: {
+          50: 'hsl(var(--surface-50) / <alpha-value>)',
+          100: 'hsl(var(--surface-100) / <alpha-value>)',
+          200: 'hsl(var(--surface-200) / <alpha-value>)',
+          300: 'hsl(var(--surface-300) / <alpha-value>)',
+          400: 'hsl(var(--surface-400) / <alpha-value>)',
+          500: 'hsl(var(--surface-500) / <alpha-value>)',
+          600: 'hsl(var(--surface-600) / <alpha-value>)',
+          700: 'hsl(var(--surface-700) / <alpha-value>)',
+          800: 'hsl(var(--surface-800) / <alpha-value>)',
+          900: 'hsl(var(--surface-900) / <alpha-value>)',
+        },
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        card: {
+          DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+          foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+          foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+          foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
+        },
+        border: 'hsl(var(--border) / <alpha-value>)',
+        input: 'hsl(var(--input) / <alpha-value>)',
+        ring: 'hsl(var(--ring) / <alpha-value>)',
+        chart: {
+          1: 'hsl(var(--chart-1) / <alpha-value>)',
+          2: 'hsl(var(--chart-2) / <alpha-value>)',
+          3: 'hsl(var(--chart-3) / <alpha-value>)',
+          4: 'hsl(var(--chart-4) / <alpha-value>)',
+          5: 'hsl(var(--chart-5) / <alpha-value>)',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+      fontFamily: {
+        sans: ['var(--font-sans)'],
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-in-out',
+        'slide-in': 'slideIn 0.3s ease-in-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideIn: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+      },
+    },
+  },
+  plugins: [],
+}
