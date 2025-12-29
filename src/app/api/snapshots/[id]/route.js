@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateJWT } from '@/lib/jwt';
+import { verifyToken } from '@/lib/jwt';
 import { getSnapshot } from '@/lib/reports';
 
 /**
@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
     }
 
     const token = authHeader.slice(7);
-    const payload = validateJWT(token);
+    const payload = verifyToken(token);
 
     if (!payload) {
       return NextResponse.json(

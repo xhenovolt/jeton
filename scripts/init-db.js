@@ -39,16 +39,21 @@ async function initializeDatabase() {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
+          full_name TEXT,
           role TEXT NOT NULL DEFAULT 'FOUNDER',
+          status TEXT NOT NULL DEFAULT 'active',
           is_active BOOLEAN DEFAULT true,
+          last_login TIMESTAMP WITH TIME ZONE,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT valid_email CHECK (email ~ '^[^\s@]+@[^\s@]+\.[^\s@]+$'),
-          CONSTRAINT valid_role CHECK (role IN ('FOUNDER', 'STAFF', 'VIEWER'))
+          CONSTRAINT valid_role CHECK (role IN ('FOUNDER', 'FINANCE', 'SALES', 'VIEWER')),
+          CONSTRAINT valid_status CHECK (status IN ('active', 'suspended'))
         );
 
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
         CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+        CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
         CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
       `);
       console.log('✅ Users table created\n');
@@ -79,24 +84,36 @@ async function initializeDatabase() {
             'USER_UPDATED',
             'USER_DELETED',
             'ROLE_CHANGED',
+            'STAFF_CREATED',
+            'STAFF_SUSPENDED',
+            'STAFF_REACTIVATED',
             'ASSET_CREATE',
             'ASSET_CREATE_DENIED',
             'ASSET_UPDATE',
             'ASSET_UPDATE_DENIED',
             'ASSET_DELETE',
             'ASSET_DELETE_DENIED',
+            'ASSET_RESTORE',
+            'ASSET_LOCK',
+            'ASSET_UNLOCK',
             'LIABILITY_CREATE',
             'LIABILITY_CREATE_DENIED',
             'LIABILITY_UPDATE',
             'LIABILITY_UPDATE_DENIED',
             'LIABILITY_DELETE',
             'LIABILITY_DELETE_DENIED',
+            'LIABILITY_RESTORE',
+            'LIABILITY_LOCK',
+            'LIABILITY_UNLOCK',
             'DEAL_CREATE',
             'DEAL_CREATE_DENIED',
             'DEAL_UPDATE',
             'DEAL_UPDATE_DENIED',
             'DEAL_DELETE',
             'DEAL_DELETE_DENIED',
+            'DEAL_RESTORE',
+            'DEAL_LOCK',
+            'DEAL_UNLOCK',
             'DEAL_STAGE_CHANGE',
             'DEAL_STAGE_CHANGE_DENIED'
           )),
@@ -109,6 +126,24 @@ async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
       `);
       console.log('✅ Audit logs table created\n');
+
+      // Create staff_profiles table
+      console.log('📝 Creating staff_profiles table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS staff_profiles (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          department TEXT,
+          title TEXT,
+          phone TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_staff_profiles_user_id ON staff_profiles(user_id);
+        CREATE INDEX IF NOT EXISTS idx_staff_profiles_department ON staff_profiles(department);
+      `);
+      console.log('✅ Staff profiles table created\n');
 
       // Create assets table
       console.log('📝 Creating assets table...');
@@ -123,6 +158,8 @@ async function initializeDatabase() {
           current_value NUMERIC(14,2) NOT NULL,
           depreciation_rate NUMERIC(5,2) DEFAULT 0,
           notes TEXT,
+          locked BOOLEAN DEFAULT false,
+          deleted_at TIMESTAMP WITH TIME ZONE,
           created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -133,6 +170,8 @@ async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);
         CREATE INDEX IF NOT EXISTS idx_assets_created_by ON assets(created_by);
         CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets(created_at);
+        CREATE INDEX IF NOT EXISTS idx_assets_deleted_at ON assets(deleted_at);
+        CREATE INDEX IF NOT EXISTS idx_assets_locked ON assets(locked);
       `);
       console.log('✅ Assets table created\n');
 
@@ -150,6 +189,8 @@ async function initializeDatabase() {
           due_date DATE,
           status TEXT NOT NULL DEFAULT 'ACTIVE',
           notes TEXT,
+          locked BOOLEAN DEFAULT false,
+          deleted_at TIMESTAMP WITH TIME ZONE,
           created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -163,6 +204,8 @@ async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS idx_liabilities_created_by ON liabilities(created_by);
         CREATE INDEX IF NOT EXISTS idx_liabilities_created_at ON liabilities(created_at);
         CREATE INDEX IF NOT EXISTS idx_liabilities_due_date ON liabilities(due_date);
+        CREATE INDEX IF NOT EXISTS idx_liabilities_deleted_at ON liabilities(deleted_at);
+        CREATE INDEX IF NOT EXISTS idx_liabilities_locked ON liabilities(locked);
       `);
       console.log('✅ Liabilities table created\n');
 
@@ -179,6 +222,8 @@ async function initializeDatabase() {
           expected_close_date DATE,
           status TEXT NOT NULL DEFAULT 'ACTIVE',
           notes TEXT,
+          locked BOOLEAN DEFAULT false,
+          deleted_at TIMESTAMP WITH TIME ZONE,
           created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -193,6 +238,8 @@ async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS idx_deals_created_by ON deals(created_by);
         CREATE INDEX IF NOT EXISTS idx_deals_created_at ON deals(created_at);
         CREATE INDEX IF NOT EXISTS idx_deals_expected_close_date ON deals(expected_close_date);
+        CREATE INDEX IF NOT EXISTS idx_deals_deleted_at ON deals(deleted_at);
+        CREATE INDEX IF NOT EXISTS idx_deals_locked ON deals(locked);
       `);
       console.log('✅ Deals table created\n');
 

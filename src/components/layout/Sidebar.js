@@ -20,6 +20,7 @@ import {
   TrendingUp,
   LineChart,
   BookOpen,
+  Users,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ const menuItems = [
   { label: 'Deals', href: '/app/deals', icon: Handshake },
   { label: 'Pipeline', href: '/app/pipeline', icon: LineChart },
   { label: 'Reports', href: '/app/reports', icon: BookOpen },
+  { label: 'Staff', href: '/app/staff', icon: Users },
   { label: 'Audit Logs', href: '/app/audit', icon: BookOpen },
 ];
 

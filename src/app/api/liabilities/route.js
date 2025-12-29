@@ -8,6 +8,8 @@ import { verifyToken } from '@/lib/jwt.js';
 import { validateLiability } from '@/lib/validation.js';
 import { getLiabilities, createLiability } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
+import { query } from '@/lib/db.js';
+import { canAccess } from '@/lib/permissions.js';
 import { cookies } from 'next/headers.js';
 
 export async function GET(request) {
@@ -30,11 +32,36 @@ export async function GET(request) {
       );
     }
 
-    const liabilities = await getLiabilities();
+    // Get user to check permissions
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check permission to read liabilities
+    if (!canAccess(user, 'liabilities', 'read')) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // Get liabilities excluding soft-deleted records
+    const result = await query(
+      'SELECT * FROM liabilities WHERE deleted_at IS NULL ORDER BY created_at DESC'
+    );
 
     return NextResponse.json({
-      liabilities,
-      total: liabilities.length,
+      liabilities: result.rows,
+      total: result.rows.length,
     });
   } catch (error) {
     console.error('Get liabilities error:', error);
@@ -66,8 +93,22 @@ export async function POST(request) {
       );
     }
 
-    // Only FOUNDER can create liabilities
-    if (decoded.role !== 'FOUNDER') {
+    // Get user to check permissions
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check permission to create liabilities
+    if (!canAccess(user, 'liabilities', 'create')) {
       await logAudit({
         action: 'LIABILITY_CREATE_DENIED',
         entity: 'LIABILITY',
@@ -79,7 +120,7 @@ export async function POST(request) {
       });
 
       return NextResponse.json(
-        { error: 'Only founders can create liabilities' },
+        { error: 'Forbidden - you do not have permission to create liabilities' },
         { status: 403 }
       );
     }
@@ -129,7 +170,6 @@ export async function POST(request) {
         name: liability.name,
         category: liability.category,
         amount: liability.outstanding_amount,
-        status: liability.status,
       },
       ipAddress: requestMetadata.ipAddress,
       userAgent: requestMetadata.userAgent,

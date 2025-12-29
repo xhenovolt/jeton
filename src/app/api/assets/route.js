@@ -8,6 +8,8 @@ import { verifyToken, getTokenFromCookies } from '@/lib/jwt.js';
 import { validateAsset } from '@/lib/validation.js';
 import { getAssets, createAsset } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
+import { query } from '@/lib/db.js';
+import { canAccess } from '@/lib/permissions.js';
 import { cookies } from 'next/headers.js';
 
 export async function GET(request) {
@@ -30,11 +32,36 @@ export async function GET(request) {
       );
     }
 
-    const assets = await getAssets();
+    // Get user to check permissions and status
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check permission to read assets
+    if (!canAccess(user, 'assets', 'read')) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // Get assets excluding soft-deleted records
+    const result = await query(
+      'SELECT * FROM assets WHERE deleted_at IS NULL ORDER BY created_at DESC'
+    );
 
     return NextResponse.json({
-      assets,
-      total: assets.length,
+      assets: result.rows,
+      total: result.rows.length,
     });
   } catch (error) {
     console.error('Get assets error:', error);
@@ -66,8 +93,22 @@ export async function POST(request) {
       );
     }
 
-    // Only FOUNDER can create assets
-    if (decoded.role !== 'FOUNDER') {
+    // Get user to check permissions and status
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check permission to create assets
+    if (!canAccess(user, 'assets', 'create')) {
       await logAudit({
         action: 'ASSET_CREATE_DENIED',
         entity: 'ASSET',
@@ -79,7 +120,7 @@ export async function POST(request) {
       });
 
       return NextResponse.json(
-        { error: 'Only founders can create assets' },
+        { error: 'Forbidden - you do not have permission to create assets' },
         { status: 403 }
       );
     }

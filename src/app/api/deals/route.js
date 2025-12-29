@@ -9,6 +9,8 @@ import { verifyToken } from '@/lib/jwt.js';
 import { validateDeal } from '@/lib/validation.js';
 import { getDeals, createDeal } from '@/lib/deals.js';
 import { logAudit } from '@/lib/audit.js';
+import { query } from '@/lib/db.js';
+import { canAccess } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
@@ -31,11 +33,36 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const deals = await getDeals();
+    // Get user to check permissions
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check permission to read deals
+    if (!canAccess(user, 'deals', 'read')) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // Get deals excluding soft-deleted records
+    const result = await query(
+      'SELECT * FROM deals WHERE deleted_at IS NULL ORDER BY created_at DESC'
+    );
 
     return NextResponse.json({
-      deals,
-      count: deals.length,
+      deals: result.rows,
+      count: result.rows.length,
     });
   } catch (error) {
     console.error('Error in GET /api/deals:', error);
@@ -67,8 +94,22 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check if user is FOUNDER
-    if (decoded.role !== 'FOUNDER') {
+    // Get user to check permissions
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user can create deals
+    if (!canAccess(user, 'deals', 'create')) {
       await logAudit({
         action: 'DEAL_CREATE_DENIED',
         entity: 'deal',
@@ -78,7 +119,7 @@ export async function POST(request) {
         status: 'FAILURE',
       });
       return NextResponse.json(
-        { error: 'Only founders can create deals' },
+        { error: 'Forbidden - you do not have permission to create deals' },
         { status: 403 }
       );
     }
