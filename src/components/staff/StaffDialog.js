@@ -62,6 +62,7 @@ export default function StaffDialog({ open, onOpenChange, onSuccess }) {
       // Submit
       const response = await fetch('/api/staff', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,

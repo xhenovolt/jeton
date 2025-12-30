@@ -20,7 +20,7 @@ export default function LiabilitiesPage() {
   const fetchLiabilities = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/liabilities');
+      const response = await fetch('/api/liabilities', { credentials: 'include' });
       const data = await response.json();
       
       if (response.ok) {
@@ -56,6 +56,7 @@ export default function LiabilitiesPage() {
     try {
       const response = await fetch(`/api/liabilities/${liabilityId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -80,6 +81,7 @@ export default function LiabilitiesPage() {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

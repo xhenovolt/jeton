@@ -69,6 +69,7 @@ export function PipelineBoard({ deals, onStageChange, onEdit, onDelete }) {
     try {
       const response = await fetch(`/api/deals/${draggedCard.id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

@@ -10,6 +10,7 @@ import { verifyToken } from '@/lib/jwt';
 import { query } from '@/lib/db';
 import { isStaffAdmin } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 const updateStaffSchema = z.object({
@@ -20,13 +21,29 @@ const updateStaffSchema = z.object({
   phone: z.string().optional(),
 });
 
+// Helper function to extract token from cookies or Authorization header
+async function getToken(req) {
+  // Try Authorization header first (Bearer token)
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+
+  // Fall back to cookie (HttpOnly from browser)
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get('auth-token')?.value;
+  } catch (error) {
+    return null;
+  }
+}
+
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
 
-    // Extract token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Extract token from either cookies or Authorization header
+    const token = await getToken(req);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -77,9 +94,8 @@ export async function PUT(req, { params }) {
   try {
     const { id } = await params;
 
-    // Extract token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Extract token from either cookies or Authorization header
+    const token = await getToken(req);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -94,7 +110,7 @@ export async function PUT(req, { params }) {
     // Get current user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.id]
+      [decoded.userId]
     );
     const user = userResult.rows[0];
 
@@ -228,9 +244,8 @@ export async function PATCH(req, { params }) {
   try {
     const { id } = await params;
 
-    // Extract token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Extract token from either cookies or Authorization header
+    const token = await getToken(req);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -245,7 +260,7 @@ export async function PATCH(req, { params }) {
     // Get current user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.id]
+      [decoded.userId]
     );
     const user = userResult.rows[0];
 

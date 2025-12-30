@@ -28,6 +28,7 @@ export default function StaffActionMenu({ staff, onClose, onRefresh }) {
       if (action === 'suspend' || action === 'reactivate') {
         response = await fetch(`/api/staff/${staff.id}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -40,6 +41,7 @@ export default function StaffActionMenu({ staff, onClose, onRefresh }) {
         }
         response = await fetch(`/api/staff/${staff.id}`, {
           method: 'DELETE',
+          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${token}`,
           },

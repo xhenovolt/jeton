@@ -20,7 +20,7 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/assets');
+      const response = await fetch('/api/assets', { credentials: 'include' });
       const data = await response.json();
       
       if (response.ok) {
@@ -54,6 +54,7 @@ export default function AssetsPage() {
     try {
       const response = await fetch(`/api/assets/${assetId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -78,6 +79,7 @@ export default function AssetsPage() {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

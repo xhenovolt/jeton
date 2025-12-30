@@ -29,6 +29,7 @@ export default function ReportsPage() {
       }
 
       const response = await fetch('/api/snapshots', {
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -50,6 +51,7 @@ export default function ReportsPage() {
 
       const response = await fetch('/api/snapshots/create', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

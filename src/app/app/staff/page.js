@@ -31,6 +31,7 @@ export default function StaffPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/staff', {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${document.cookie
             .split('; ')

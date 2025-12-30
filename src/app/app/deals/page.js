@@ -24,6 +24,7 @@ export default function DealsPage() {
     try {
       setPageLoading(true);
       const response = await fetch('/api/deals', {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
@@ -63,6 +64,7 @@ export default function DealsPage() {
     try {
       const response = await fetch(`/api/deals/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
@@ -87,6 +89,7 @@ export default function DealsPage() {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

@@ -18,6 +18,7 @@ export default function ValuationPage() {
       try {
         setIsLoading(true);
         const response = await fetch('/api/deals/valuation', {
+          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           },

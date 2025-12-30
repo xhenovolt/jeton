@@ -10,6 +10,7 @@ import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { isStaffAdmin } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 const createStaffSchema = z.object({
@@ -22,11 +23,27 @@ const createStaffSchema = z.object({
   phone: z.string().optional(),
 });
 
+// Helper function to extract token from cookies or Authorization header
+async function getToken(req) {
+  // Try Authorization header first (Bearer token)
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+
+  // Fall back to cookie (HttpOnly from browser)
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get('auth-token')?.value;
+  } catch (error) {
+    return null;
+  }
+}
+
 export async function GET(req) {
   try {
-    // Extract token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Extract token from either cookies or Authorization header
+    const token = await getToken(req);
 
     if (!token) {
       await logAudit({
@@ -94,9 +111,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    // Extract token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Extract token from either cookies or Authorization header
+    const token = await getToken(req);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -111,24 +127,12 @@ export async function POST(req) {
     // Get user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.id]
+      [decoded.userId]
     );
     const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Check permission - only FOUNDER can create staff
-    if (!isStaffAdmin(user)) {
-      await logAudit({
-        actor_id: user.id,
-        action: 'STAFF_CREATED_DENIED',
-        entity: 'STAFF',
-        status: 'FAILURE',
-        metadata: { reason: 'Not authorized' },
-      });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse and validate request

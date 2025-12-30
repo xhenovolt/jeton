@@ -43,7 +43,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       if (response.ok) {
         window.location.href = '/login';
       }
