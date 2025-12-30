@@ -29,12 +29,48 @@ const ROLE_BASED_ROUTES = {
   '/app': ['FOUNDER'], // Only founders can access /app for now
 };
 
+/**
+ * Extract token from cookie header
+ * Parses the Cookie header to find the auth-token
+ */
+function getTokenFromRequest(request) {
+  // Try using request.cookies first (works in some environments)
+  const cookieToken = request.cookies.get('auth-token')?.value;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  // Fallback: manually parse from Cookie header (needed for Edge Runtime)
+  const cookieHeader = request.headers.get('cookie') || '';
+  const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+    const [name, value] = cookie.trim().split('=');
+    if (name && value) {
+      acc[name] = decodeURIComponent(value);
+    }
+    return acc;
+  }, {});
+
+  return cookies['auth-token'] || null;
+}
+
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Get auth token from cookies
-  const token = request.cookies.get('auth-token')?.value;
+  // Get auth token from request
+  const token = getTokenFromRequest(request);
   const decoded = token ? verifyToken(token) : null;
+
+  // Debug logging (temporary)
+  if (pathname.startsWith('/app')) {
+    console.log('🔍 Middleware Debug - /app access:', {
+      pathname,
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 50) : 'NONE',
+      hasDecoded: !!decoded,
+      decodedRole: decoded?.role,
+    });
+  }
 
   // If accessing protected routes
   if (pathname.startsWith('/app')) {
