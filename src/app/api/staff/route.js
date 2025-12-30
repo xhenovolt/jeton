@@ -70,7 +70,7 @@ export async function GET(req) {
     // Get user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.id]
+      [decoded.userId]
     );
     const user = userResult.rows[0];
 
