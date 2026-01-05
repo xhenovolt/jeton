@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
+import { useCurrency } from '@/lib/currency-context';
 
 /**
  * CORPORATE EQUITY MANAGEMENT PAGE
@@ -31,6 +32,7 @@ import CurrencyDisplay from '@/components/common/CurrencyDisplay';
  * - Share Issuance (new shares with dilution)
  */
 export default function EquityPage() {
+  const { selectedCurrency } = useCurrency();
   const [config, setConfig] = useState(null);
   const [capTable, setCapTable] = useState([]);
   const [pendingIssuances, setPendingIssuances] = useState([]);
@@ -628,7 +630,7 @@ export default function EquityPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Par Value (USD)</label>
+                  <label className="text-sm font-medium">Par Value ({selectedCurrency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -769,7 +771,7 @@ export default function EquityPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Acquisition Price (USD)</label>
+                  <label className="text-sm font-medium">Acquisition Price ({selectedCurrency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -884,7 +886,7 @@ export default function EquityPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Price Per Share (USD)</label>
+                  <label className="text-sm font-medium">Price Per Share ({selectedCurrency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1017,7 +1019,7 @@ export default function EquityPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Issuance Price (USD per share)</label>
+                  <label className="text-sm font-medium">Issuance Price ({selectedCurrency} per share)</label>
                   <input
                     type="number"
                     step="0.01"
