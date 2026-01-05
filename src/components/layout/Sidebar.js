@@ -102,7 +102,7 @@ const menuItems = [
       { label: 'Reports', href: '/app/reports' },
     ],
   },
-}
+];
 
 /**
  * Sidebar Component - Enhanced
