@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, DollarSign, TrendingUp } from 'lucide-react';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import { DealsTable } from '@/components/financial/DealsTable';
 import { DealDialog } from '@/components/financial/DealDialog';
 
@@ -190,7 +191,7 @@ export default function DealsPage() {
             <div>
               <p className="text-slate-600 dark:text-slate-400 text-sm">Pipeline Value</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
-                UGX {totalValue.toLocaleString()}
+                <CurrencyDisplay amount={totalValue} />
               </p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">

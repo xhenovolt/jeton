@@ -3,10 +3,13 @@
 /**
  * Deals Table Component
  * Displays deals in a responsive table with edit/delete actions
+ * Includes sale linkage indicators for won deals
  */
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, TrendingUp } from 'lucide-react';
+import { Edit2, Trash2, TrendingUp, Check, ArrowRight, AlertCircle } from 'lucide-react';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 
 const stageColors = {
   Lead: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
@@ -18,6 +21,44 @@ const stageColors = {
 };
 
 export function DealsTable({ deals, onEdit, onDelete }) {
+  const [saleLinks, setSaleLinks] = useState({});
+  const [loading, setLoading] = useState({});
+
+  // Fetch sale linkage for won deals
+  useEffect(() => {
+    const fetchSaleLinks = async () => {
+      const wonDeals = deals.filter(d => d.stage === 'Won');
+      
+      for (const deal of wonDeals) {
+        if (!saleLinks[deal.id]) {
+          try {
+            setLoading(prev => ({ ...prev, [deal.id]: true }));
+            const response = await fetch(`/api/deals/${deal.id}/convert-to-sale`);
+            const result = await response.json();
+            
+            if (result.success) {
+              setSaleLinks(prev => ({ ...prev, [deal.id]: result.data }));
+            }
+          } catch (error) {
+            console.error(`Failed to fetch sale link for deal ${deal.id}:`, error);
+          } finally {
+            setLoading(prev => ({ ...prev, [deal.id]: false }));
+          }
+        }
+      }
+    };
+
+    if (deals.length > 0) {
+      fetchSaleLinks();
+    }
+  }, [deals, saleLinks]);
+
+  const handleViewSale = (saleId) => {
+    if (saleId) {
+      window.location.href = `/app/sales#sale-${saleId}`;
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -41,6 +82,9 @@ export function DealsTable({ deals, onEdit, onDelete }) {
             <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
               Expected Close
             </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
+              Sales Status
+            </th>
             <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900 dark:text-white">
               Actions
             </th>
@@ -62,7 +106,7 @@ export function DealsTable({ deals, onEdit, onDelete }) {
                 {deal.client_name || '-'}
               </td>
               <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-white">
-                UGX {parseInt(deal.value_estimate).toLocaleString()}
+                <CurrencyDisplay amount={parseInt(deal.value_estimate)} />
               </td>
               <td className="px-6 py-4 text-sm">
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${stageColors[deal.stage]}`}>

@@ -1,32 +1,38 @@
 /**
  * POST /api/auth/logout
- * Clear user session
+ * Delete session and clear HTTP-only cookie
  */
 
 import { NextResponse } from 'next/server.js';
-import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
-import { verifyToken } from '@/lib/jwt.js';
 import { cookies } from 'next/headers.js';
+import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
+import { getSession, deleteSession } from '@/lib/session.js';
 
 export async function POST(request) {
   try {
     const requestMetadata = extractRequestMetadata(request);
 
-    // Get token to log the correct user
+    // Get session from cookie
     const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
+    const sessionId = cookieStore.get('jeton_session')?.value;
     let userId = null;
 
-    if (token) {
-      const decoded = verifyToken(token);
-      userId = decoded?.userId;
+    if (sessionId) {
+      // Get session to log the correct user
+      const session = await getSession(sessionId);
+      if (session) {
+        userId = session.userId;
 
-      // Log logout event
-      await logAuthEvent({
-        action: 'LOGOUT',
-        userId,
-        requestMetadata,
-      });
+        // Delete session from database
+        await deleteSession(sessionId);
+
+        // Log logout event
+        await logAuthEvent({
+          action: 'LOGOUT',
+          userId,
+          requestMetadata,
+        });
+      }
     }
 
     // Create response and clear cookie
@@ -35,7 +41,8 @@ export async function POST(request) {
       { status: 200 }
     );
 
-    response.cookies.set('auth-token', '', {
+    // Clear the session cookie
+    response.cookies.set('jeton_session', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

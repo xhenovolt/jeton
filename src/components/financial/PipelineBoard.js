@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import { PipelineCard } from './PipelineCard';
 
 const stages = ['Lead', 'Contacted', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
@@ -123,7 +124,7 @@ export function PipelineBoard({ deals, onStageChange, onEdit, onDelete }) {
                   </span>
                 </div>
                 <p className="text-sm text-white/80">
-                  UGX {total.toLocaleString()}
+                  <CurrencyDisplay amount={total} />
                 </p>
               </div>
 

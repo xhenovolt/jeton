@@ -7,8 +7,10 @@
 
 import { motion } from 'framer-motion';
 import { GripVertical, Edit2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 
-export function PipelineCard({ deal, onEdit, onDelete, isDragging }) {
+export function PipelineCard({ deal, onDelete, isDragging }) {
   const expectedValue = Math.round(
     Number(deal.value_estimate) * (Number(deal.probability) / 100)
   );
@@ -42,12 +44,12 @@ export function PipelineCard({ deal, onEdit, onDelete, isDragging }) {
         <div className="space-y-1">
           <div className="text-xs text-slate-600 dark:text-slate-400">
             Estimate: <span className="font-semibold text-slate-900 dark:text-white">
-              UGX {parseInt(deal.value_estimate).toLocaleString()}
+              <CurrencyDisplay amount={parseInt(deal.value_estimate)} />
             </span>
           </div>
           <div className="text-xs text-slate-600 dark:text-slate-400">
             Expected: <span className="font-semibold text-blue-600 dark:text-blue-400">
-              UGX {expectedValue.toLocaleString()}
+              <CurrencyDisplay amount={expectedValue} />
             </span>
           </div>
         </div>
@@ -76,13 +78,13 @@ export function PipelineCard({ deal, onEdit, onDelete, isDragging }) {
 
       {/* Card Footer */}
       <div className="flex items-center gap-1 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => onEdit(deal)}
+        <Link
+          href={`/app/deals/edit/${deal.id}`}
           className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
         >
           <Edit2 size={14} />
           Edit
-        </button>
+        </Link>
         <button
           onClick={() => onDelete(deal.id)}
           className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"

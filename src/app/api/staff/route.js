@@ -5,12 +5,11 @@
  */
 
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { isStaffAdmin } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
-import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 const createStaffSchema = z.object({

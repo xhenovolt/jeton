@@ -4,42 +4,26 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateLiability } from '@/lib/validation.js';
 import { getLiabilities, createLiability } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
 import { query } from '@/lib/db.js';
 import { canAccess } from '@/lib/permissions.js';
-import { cookies } from 'next/headers.js';
 
 export async function GET(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Validate session and get user
+    const user = await requireApiAuth();
 
     // Get user to check permissions
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
+      [user.userId]
     );
-    const user = userResult.rows[0];
+    const userRow = userResult.rows[0];
 
-    if (!user) {
+    if (!userRow) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -47,7 +31,7 @@ export async function GET(request) {
     }
 
     // Check permission to read liabilities
-    if (!canAccess(user, 'liabilities', 'read')) {
+    if (!canAccess(userRow, 'liabilities', 'read')) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

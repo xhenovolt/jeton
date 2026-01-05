@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { createSnapshot } from '@/lib/reports';
 import { logAudit } from '@/lib/audit';
 

@@ -1,13 +1,13 @@
 /**
  * POST /api/auth/login
- * Authenticate user and create session
+ * Authenticate user and create session with HTTP-only cookie
  */
 
 import { NextResponse } from 'next/server.js';
 import { validateLogin } from '@/lib/validation.js';
 import { verifyCredentials, updateUserLastLogin } from '@/lib/auth.js';
 import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
-import { generateToken, getSecureCookieOptions } from '@/lib/jwt.js';
+import { createSession, getSecureCookieOptions } from '@/lib/session.js';
 
 export async function POST(request) {
   try {
@@ -40,6 +40,7 @@ export async function POST(request) {
         requestMetadata,
       });
 
+      // Generic error - don't reveal whether email exists
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -49,12 +50,8 @@ export async function POST(request) {
     // Update last login
     await updateUserLastLogin(user.id);
 
-    // Generate token
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    // Create session in database
+    const sessionId = await createSession(user.id);
 
     // Log success
     await logAuthEvent({
@@ -64,22 +61,15 @@ export async function POST(request) {
       requestMetadata,
     });
 
-    // Set cookie
+    // Create response - do NOT return user data in JSON
     const response = NextResponse.json(
-      {
-        message: 'Logged in successfully',
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          isActive: user.is_active,
-        },
-      },
+      { message: 'Logged in successfully' },
       { status: 200 }
     );
 
+    // Set HTTP-only session cookie
     const cookieOptions = getSecureCookieOptions();
-    response.cookies.set('auth-token', token, cookieOptions);
+    response.cookies.set('jeton_session', sessionId, cookieOptions);
 
     return response;
   } catch (error) {

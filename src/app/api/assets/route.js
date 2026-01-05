@@ -4,42 +4,26 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken, getTokenFromCookies } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateAsset } from '@/lib/validation.js';
 import { getAssets, createAsset } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
 import { query } from '@/lib/db.js';
 import { canAccess } from '@/lib/permissions.js';
-import { cookies } from 'next/headers.js';
 
 export async function GET(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Validate session and get user
+    const user = await requireApiAuth();
 
     // Get user to check permissions and status
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
+      [user.userId]
     );
-    const user = userResult.rows[0];
+    const userRow = userResult.rows[0];
 
-    if (!user) {
+    if (!userRow) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -47,7 +31,7 @@ export async function GET(request) {
     }
 
     // Check permission to read assets
-    if (!canAccess(user, 'assets', 'read')) {
+    if (!canAccess(userRow, 'assets', 'read')) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -64,6 +48,10 @@ export async function GET(request) {
       total: result.rows.length,
     });
   } catch (error) {
+    // If error is a Response (from requireApiAuth), return it
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Get assets error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -74,33 +62,18 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
+    // Validate session and get user
+    const user = await requireApiAuth();
     const requestMetadata = extractRequestMetadata(request);
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     // Get user to check permissions and status
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
+      [user.userId]
     );
-    const user = userResult.rows[0];
+    const userRow = userResult.rows[0];
 
-    if (!user) {
+    if (!userRow) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -108,11 +81,11 @@ export async function POST(request) {
     }
 
     // Check permission to create assets
-    if (!canAccess(user, 'assets', 'create')) {
+    if (!canAccess(userRow, 'assets', 'create')) {
       await logAudit({
         action: 'ASSET_CREATE_DENIED',
         entity: 'ASSET',
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Insufficient permissions' },
         ipAddress: requestMetadata.ipAddress,
@@ -140,13 +113,13 @@ export async function POST(request) {
     }
 
     // Create asset
-    const asset = await createAsset(validation.data, decoded.userId);
+    const asset = await createAsset(validation.data, user.userId);
 
     if (!asset) {
       await logAudit({
         action: 'ASSET_CREATE',
         entity: 'ASSET',
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Database error' },
         ipAddress: requestMetadata.ipAddress,
@@ -164,7 +137,7 @@ export async function POST(request) {
       action: 'ASSET_CREATE',
       entity: 'ASSET',
       entityId: asset.id,
-      actorId: decoded.userId,
+      actorId: user.userId,
       status: 'SUCCESS',
       metadata: {
         name: asset.name,

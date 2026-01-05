@@ -8,6 +8,7 @@ const { Pool } = pg;
  * Supports both local development and serverless environments (Neon)
  */
 let pool = null;
+let poolInitAttempts = 0;
 
 /**
  * Initialize the database connection pool
@@ -24,35 +25,80 @@ function initializePool() {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
+  poolInitAttempts++;
+
   pool = new Pool({
     connectionString,
-    // Serverless-friendly configuration
-    max: 10, // Max connections in pool
-    idleTimeoutMillis: 30000, // 30 seconds
-    connectionTimeoutMillis: 5000, // 5 seconds
+    // Optimized for serverless and reliability
+    max: 5, // Reduced from 10 for stability
+    min: 1, // Maintain minimum connection
+    idleTimeoutMillis: 60000, // 60 seconds (increased)
+    connectionTimeoutMillis: 10000, // 10 seconds (increased)
+    maxUses: 7500, // Recycle connections
   });
 
   // Handle pool errors
   pool.on('error', (error) => {
     console.error('Unexpected error on idle client', error);
+    // Reset pool on error
+    if (pool) {
+      pool.end().catch(() => {});
+      pool = null;
+    }
+  });
+
+  // Handle connection errors
+  pool.on('connect', () => {
+    // Connection established
   });
 
   return pool;
 }
 
 /**
- * Get a client from the pool and execute a query
+ * Get a client from the pool and execute a query with retry logic
  * @param {string} query - SQL query string
  * @param {Array} params - Query parameters (for parameterized queries)
+ * @param {number} retries - Number of retries on failure
  * @returns {Promise<any>} Query result
  */
-export async function query(query, params = []) {
-  const client = await getPool().connect();
-  try {
-    return await client.query(query, params);
-  } finally {
-    client.release();
+export async function query(query, params = [], retries = 2) {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      // Reset pool if this is a retry and pool is in bad state
+      if (attempt > 0 && pool) {
+        try {
+          await pool.end();
+        } catch (e) {
+          // Ignore pool end errors
+        }
+        pool = null;
+      }
+
+      const client = await getPool().connect();
+      try {
+        return await client.query(query, params);
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt < retries) {
+        // Wait before retrying (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // All retries exhausted
+      throw error;
+    }
   }
+  
+  throw lastError;
 }
 
 /**

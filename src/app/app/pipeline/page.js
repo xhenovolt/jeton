@@ -7,9 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import { PipelineBoard } from '@/components/financial/PipelineBoard';
 import { DealDialog } from '@/components/financial/DealDialog';
-import { TrendingUp, Zap } from 'lucide-react';
+import { TrendingUp, Zap, Plus } from 'lucide-react';
 
 export default function PipelinePage() {
   const [deals, setDeals] = useState([]);
@@ -135,9 +137,18 @@ export default function PipelinePage() {
     <div className="space-y-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Sales Pipeline</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">Drag deals between stages to manage your pipeline</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Sales Pipeline</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-2">Drag deals between stages to manage your pipeline</p>
+          </div>
+          <Link
+            href="/app/deals/create"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          >
+            <Plus size={20} />
+            New Deal
+          </Link>
         </div>
       </motion.div>
 
@@ -153,7 +164,7 @@ export default function PipelinePage() {
             <div>
               <p className="text-slate-600 dark:text-slate-400 text-sm">Total Pipeline</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
-                UGX {stats.totalValue.toLocaleString()}
+                <CurrencyDisplay amount={stats.totalValue} />
               </p>
             </div>
             <TrendingUp className="text-blue-600 dark:text-blue-400" size={28} />
@@ -165,7 +176,7 @@ export default function PipelinePage() {
             <div>
               <p className="text-slate-600 dark:text-slate-400 text-sm">Weighted Value</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">
-                UGX {stats.weightedValue.toLocaleString()}
+                <CurrencyDisplay amount={stats.weightedValue} />
               </p>
             </div>
             <Zap className="text-orange-600 dark:text-orange-400" size={28} />
@@ -176,7 +187,7 @@ export default function PipelinePage() {
           <div>
             <p className="text-slate-600 dark:text-slate-400 text-sm">Won</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
-              UGX {stats.wonTotal.toLocaleString()}
+              <CurrencyDisplay amount={stats.wonTotal} />
             </p>
           </div>
         </div>
@@ -185,7 +196,7 @@ export default function PipelinePage() {
           <div>
             <p className="text-slate-600 dark:text-slate-400 text-sm">Lost</p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
-              UGX {stats.lostTotal.toLocaleString()}
+              <CurrencyDisplay amount={stats.lostTotal} />
             </p>
           </div>
         </div>

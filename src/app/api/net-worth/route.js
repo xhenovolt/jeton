@@ -4,29 +4,12 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { getTotalAssets, getTotalLiabilities, getNetWorth } from '@/lib/financial.js';
-import { cookies } from 'next/headers.js';
 
 export async function GET(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireApiAuth();
 
     // Calculate financial metrics
     const totalAssets = await getTotalAssets();

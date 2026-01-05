@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateAsset } from '@/lib/validation.js';
 import { getAssetById, updateAsset, deleteAsset } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';

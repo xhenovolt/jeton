@@ -1,13 +1,13 @@
 /**
  * POST /api/auth/register
- * Register a new user account
+ * Register a new user account with session
  */
 
 import { NextResponse } from 'next/server.js';
 import { validateRegister } from '@/lib/validation.js';
 import { createUser, findUserByEmail, hashPassword } from '@/lib/auth.js';
 import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
-import { generateToken, getSecureCookieOptions } from '@/lib/jwt.js';
+import { createSession, getSecureCookieOptions } from '@/lib/session.js';
 
 export async function POST(request) {
   try {
@@ -68,12 +68,8 @@ export async function POST(request) {
       );
     }
 
-    // Generate token
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    // Create session in database
+    const sessionId = await createSession(user.id);
 
     // Log success
     await logAuthEvent({
@@ -83,21 +79,14 @@ export async function POST(request) {
       requestMetadata,
     });
 
-    // Set cookie
+    // Set cookie - do NOT return user data in JSON
     const response = NextResponse.json(
-      {
-        message: 'Account created successfully',
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
-      },
+      { message: 'Account created successfully' },
       { status: 201 }
     );
 
     const cookieOptions = getSecureCookieOptions();
-    response.cookies.set('auth-token', token, cookieOptions);
+    response.cookies.set('jeton_session', sessionId, cookieOptions);
 
     return response;
   } catch (error) {

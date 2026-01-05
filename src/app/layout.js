@@ -1,5 +1,8 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { NavigationWrapper } from '@/components/layout/NavigationWrapper';
+import LayoutClient from './layout-client';
+import { CurrencyProvider } from '@/lib/currency-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -41,11 +44,6 @@ export const viewport = {
   ],
 };
 
-/**
- * Root Layout Component
- * Provides global styling, fonts, and structure for the application
- * Prepares for dark/light mode switching
- */
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -57,18 +55,17 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground transition-colors duration-300`}
       >
-        {/* Main content area with smooth transitions */}
-        <div className="relative flex min-h-screen flex-col">
-          {/* Page content */}
-          <main className="flex-1">{children}</main>
+        <CurrencyProvider>
+          {/* Navigation Wrapper - Only shows on /app routes */}
+          <NavigationWrapper />
 
-          {/* Footer placeholder for future use */}
-          <footer className="border-t border-border bg-surface-50 py-8 text-center text-sm text-muted-foreground">
-            <p>
-              © {new Date().getFullYear()} Jeton. Built with &hearts; by Xhenvolt
-            </p>
-          </footer>
-        </div>
+          {/* Layout wrapper with state management for mobile drawer */}
+          <div className="flex min-h-screen flex-col">
+            <LayoutClient>
+              {children}
+            </LayoutClient>
+          </div>
+        </CurrencyProvider>
       </body>
     </html>
   );

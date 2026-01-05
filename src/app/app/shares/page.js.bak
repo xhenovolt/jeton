@@ -1,0 +1,618 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Plus, Edit, Trash2, TrendingUp, Users, Percent, DollarSign } from 'lucide-react';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
+
+/**
+ * Share Management Page
+ * Manage company shares, allocations, and pricing
+ */
+export default function SharesPage() {
+  const [shareConfig, setShareConfig] = useState(null);
+  const [allocations, setAllocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [form, setForm] = useState({
+    owner_name: '',
+    owner_email: '',
+    shares_allocated: '',
+    allocation_date: new Date().toISOString().split('T')[0],
+    vesting_start_date: '',
+    vesting_end_date: '',
+    vesting_percentage: 100,
+    notes: '',
+  });
+  const [configForm, setConfigForm] = useState({
+    total_shares: '1000000',
+    par_value: 920000,
+  });
+  const [companyValue, setCompanyValue] = useState(0);
+  const [sharePrice, setSharePrice] = useState(0);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch with timeout to prevent infinite loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      try {
+        const [sharesRes, allocRes, valuationRes] = await Promise.all([
+          fetch('/api/shares', { signal: controller.signal }),
+          fetch('/api/shares/allocations', { signal: controller.signal }),
+          fetch('/api/valuations', { signal: controller.signal }),
+        ]);
+
+        clearTimeout(timeoutId);
+
+        const sharesData = sharesRes.ok ? await sharesRes.json() : { success: false };
+        const allocData = allocRes.ok ? await allocRes.json() : { success: false, data: [] };
+        const valuationData = valuationRes.ok ? await valuationRes.json() : { success: false };
+
+        if (sharesData.success && sharesData.data) {
+          setShareConfig(sharesData.data);
+        } else {
+          // Provide default share config if API fails
+          setShareConfig({
+            total_shares: 1000000,
+            par_value: 1.0,
+            shares_allocated: 0,
+            shares_remaining: 1000000,
+            class_type: 'Common',
+          });
+        }
+
+        if (allocData.success && Array.isArray(allocData.data)) {
+          setAllocations(allocData.data);
+        } else {
+          setAllocations([]);
+        }
+
+        if (valuationData.success && valuationData.data?.summary) {
+          const value = valuationData.data.summary.strategic_company_value || 0;
+          setCompanyValue(value);
+          
+          const totalShares = sharesData.data?.total_shares || 1000000;
+          if (totalShares > 0) {
+            setSharePrice(value / totalShares);
+          }
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error('Fetch error:', fetchError);
+        
+        // Set default values so page doesn't stay loading
+        setShareConfig({
+          total_shares: 1000000,
+          par_value: 1.0,
+          shares_allocated: 0,
+          shares_remaining: 1000000,
+          class_type: 'Common',
+        });
+        setAllocations([]);
+        setCompanyValue(0);
+        setSharePrice(0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      // Set default values so page doesn't stay loading
+      setShareConfig({
+        total_shares: 1000000,
+        par_value: 1.0,
+        shares_allocated: 0,
+        shares_remaining: 1000000,
+        class_type: 'Common',
+      });
+      setAllocations([]);
+      setCompanyValue(0);
+      setSharePrice(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAllocation = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingId ? `/api/shares/allocations/${editingId}` : '/api/shares/allocations';
+      const method = editingId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          shares_allocated: parseInt(form.shares_allocated),
+          vesting_percentage: parseFloat(form.vesting_percentage),
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        if (editingId) {
+          setAllocations(allocations.map(a => a.id === editingId ? result.data : a));
+        } else {
+          setAllocations([result.data, ...allocations]);
+        }
+        setShowModal(false);
+        setEditingId(null);
+        resetForm();
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Failed to save allocation:', error);
+      alert('Failed to save allocation');
+    }
+  };
+
+  const handleEditAllocation = (item) => {
+    setEditingId(item.id);
+    setForm({
+      owner_name: item.owner_name,
+      owner_email: item.owner_email || '',
+      shares_allocated: item.shares_allocated.toString(),
+      allocation_date: item.allocation_date,
+      vesting_start_date: item.vesting_start_date || '',
+      vesting_end_date: item.vesting_end_date || '',
+      vesting_percentage: item.vesting_percentage || 100,
+      notes: item.notes || '',
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteAllocation = async (id) => {
+    if (!confirm('Are you sure you want to delete this allocation?')) return;
+    try {
+      const response = await fetch(`/api/shares/allocations/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        setAllocations(allocations.filter(a => a.id !== id));
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete allocation:', error);
+      alert('Failed to delete allocation');
+    }
+  };
+
+  const handleUpdateConfig = async (e) => {
+    e.preventDefault();
+    
+    // Validate max shares
+    const totalSharesNum = parseInt(configForm.total_shares);
+    if (totalSharesNum > 1000000) {
+      alert('Total shares cannot exceed 1,000,000 (1M shares maximum)');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/shares', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total_shares: parseInt(configForm.total_shares),
+          par_value: parseFloat(configForm.par_value),
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setShareConfig(result.data);
+        setShowConfigModal(false);
+        if (companyValue > 0) {
+          setSharePrice(companyValue / parseInt(configForm.total_shares));
+        }
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Failed to update config:', error);
+      alert('Failed to update share configuration');
+    }
+  };
+
+  const resetForm = () => {
+    setForm({
+      owner_name: '',
+      owner_email: '',
+      shares_allocated: '',
+      allocation_date: new Date().toISOString().split('T')[0],
+      vesting_start_date: '',
+      vesting_end_date: '',
+      vesting_percentage: 100,
+      notes: '',
+    });
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    resetForm();
+  };
+
+  if (loading) {
+    return <div className="p-6 text-center">Loading shares data...</div>;
+  }
+
+  const totalAllocatedValue = allocations.reduce(
+    (sum, a) => sum + (a.shares_allocated * sharePrice),
+    0
+  );
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Share Management</h1>
+            <p className="text-muted-foreground">Configure and allocate company shares</p>
+          </div>
+          <button
+            onClick={() => {
+              setEditingId(null);
+              resetForm();
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90"
+          >
+            <Plus size={20} /> Allocate Shares
+          </button>
+        </div>
+
+        {/* Share Configuration Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {/* Total Shares */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm">Total Shares</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {shareConfig && (shareConfig.total_shares || 0).toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="text-primary" size={32} />
+            </div>
+          </div>
+
+          {/* Share Price */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm">Price Per Share</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  <CurrencyDisplay amount={sharePrice} className="text-2xl font-bold" />
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {shareConfig && shareConfig.class_type}
+                </p>
+              </div>
+              <TrendingUp className="text-purple-600" size={32} />
+            </div>
+          </div>
+
+          {/* Allocated Shares */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm">Allocated Shares</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {shareConfig && (shareConfig.shares_allocated || 0).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {allocations.length} owners
+                </p>
+              </div>
+              <Users className="text-blue-600" size={32} />
+            </div>
+          </div>
+
+          {/* Remaining Shares */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm">Remaining Shares</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {shareConfig && (shareConfig.shares_remaining || 0).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Available for allocation
+                </p>
+              </div>
+              <Percent className="text-green-600" size={32} />
+            </div>
+          </div>
+        </div>
+
+        {/* Share Configuration Button */}
+        <div className="mb-8">
+          <button
+            onClick={() => {
+              if (shareConfig) {
+                setConfigForm({
+                  total_shares: shareConfig.total_shares.toString(),
+                  par_value: shareConfig.par_value,
+                });
+                setShowConfigModal(true);
+              }
+            }}
+            className="px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted"
+          >
+            Configure Share Structure
+          </button>
+        </div>
+
+        {/* Allocations Table */}
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Owner Name</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Email</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">Shares</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">Ownership %</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">Value</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Allocation Date</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allocations.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-muted-foreground">
+                      No share allocations yet. Create one to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  allocations.map((allocation) => (
+                    <tr key={allocation.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-6 py-4 font-medium text-foreground">{allocation.owner_name}</td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">{allocation.owner_email || '—'}</td>
+                      <td className="px-6 py-4 text-right text-sm font-semibold">
+                        {allocation.shares_allocated.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-semibold">
+                        {allocation.ownership_percentage}%
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-bold text-purple-600">
+                        <CurrencyDisplay amount={allocation.share_value} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {new Date(allocation.allocation_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-right flex gap-2 justify-end">
+                        <button onClick={() => handleEditAllocation(allocation)} className="p-1 hover:bg-muted rounded">
+                          <Edit size={18} className="text-muted-foreground" />
+                        </button>
+                        <button onClick={() => handleDeleteAllocation(allocation.id)} className="p-1 hover:bg-muted rounded">
+                          <Trash2 size={18} className="text-red-500" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {allocations.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/50">
+                    <td colSpan="2" className="px-6 py-4 font-bold text-foreground">TOTAL</td>
+                    <td className="px-6 py-4 text-right font-bold text-foreground">
+                      {shareConfig && (shareConfig.shares_allocated || 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-foreground">
+                      {shareConfig && (((shareConfig.shares_allocated || 0) / (shareConfig.total_shares || 1)) * 100).toFixed(2)}%
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-purple-600">
+                      <CurrencyDisplay amount={totalAllocatedValue} />
+                    </td>
+                    <td colSpan="2"></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+
+        {/* Allocation Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-foreground">
+                  {editingId ? 'Edit Share Allocation' : 'Allocate Shares'}
+                </h2>
+                <button onClick={handleCloseModal} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+              </div>
+              <form onSubmit={handleCreateAllocation} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Owner Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.owner_name}
+                    onChange={(e) => setForm({ ...form, owner_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., John Doe"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={form.owner_email}
+                    onChange={(e) => setForm({ ...form, owner_email: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="john@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Shares to Allocate *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={form.shares_allocated}
+                    onChange={(e) => setForm({ ...form, shares_allocated: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g., 10000"
+                  />
+                  {form.shares_allocated && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Value: <CurrencyDisplay amount={form.shares_allocated * sharePrice} />
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Allocation Date</label>
+                  <input
+                    type="date"
+                    value={form.allocation_date}
+                    onChange={(e) => setForm({ ...form, allocation_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Vesting Start Date</label>
+                  <input
+                    type="date"
+                    value={form.vesting_start_date}
+                    onChange={(e) => setForm({ ...form, vesting_start_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Vesting End Date</label>
+                  <input
+                    type="date"
+                    value={form.vesting_end_date}
+                    onChange={(e) => setForm({ ...form, vesting_end_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Vesting Percentage</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.vesting_percentage}
+                    onChange={(e) => setForm({ ...form, vesting_percentage: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Notes</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Any additional notes..."
+                    rows="3"
+                  ></textarea>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="flex-1 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  >
+                    {editingId ? 'Update Allocation' : 'Allocate Shares'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Config Modal */}
+        {showConfigModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-bold text-foreground mb-4">Configure Share Structure</h2>
+              <form onSubmit={handleUpdateConfig} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Total Shares *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="1000000"
+                    value={configForm.total_shares}
+                    onChange={(e) => setConfigForm({ ...configForm, total_shares: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Maximum: 1,000,000 shares</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Par Value (UGX)</label>
+                  <input
+                    type="number"
+                    step="100"
+                    value={configForm.par_value}
+                    onChange={(e) => setConfigForm({ ...configForm, par_value: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Default: 920,000 UGX per share</p>
+                </div>
+
+                {configForm.total_shares && (
+                  <div className="bg-muted p-3 rounded-lg">
+                    <p className="text-sm text-muted-foreground">New share price:</p>
+                    <p className="text-lg font-bold text-foreground">
+                      <CurrencyDisplay amount={companyValue / parseInt(configForm.total_shares)} />
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigModal(false)}
+                    className="flex-1 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  >
+                    Save Configuration
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

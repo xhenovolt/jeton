@@ -5,22 +5,12 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { getDealValuationSummary } from '@/lib/deals.js';
 
 export async function GET(request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const user = await requireApiAuth();
 
     const valuation = await getDealValuationSummary();
 

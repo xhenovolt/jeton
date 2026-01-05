@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Edit2, TrendingDown } from 'lucide-react';
+import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import LiabilitiesTable from '@/components/financial/LiabilitiesTable';
 import LiabilityDialog from '@/components/financial/LiabilityDialog';
 
@@ -153,7 +154,7 @@ export default function LiabilitiesPage() {
               Total Outstanding
             </p>
             <p className="text-3xl font-bold text-red-900 dark:text-white mt-2">
-              UGX {totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              <CurrencyDisplay amount={totalOutstanding} />
             </p>
           </div>
           <div className="bg-red-200 dark:bg-red-700 rounded-full p-3">

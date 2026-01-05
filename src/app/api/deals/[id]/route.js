@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server.js';
-import { verifyToken } from '@/lib/jwt.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateDeal } from '@/lib/validation.js';
 import { getDealById, updateDeal, deleteDeal } from '@/lib/deals.js';
 import { logAudit } from '@/lib/audit.js';

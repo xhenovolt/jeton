@@ -1,309 +1,355 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { TrendingUp, Zap } from 'lucide-react';
-import AssetsLiabilitiesTrendChart from '@/components/charts/AssetsLiabilitiesTrendChart';
-import PipelineFunnelChart from '@/components/charts/PipelineFunnelChart';
-import DealWinLossChart from '@/components/charts/DealWinLossChart';
-import NetWorthTrendChart from '@/components/charts/NetWorthTrendChart';
-import CountUpNumber from '@/components/financial/CountUpNumber';
+import { DollarSign, TrendingUp, TrendingDown, Zap, AlertCircle } from 'lucide-react';
+import CurrencyDisplay, { CurrencyTotal } from '@/components/common/CurrencyDisplay';
 
+/**
+ * Dashboard - Executive Valuation Summary
+ * Comprehensive view of company financial health and strategic value
+ */
 export default function DashboardPage() {
-  const [executiveData, setExecutiveData] = useState(null);
-  const [analyticsData, setAnalyticsData] = useState(null);
+  const [valuation, setValuation] = useState(null);
+  const [shareData, setShareData] = useState(null);
+  const [salesMetrics, setSalesMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('auth_token');
-
-        if (!token) {
-          setError('Not authenticated');
-          return;
-        }
-
-        const [execResponse, analyticsResponse] = await Promise.all([
-          fetch('/api/reports/executive', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch('/api/reports/financial', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
-
-        if (!execResponse.ok || !analyticsResponse.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-
-        const execData = await execResponse.json();
-        const analyticsData = await analyticsResponse.json();
-
-        setExecutiveData(execData);
-        setAnalyticsData(analyticsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading executive dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const fetchData = async () => {
+    try {
+      const [valuationRes, sharesRes, salesRes] = await Promise.all([
+        fetch('/api/valuations'),
+        fetch('/api/shares'),
+        fetch('/api/sales/report'),
+      ]);
 
-  if (error || !executiveData) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <p>{error || 'Failed to load dashboard'}</p>
-        </div>
-      </div>
-    );
-  }
+      const valuationData = await valuationRes.json();
+      const sharesData = await sharesRes.json();
+      const salesData = await salesRes.json();
 
-  const { summary, topAssets, topLiabilities } = executiveData;
-
-  const metrics = [
-    {
-      label: 'Net Worth',
-      value: summary.netWorth,
-      icon: TrendingUp,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100 dark:bg-green-900/20',
-      trend: 'Primary indicator of wealth'
-    },
-    {
-      label: 'Total Assets',
-      value: summary.totalAssets,
-      icon: Zap,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100 dark:bg-blue-900/20',
-      trend: 'All asset holdings'
-    },
-    {
-      label: 'Total Liabilities',
-      value: summary.totalLiabilities,
-      icon: Zap,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100 dark:bg-red-900/20',
-      trend: 'Total debt exposure'
-    },
-    {
-      label: 'Pipeline Value',
-      value: summary.totalPipeline,
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100 dark:bg-purple-900/20',
-      trend: 'Total deal value'
-    },
-    {
-      label: 'Expected Revenue',
-      value: summary.weightedRevenue,
-      icon: TrendingUp,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/20',
-      trend: `Probability-weighted (${summary.conversionRate}% CR)`
-    },
-    {
-      label: 'Won Deals',
-      value: summary.wonDeals,
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900/20',
-      trend: 'Closed successfully'
+      if (valuationData.success) {
+        setValuation(valuationData.data);
+      }
+      if (sharesData.success) {
+        setShareData(sharesData.data);
+      }
+      if (salesData.success) {
+        setSalesMetrics(salesData.data.metrics);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const formatCurrency = (value) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}K`;
-    }
-    return value.toString();
   };
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-4xl font-bold text-foreground">Executive Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Comprehensive financial intelligence and key performance indicators
-        </p>
-      </motion.div>
+  if (loading || !valuation) {
+    return <div className="p-6">Loading dashboard...</div>;
+  }
 
-      {/* Key Metrics Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.05 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {metrics.map((metric, idx) => {
-          const Icon = metric.icon;
-          return (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition"
-            >
+  const valuationDifference =
+    (valuation.summary.strategic_company_value || 0) - (valuation.summary.accounting_net_worth || 0);
+  
+  const sharePrice = shareData && shareData.total_shares 
+    ? (valuation.summary.strategic_company_value || 0) / shareData.total_shares 
+    : 0;
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Company Valuation Dashboard</h1>
+          <p className="text-muted-foreground">Real-time financial health and strategic value assessment</p>
+        </div>
+
+        {/* Primary KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Accounting Net Worth */}
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-8 text-white">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-blue-100 text-sm font-semibold mb-2">ACCOUNTING NET WORTH</p>
+                <p className="text-4xl font-bold">
+                  <CurrencyDisplay amount={valuation.summary.accounting_net_worth || 0} className="text-white" />
+                </p>
+                <p className="text-blue-100 text-sm mt-2">Balance Sheet Foundation</p>
+              </div>
+              <DollarSign size={48} className="opacity-80" />
+            </div>
+            <div className="border-t border-blue-400/30 pt-4 text-sm">
+              <div className="flex justify-between mb-2">
+                <span>Total Assets:</span>
+                <span><CurrencyDisplay amount={valuation.summary.total_assets_book_value || 0} className="text-white" /></span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Liabilities:</span>
+                <span><CurrencyDisplay amount={valuation.summary.total_liabilities || 0} className="text-white" /></span>
+              </div>
+            </div>
+          </div>
+
+          {/* Strategic Company Value */}
+          <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg p-8 text-white">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-purple-100 text-sm font-semibold mb-2">STRATEGIC COMPANY VALUE</p>
+                <p className="text-4xl font-bold">
+                  <CurrencyDisplay amount={valuation.summary.strategic_company_value || 0} className="text-white" />
+                </p>
+                <p className="text-purple-100 text-sm mt-2">Executive Perspective</p>
+              </div>
+              <TrendingUp size={48} className="opacity-80" />
+            </div>
+            <div className="border-t border-purple-400/30 pt-4 text-sm">
+              <div className="flex justify-between mb-2">
+                <span>Net Worth Basis:</span>
+                <span><CurrencyDisplay amount={valuation.summary.accounting_net_worth || 0} className="text-white" /></span>
+              </div>
+              <div className="flex justify-between">
+                <span>+ Strategic IP Value:</span>
+                <span><CurrencyDisplay amount={valuation.summary.total_ip_valuation || 0} className="text-white" /></span>
+              </div>
+            </div>
+          </div>
+
+          {/* Share Price Widget */}
+          {shareData && (
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-lg p-8 text-white">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{metric.label}</p>
-                  <p className={`text-3xl font-bold ${metric.color}`}>
-                    <CountUpNumber value={metric.value} duration={1} />
+                  <p className="text-emerald-100 text-sm font-semibold mb-2">SHARE PRICE</p>
+                  <p className="text-4xl font-bold">
+                    <CurrencyDisplay amount={sharePrice} className="text-white" />
                   </p>
+                  <p className="text-emerald-100 text-sm mt-2">Per Share</p>
                 </div>
-                <div className={`${metric.bgColor} rounded-lg p-3`}>
-                  <Icon size={24} className={metric.color} />
+                <TrendingUp size={48} className="opacity-80" />
+              </div>
+              <div className="border-t border-emerald-400/30 pt-4 text-sm">
+                <div className="flex justify-between mb-2">
+                  <span>Total Shares:</span>
+                  <span>{(shareData.total_shares || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Allocated:</span>
+                  <span>{(shareData.shares_allocated || 0).toLocaleString()}</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">{metric.trend}</p>
-            </motion.div>
-          );
-        })}
-      </motion.div>
+            </div>
+          )}
 
-      {/* Charts Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-      >
-        {analyticsData && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <AssetsLiabilitiesTrendChart data={analyticsData.assetsLiabilitiesTrend} />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <NetWorthTrendChart data={analyticsData.netWorthTrend} />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <PipelineFunnelChart data={analyticsData.pipelineFunnel} />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <DealWinLossChart data={analyticsData.dealWinLoss} />
-            </motion.div>
-          </>
-        )}
-      </motion.div>
+          {/* Sales Revenue Widget */}
+          {salesMetrics && (
+            <div className="bg-gradient-to-br from-orange-600 to-orange-800 rounded-lg p-8 text-white">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-orange-100 text-sm font-semibold mb-2">REVENUE COLLECTED</p>
+                  <p className="text-4xl font-bold">
+                    <CurrencyDisplay amount={salesMetrics.total_collected || 0} className="text-white" />
+                  </p>
+                  <p className="text-orange-100 text-sm mt-2">This Period</p>
+                </div>
+                <DollarSign size={48} className="opacity-80" />
+              </div>
+              <div className="border-t border-orange-400/30 pt-4 text-sm">
+                <div className="flex justify-between mb-2">
+                  <span>Total Sales:</span>
+                  <span><CurrencyDisplay amount={salesMetrics.total_revenue || 0} className="text-white" /></span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Outstanding:</span>
+                  <span><CurrencyDisplay amount={salesMetrics.total_outstanding || 0} className="text-white" /></span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* Top Assets & Liabilities */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.1, delayChildren: 0.4 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-      >
-        {/* Top Assets */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border rounded-xl p-6"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-6">Top 5 Assets by Value</h3>
+        {/* Value Bridge */}
+        <div className="bg-card border border-border rounded-lg p-6 mb-8">
+          <h2 className="text-lg font-bold text-foreground mb-6">Value Bridge Analysis</h2>
           <div className="space-y-4">
-            {topAssets.map((asset, idx) => (
-              <div key={asset.id} className="flex items-start justify-between pb-4 border-b border-border last:border-0">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary text-sm font-bold">
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                      <p className="text-xs text-muted-foreground">{asset.category}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-primary">{formatCurrency(asset.value)}</p>
-                  {asset.depreciation > 0 && (
-                    <p className="text-xs text-muted-foreground">-{asset.depreciation}% p.a.</p>
-                  )}
-                </div>
+            {/* Starting point */}
+            <div className="flex items-center gap-4">
+              <div className="w-32 text-right">
+                <p className="text-sm text-muted-foreground">Starting Point</p>
+                <p className="text-xl font-bold text-foreground">
+                  <CurrencyDisplay amount={valuation.summary.accounting_net_worth || 0} />
+                </p>
               </div>
-            ))}
-          </div>
-        </motion.div>
+              <div className="flex-1 h-2 bg-muted rounded-full"></div>
+              <span className="text-muted-foreground text-sm">Accounting Net Worth</span>
+            </div>
 
-        {/* Top Liabilities */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border rounded-xl p-6"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-6">Top 5 Liabilities by Risk</h3>
-          <div className="space-y-4">
-            {topLiabilities.map((liability, idx) => (
-              <div key={liability.id} className="flex items-start justify-between pb-4 border-b border-border last:border-0">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${
-                      liability.riskScore > 70 ? 'bg-red-100 text-red-700' :
-                      liability.riskScore > 40 ? 'bg-orange-100 text-orange-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{liability.name}</p>
-                      <p className="text-xs text-muted-foreground">{liability.category}</p>
-                    </div>
-                  </div>
+            {/* IP Value Addition */}
+            {(valuation.summary.total_ip_valuation || 0) > 0 && (
+              <div className="flex items-center gap-4 pl-8">
+                <div className="w-24 text-right">
+                  <p className="text-sm text-green-600 font-semibold">+ <CurrencyDisplay amount={valuation.summary.total_ip_valuation || 0} /></p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">{formatCurrency(liability.outstanding)}</p>
-                  <div className="flex items-center gap-1 justify-end mt-1">
-                    <p className="text-xs text-muted-foreground">Risk:</p>
-                    <p className={`text-xs font-bold ${
-                      liability.riskScore > 70 ? 'text-red-600' :
-                      liability.riskScore > 40 ? 'text-orange-600' :
-                      'text-green-600'
-                    }`}>
-                      {liability.riskScore}/100
-                    </p>
-                  </div>
-                </div>
+                <div className="flex-1 h-1 bg-green-300 rounded-full"></div>
+                <span className="text-muted-foreground text-sm">IP Assets</span>
               </div>
-            ))}
+            )}
+
+            {/* Infrastructure Value Addition */}
+            {(valuation.summary.infrastructure_risk_coverage || 0) > 0 && (
+              <div className="flex items-center gap-4 pl-8">
+                <div className="w-24 text-right">
+                  <p className="text-sm text-yellow-600 font-semibold">+ <CurrencyDisplay amount={valuation.summary.infrastructure_risk_coverage || 0} /></p>
+                </div>
+                <div className="flex-1 h-1 bg-yellow-300 rounded-full"></div>
+                <span className="text-muted-foreground text-sm">Infrastructure Buffer</span>
+              </div>
+            )}
+
+            {/* Final value */}
+            <div className="flex items-center gap-4 border-t border-border pt-4">
+              <div className="w-32 text-right">
+                <p className="text-sm text-muted-foreground">Final Valuation</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  <CurrencyDisplay amount={valuation.summary.strategic_company_value || 0} />
+                </p>
+              </div>
+              <div className="flex-1 h-3 bg-purple-300 rounded-full"></div>
+              <span className="text-muted-foreground text-sm">Strategic Value</span>
+            </div>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+
+        {/* Detailed Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Assets Breakdown */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <Zap size={20} className="text-primary" />
+              Assets by Type
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(valuation.assetsByType || {}).map(([type, data]) => (
+                <div key={type} className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-foreground capitalize">{type}</p>
+                    <p className="text-xs text-muted-foreground">{data.count} items</p>
+                  </div>
+                  <CurrencyDisplay amount={data.total || 0} className="text-sm font-bold text-foreground" />
+                </div>
+              ))}
+              <div className="border-t border-border pt-3 flex justify-between">
+                <p className="font-semibold text-foreground">Total Assets</p>
+                <CurrencyDisplay amount={valuation.summary.total_assets_book_value || 0} className="font-bold text-foreground" />
+              </div>
+            </div>
+          </div>
+
+          {/* IP Breakdown */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp size={20} className="text-purple-600" />
+              IP Value by Type
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(valuation.ipByType || {}).map(([type, data]) => (
+                <div key={type} className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-foreground capitalize">{type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground">{data.count} items</p>
+                  </div>
+                  <CurrencyDisplay amount={data.total || 0} className="text-sm font-bold text-purple-600" />
+                </div>
+              ))}
+              <div className="border-t border-border pt-3 flex justify-between">
+                <p className="font-semibold text-foreground">Total IP Value</p>
+                <CurrencyDisplay amount={valuation.summary.total_ip_valuation || 0} className="font-bold text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Infrastructure & Risk */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Infrastructure by Risk */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <AlertCircle size={20} className="text-red-500" />
+              Infrastructure by Risk Level
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(valuation.infrastructureByRisk || {}).map(([risk, data]) => {
+                const riskColors = {
+                  critical: 'text-red-600',
+                  high: 'text-orange-600',
+                  medium: 'text-yellow-600',
+                  low: 'text-green-600',
+                };
+                return (
+                  <div key={risk} className="flex justify-between items-center">
+                    <p className={`capitalize font-medium ${riskColors[risk]}`}>{risk}</p>
+                    <p className="text-sm font-bold text-foreground">{data.count || 0} items</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Summary Stats */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h3 className="text-lg font-bold text-foreground mb-4">Summary Stats</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Accounting Assets</span>
+                <span className="font-bold text-foreground">{valuation.counts?.accounting_assets || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">IP Assets</span>
+                <span className="font-bold text-foreground">{valuation.counts?.intellectual_property || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Infrastructure Items</span>
+                <span className="font-bold text-foreground">{valuation.counts?.infrastructure || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Liabilities</span>
+                <span className="font-bold text-foreground">{valuation.counts?.liabilities || 0}</span>
+              </div>
+              <div className="border-t border-border pt-3 flex justify-between">
+                <span className="text-sm font-semibold text-foreground">Value Premium</span>
+                <span className={`font-bold ${valuationDifference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <CurrencyDisplay amount={valuationDifference} />
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Insights */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-bold text-blue-900 mb-2 flex items-center gap-2">
+            <AlertCircle size={20} />
+            Key Insights
+          </h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>
+              • Strategic company value is <CurrencyDisplay amount={valuationDifference} /> higher than accounting net worth
+            </li>
+            <li>
+              • IP assets represent {((valuation.summary.total_ip_valuation || 0) / ((valuation.summary.strategic_company_value || 1)) * 100).toFixed(1)}% of strategic value
+            </li>
+            {(valuation.counts?.infrastructure || 0) > 0 && (
+              <li>
+                • {valuation.counts.infrastructure} infrastructure items support operational continuity
+              </li>
+            )}
+            <li>• This dashboard updates automatically every 30 seconds</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
