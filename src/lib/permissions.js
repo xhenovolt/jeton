@@ -141,24 +141,6 @@ export function canManageUser(manager, target) {
   // Must have higher rank and be an admin-level role
   return managerRank > targetRank && managerRank >= 5;
 }
-    return false;
-  }
-
-  // Check if user role exists in matrix
-  const rolePermissions = PERMISSION_MATRIX[user.role];
-  if (!rolePermissions) {
-    return false;
-  }
-
-  // Check if resource exists in role permissions
-  const resourcePermissions = rolePermissions[resource];
-  if (!resourcePermissions) {
-    return false;
-  }
-
-  // Check if action is allowed for this resource
-  return resourcePermissions.includes(action);
-}
 
 /**
  * Check if user can access staff management
