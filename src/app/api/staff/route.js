@@ -14,7 +14,7 @@ import { z } from 'zod';
 const createStaffSchema = z.object({
   email: z.string().email('Invalid email address'),
   full_name: z.string().min(2, 'Full name required').max(255),
-  role: z.enum(['FINANCE', 'SALES', 'VIEWER'], 'Invalid role'),
+  role: z.enum(['ADMIN', 'FINANCE', 'SALES', 'AUDITOR', 'VIEWER'], 'Invalid role'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   department: z.string().optional(),
   title: z.string().optional(),

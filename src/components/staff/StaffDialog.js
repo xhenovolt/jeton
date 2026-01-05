@@ -9,7 +9,7 @@ const staffSchema = z.object({
   email: z.string().email('Invalid email'),
   full_name: z.string().min(2, 'Name required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['FINANCE', 'SALES', 'VIEWER']),
+  role: z.enum(['ADMIN', 'FINANCE', 'SALES', 'AUDITOR', 'VIEWER']),
   department: z.string().optional(),
   title: z.string().optional(),
   phone: z.string().optional(),

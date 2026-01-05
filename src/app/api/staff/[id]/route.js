@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 const updateStaffSchema = z.object({
   full_name: z.string().min(2).max(255).optional(),
-  role: z.enum(['FINANCE', 'SALES', 'VIEWER']).optional(),
+  role: z.enum(['ADMIN', 'FINANCE', 'SALES', 'AUDITOR', 'VIEWER']).optional(),
   department: z.string().optional(),
   title: z.string().optional(),
   phone: z.string().optional(),

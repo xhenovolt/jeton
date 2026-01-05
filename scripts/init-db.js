@@ -47,7 +47,7 @@ async function initializeDatabase() {
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT valid_email CHECK (email ~ '^[^\s@]+@[^\s@]+\.[^\s@]+$'),
-          CONSTRAINT valid_role CHECK (role IN ('FOUNDER', 'FINANCE', 'SALES', 'VIEWER')),
+          CONSTRAINT valid_role CHECK (role IN ('FOUNDER', 'ADMIN', 'FINANCE', 'SALES', 'AUDITOR', 'VIEWER')),
           CONSTRAINT valid_status CHECK (status IN ('active', 'suspended'))
         );
 
