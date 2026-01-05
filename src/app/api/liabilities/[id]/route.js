@@ -12,10 +12,6 @@ import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    ,
-        { status: 401 }
-      );
-    }
 
     const user = await requireApiAuth();
 
@@ -40,10 +36,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
-    ,
-        { status: 401 }
-      );
-    }
+    const requestMetadata = extractRequestMetadata(request);
 
     const user = await requireApiAuth();
 
@@ -146,10 +139,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
-    ,
-        { status: 401 }
-      );
-    }
+    const requestMetadata = extractRequestMetadata(request);
 
     const user = await requireApiAuth();
 
