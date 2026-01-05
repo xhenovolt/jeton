@@ -1,18 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { X, Building2, Wallet, Handshake, Eye, Users, BookOpen, Settings, LogOut, ChevronDown, Zap, TrendingUp } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ChevronDown, LogOut } from 'lucide-react';
+import { menuItems as navMenuItems } from '@/lib/navigation-config';
 
 /**
- * Mobile Drawer
- * Shows full navigation and user profile on mobile screens
+ * Mobile Drawer Navigation
+ * 
+ * Features:
+ * - Full navigation accessible on mobile only
+ * - Smooth Framer Motion animations
+ * - Focus trap while open (ESC to close)
+ * - Click-outside to close with backdrop
+ * - Organized navigation sections
+ * - Active route highlighting
+ * - User profile section
  */
 export function MobileDrawer({ isOpen, onClose, user }) {
+  const pathname = usePathname();
+  const drawerRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const [expandedSections, setExpandedSections] = useState({
-    domains: true,
-    admin: false,
+    Operations: false,
+    Investments: false,
+    Finance: false,
+    'Intellectual Property': false,
+    Admin: false,
   });
+
+  /**
+   * Handle ESC key to close drawer
+   * Part of focus trap implementation
+   */
+  useEffect(() => {
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+        // Return focus to the trigger button
+        const triggerButton = document.querySelector('[data-drawer-trigger]');
+        if (triggerButton) triggerButton.focus();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+      // Prevent body scroll when drawer is open
+      document.body.style.overflow = 'hidden';
+      
+      // Focus management - focus close button when drawer opens
+      setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 100);
+
+      return () => {
+        document.removeEventListener('keydown', handleEscapeKey);
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isOpen, onClose]);
 
   const toggleSection = (section) => {
     setExpandedSections((prev) => ({
@@ -21,29 +69,19 @@ export function MobileDrawer({ isOpen, onClose, user }) {
     }));
   };
 
-  const menuItems = {
-    domains: [
-      { label: 'Infrastructure', href: '/app/infrastructure', icon: Building2 },
-      { label: 'Accounting Assets', href: '/app/assets-accounting', icon: Zap },
-      { label: 'Intellectual Property', href: '/app/intellectual-property', icon: TrendingUp },
-      { label: 'Liabilities', href: '/app/liabilities', icon: Wallet },
-      { label: 'Deals', href: '/app/deals', icon: Handshake },
-      { label: 'Pipeline', href: '/app/pipeline', icon: Eye },
-    ],
-    admin: [
-      { label: 'Staff', href: '/app/staff', icon: Users },
-      { label: 'Audit Logs', href: '/app/audit-logs', icon: BookOpen },
-      { label: 'Settings', href: '/app/settings', icon: Settings },
-    ],
+  const isActive = (href) => pathname === href;
+
+  const isParentActive = (submenu) => {
+    return submenu?.some((item) => pathname === item.href);
   };
 
   const handleLogout = async () => {
     try {
-      // Call logout endpoint to delete session from database
-      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       if (response.ok) {
-        // Navigate to a protected route (/app/dashboard)
-        // Middleware will validate session is gone and redirect to /login
         window.location.href = '/app/dashboard';
       }
     } catch (error) {
@@ -51,125 +89,216 @@ export function MobileDrawer({ isOpen, onClose, user }) {
     }
   };
 
+  const handleLinkClick = () => {
+    // Close drawer after navigation
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      {/* Backdrop with blur effect */}
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      </AnimatePresence>
 
-      {/* Drawer */}
-      <div className="md:hidden fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border z-50 overflow-y-auto">
+      {/* Drawer Panel */}
+      <motion.div
+        ref={drawerRef}
+        initial={{ x: '-100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '-100%' }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="md:hidden fixed left-0 top-0 bottom-0 w-64 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-r border-gray-200 dark:border-gray-800 z-50 overflow-y-auto flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation drawer"
+      >
         {/* Header with Close Button */}
-        <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-card">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 z-10">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Jeton
           </h1>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-            aria-label="Close drawer"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Close navigation drawer"
+            data-drawer-trigger
           >
-            <X size={24} className="text-foreground" />
+            <X size={24} className="text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
         {/* User Profile Section */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/20 text-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="p-6 border-b border-gray-200 dark:border-gray-800"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600/20 text-lg font-semibold">
               {user.avatar}
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-              <p className="text-xs text-primary font-medium mt-1">{user.role}</p>
+              <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                {user.name}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {user.email}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                {user.role}
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-6">
-          {/* Operational Domains */}
-          <div>
-            <button
-              onClick={() => toggleSection('domains')}
-              className="flex items-center justify-between w-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>OPERATIONAL DOMAINS</span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${expandedSections.domains ? 'rotate-180' : ''}`}
-              />
-            </button>
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+          <AnimatePresence mode="wait">
+            {navMenuItems.map((item, index) => {
+              const Icon = item.icon;
+              const hasSubmenu = item.submenu && item.submenu.length > 0;
+              const isExpanded = expandedSections[item.label];
+              const isItemActive = isActive(item.href);
+              const isParentItemActive = isParentActive(item.submenu);
 
-            {expandedSections.domains && (
-              <div className="mt-2 space-y-1">
-                {menuItems.domains.map((item) => {
-                  const Icon = item.icon;
-                  return (
+              if (!hasSubmenu) {
+                // Direct link
+                return (
+                  <motion.div
+                    key={item.href}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
                     <Link
-                      key={item.href}
                       href={item.href}
-                      onClick={onClose}
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      onClick={handleLinkClick}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isItemActive
+                          ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
                     >
-                      <Icon size={18} />
-                      <span>{item.label}</span>
+                      <Icon size={20} />
+                      <span className="text-sm">{item.label}</span>
+                      {isItemActive && (
+                        <motion.div
+                          layoutId="activeMobileIndicator"
+                          className="ml-auto w-1 h-6 bg-blue-600 rounded-r-lg"
+                        />
+                      )}
                     </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Administration */}
-          <div>
-            <button
-              onClick={() => toggleSection('admin')}
-              className="flex items-center justify-between w-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>ADMINISTRATION</span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${expandedSections.admin ? 'rotate-180' : ''}`}
-              />
-            </button>
-
-            {expandedSections.admin && (
-              <div className="mt-2 space-y-1">
-                {menuItems.admin.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  </motion.div>
+                );
+              } else {
+                // Parent with submenu
+                return (
+                  <motion.div
+                    key={item.label}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    {/* Parent Button */}
+                    <button
+                      onClick={() => toggleSection(item.label)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isParentItemActive
+                          ? 'bg-purple-600/10 text-purple-600 dark:text-purple-400 font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
                     >
-                      <Icon size={18} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                      <Icon size={20} />
+                      <span className="text-sm flex-1 text-left">{item.label}</span>
+                      <motion.div
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown size={16} />
+                      </motion.div>
+                      {isParentItemActive && (
+                        <motion.div
+                          layoutId="activeMobileParentIndicator"
+                          className="ml-auto w-1 h-6 bg-purple-600 rounded-r-lg"
+                        />
+                      )}
+                    </button>
+
+                    {/* Submenu */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="ml-8 border-l border-gray-200 dark:border-gray-700 space-y-1 py-2">
+                            {item.submenu.map((subitem, subindex) => (
+                              <motion.div
+                                key={subitem.href}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: subindex * 0.02 }}
+                              >
+                                <Link
+                                  href={subitem.href}
+                                  onClick={handleLinkClick}
+                                  className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                                    isActive(subitem.href)
+                                      ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-600/5'
+                                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                  }`}
+                                >
+                                  {subitem.label}
+                                </Link>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              }
+            })}
+          </AnimatePresence>
         </nav>
 
         {/* Logout Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="p-4 border-t border-gray-200 dark:border-gray-800 mt-auto"
+        >
           <button
             onClick={async () => {
               await handleLogout();
             }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm"
           >
-            <LogOut size={16} />
+            <LogOut size={18} />
             <span>Logout</span>
           </button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </>
   );
 }

@@ -27,6 +27,7 @@ import {
   Plus,
   Percent,
 } from 'lucide-react';
+import { menuItems as navMenuItems } from '@/lib/navigation-config';
 
 /**
  * Tooltip Component
@@ -101,11 +102,12 @@ const menuItems = [
       { label: 'Reports', href: '/app/reports' },
     ],
   },
-];
+}
 
 /**
  * Sidebar Component - Enhanced
  * Collapsible navigation with smooth animations, tooltips, and dark mode
+ * DESKTOP ONLY - Hidden on mobile (md: breakpoint)
  */
 export default function Sidebar() {
   const pathname = usePathname();
@@ -166,7 +168,7 @@ export default function Sidebar() {
     <motion.aside
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-sm overflow-hidden z-40"
+      className="hidden md:flex fixed left-0 top-0 h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-r border-gray-200 dark:border-gray-800 flex-col shadow-sm overflow-hidden z-40"
     >
       {/* Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-800">
@@ -194,7 +196,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         <AnimatePresence mode="wait">
-          {menuItems.map((item) => {
+          {navMenuItems.map((item) => {
             const Icon = item.icon;
             const hasSubmenu = item.submenu && item.submenu.length > 0;
             const isExpanded = expandedSections[item.label];

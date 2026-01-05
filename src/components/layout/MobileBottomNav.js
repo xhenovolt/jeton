@@ -1,63 +1,103 @@
 'use client';
 
-import { useState } from 'react';
-import { Menu, Home, Zap, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Home, Zap, TrendingUp, Menu } from 'lucide-react';
+import { quickAccessLinks } from '@/lib/navigation-config';
 
 /**
  * Mobile Bottom Navigation Bar
- * Only visible on small screens - shows crucial links and drawer toggle
+ * 
+ * Features:
+ * - Visible only on mobile (< md breakpoint)
+ * - Quick access to frequently used routes
+ * - Menu button to trigger drawer
+ * - Active route highlighting
+ * - App-like feel
  */
 export function MobileBottomNav({ onDrawerOpen }) {
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const quickLinks = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
-    { id: 'assets', label: 'Assets', icon: Zap, href: '/app/assets-accounting' },
-    { id: 'ip', label: 'IP', icon: TrendingUp, href: '/app/intellectual-property' },
-  ];
+  // Update active tab based on current route
+  useEffect(() => {
+    quickAccessLinks.forEach((link) => {
+      if (pathname === link.href) {
+        setActiveTab(link.id);
+      }
+    });
+  }, [pathname]);
 
-  const handleNavClick = (href) => {
-    window.location.href = href;
-  };
+  const isActive = (href) => pathname === href;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border z-30 flex items-center justify-between px-4">
-      <div className="flex items-center justify-between w-full">
+    <motion.nav
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-t border-gray-200 dark:border-gray-800 z-30 flex items-center"
+      role="navigation"
+      aria-label="Mobile navigation"
+    >
+      <div className="flex items-center w-full h-full">
         {/* Quick Links */}
-        <div className="flex items-center gap-0 flex-1">
-          {quickLinks.map((link) => {
+        <div className="flex items-center flex-1 h-full">
+          {quickAccessLinks.map((link) => {
             const Icon = link.icon;
+            const active = isActive(link.href);
+
             return (
-              <button
+              <Link
                 key={link.id}
-                onClick={() => {
-                  setActiveTab(link.id);
-                  handleNavClick(link.href);
-                }}
-                className={`flex flex-col items-center justify-center flex-1 py-3 px-2 transition-colors ${
-                  activeTab === link.id
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
+                href={link.href}
+                onClick={() => setActiveTab(link.id)}
+                className={`flex-1 flex flex-col items-center justify-center h-full py-2 px-1 transition-colors relative group ${
+                  active
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
                 title={link.label}
+                aria-current={active ? 'page' : undefined}
               >
-                <Icon size={24} />
-                <span className="text-xs mt-1 font-medium">{link.label}</span>
-              </button>
+                <motion.div
+                  animate={{ scale: active ? 1.1 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Icon size={24} />
+                </motion.div>
+                <span className="text-xs mt-1 font-medium text-center leading-none">
+                  {link.label}
+                </span>
+
+                {/* Active indicator */}
+                {active && (
+                  <motion.div
+                    layoutId="navActiveIndicator"
+                    className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                    transition={{ duration: 0.2 }}
+                  />
+                )}
+              </Link>
             );
           })}
         </div>
 
-        {/* Drawer Toggle */}
-        <button
+        {/* Drawer Toggle Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onDrawerOpen}
-          className="flex flex-col items-center justify-center py-3 px-4 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex flex-col items-center justify-center flex-1 h-full py-2 px-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors border-l border-gray-200 dark:border-gray-800"
           title="More options"
+          aria-label="Open navigation menu"
+          data-drawer-trigger
         >
-          <MoreHorizontal size={24} />
-          <span className="text-xs mt-1 font-medium">More</span>
-        </button>
+          <Menu size={24} />
+          <span className="text-xs mt-1 font-medium text-center leading-none">Menu</span>
+        </motion.button>
       </div>
-    </nav>
+    </motion.nav>
   );
 }

@@ -41,9 +41,11 @@ export default function LayoutClient({ children }) {
   }, []);
   
   // Adjust main padding based on navigation visibility and sidebar state
+  // Mobile: No top padding (navigation is drawer), bottom padding for bottom nav
+  // Desktop: Top padding for navbar, left padding for sidebar
   const sidebarWidth = isCollapsed ? '5rem' : '16rem';
   const mainClasses = showNavigation 
-    ? `flex-1 md:pt-16 pb-20 md:pb-0 min-h-screen transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`
+    ? `flex-1 md:pt-16 pb-16 md:pb-0 min-h-screen transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`
     : 'flex-1 min-h-screen';
   
   const footerClasses = showNavigation
