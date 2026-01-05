@@ -127,22 +127,73 @@ async function initializeDatabase() {
       `);
       console.log('✅ Audit logs table created\n');
 
-      // Create sessions table
-      console.log('📝 Creating sessions table...');
+      // Create or upgrade sessions table - Enterprise edition with multi-device support
+      console.log('📝 Creating/upgrading sessions table with multi-device support...');
       await client.query(`
         CREATE TABLE IF NOT EXISTS sessions (
+          -- Core identifiers
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          
+          -- Device & Location tracking
+          device_name TEXT NOT NULL DEFAULT 'Unknown Device',
+          browser_name TEXT,
+          ip_address INET,
+          user_agent TEXT,
+          
+          -- Session lifecycle
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-        CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-        CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at);
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          last_active_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          
+          -- Session status
+          is_active BOOLEAN DEFAULT true,
+          revoked_at TIMESTAMP WITH TIME ZONE,
+          revoked_reason TEXT,
+          
+          -- Constraints
+          CONSTRAINT valid_session_lifecycle CHECK (created_at < expires_at),
+          CONSTRAINT valid_revocation CHECK (
+            (revoked_at IS NULL AND revoked_reason IS NULL) OR
+            (revoked_at IS NOT NULL)
+          )
+        )
       `);
-      console.log('✅ Sessions table created\n');
+
+      // Add missing columns if they don't exist
+      try {
+        await client.query(`
+          ALTER TABLE sessions 
+          ADD COLUMN IF NOT EXISTS device_name TEXT NOT NULL DEFAULT 'Unknown Device',
+          ADD COLUMN IF NOT EXISTS browser_name TEXT,
+          ADD COLUMN IF NOT EXISTS ip_address INET,
+          ADD COLUMN IF NOT EXISTS user_agent TEXT,
+          ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+          ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS revoked_reason TEXT
+        `);
+      } catch (e) {
+        if (!e.message.includes('already exists') && !e.message.includes('duplicate key')) {
+          // Ignore errors about columns already existing
+        }
+      }
+
+      // Indexes for performance
+      try {
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_sessions_user_active ON sessions(user_id, is_active);
+          CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+          CREATE INDEX IF NOT EXISTS idx_sessions_last_active ON sessions(last_active_at);
+          CREATE INDEX IF NOT EXISTS idx_sessions_ip_address ON sessions(ip_address);
+          CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at)
+        `);
+      } catch (e) {
+        if (!e.message.includes('already exists')) throw e;
+      }
+
+      console.log('✅ Sessions table created/upgraded with enterprise features\n');
 
       // Create staff_profiles table
       console.log('📝 Creating staff_profiles table...');
@@ -471,6 +522,122 @@ async function initializeDatabase() {
         INSERT INTO valuation_summary (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
       `);
       console.log('✅ Valuation summary table created\n');
+
+      // Create shares configuration table
+      console.log('📝 Creating shares_config table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS shares_config (
+          id SERIAL PRIMARY KEY,
+          authorized_shares BIGINT NOT NULL DEFAULT 1000000,
+          issued_shares BIGINT NOT NULL DEFAULT 0,
+          class_type VARCHAR(50) DEFAULT 'common',
+          par_value DECIMAL(19, 4) DEFAULT 0.0001,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Only insert if table is empty
+      const configCheck = await client.query('SELECT COUNT(*) FROM shares_config');
+      if (configCheck.rows[0].count === 0) {
+        await client.query(`
+          INSERT INTO shares_config (authorized_shares, issued_shares, class_type, par_value)
+          VALUES (1000000, 0, 'common', 0.0001)
+        `);
+      }
+      
+      console.log('✅ Share configuration table created\n');
+
+      // Create share issuances table
+      console.log('📝 Creating share_issuances table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS share_issuances (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          shareholder_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          shares_issued BIGINT NOT NULL,
+          issuance_date DATE DEFAULT CURRENT_DATE,
+          vesting_start_date DATE,
+          vesting_end_date DATE,
+          vesting_percentage DECIMAL(5, 2) DEFAULT 100,
+          price_per_share DECIMAL(19, 4),
+          total_consideration DECIMAL(19, 2),
+          status VARCHAR(50) DEFAULT 'active',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT valid_vesting_percentage CHECK (vesting_percentage >= 0 AND vesting_percentage <= 100)
+        )
+      `);
+
+      try {
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_share_issuances_shareholder ON share_issuances(shareholder_id)
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_share_issuances_status ON share_issuances(status)
+        `);
+      } catch (e) {
+        if (!e.message.includes('already exists')) throw e;
+      }
+
+      console.log('✅ Share issuances table created\n');
+
+      // Create shareholders table
+      console.log('📝 Creating shareholders table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS shareholders (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          shares_owned BIGINT NOT NULL DEFAULT 0,
+          percentage_owned DECIMAL(10, 4) NOT NULL DEFAULT 0.0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      try {
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_shareholders_user_id ON shareholders(user_id)
+        `);
+      } catch (e) {
+        if (!e.message.includes('already exists')) throw e;
+      }
+
+      console.log('✅ Shareholders table created\n');
+
+      // Create sales table
+      console.log('📝 Creating sales table...');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sales (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
+          salesperson_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+          customer_name TEXT NOT NULL,
+          customer_email TEXT,
+          amount DECIMAL(19, 2) NOT NULL,
+          currency TEXT DEFAULT 'UGX',
+          status TEXT DEFAULT 'open',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT valid_status CHECK (status IN ('open', 'qualified', 'negotiation', 'closed_won', 'closed_lost'))
+        )
+      `);
+
+      try {
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_sales_deal_id ON sales(deal_id)
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_sales_salesperson_id ON sales(salesperson_id)
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status)
+        `);
+      } catch (e) {
+        if (!e.message.includes('already exists')) throw e;
+      }
+
+      console.log('✅ Sales table created\n');
 
       // Create shares tables
       console.log('📝 Creating shares table...');

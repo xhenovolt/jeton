@@ -166,7 +166,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {navMenuItems.map((item, index) => {
               const Icon = item.icon;
               const hasSubmenu = item.submenu && item.submenu.length > 0;

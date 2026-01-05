@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from 'next/server.js';
+import { cookies } from 'next/headers';
 import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateLiability } from '@/lib/validation.js';
 import { getLiabilities, createLiability } from '@/lib/financial.js';

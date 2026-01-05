@@ -20,6 +20,7 @@ export default function SharesPage() {
   const [allocations, setAllocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [editingId, setEditingId] = useState(null);

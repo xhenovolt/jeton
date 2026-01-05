@@ -27,22 +27,27 @@ export default function OverviewPage() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
+      // Remove Authorization header - using session cookies instead
       const [financialRes, dealRes] = await Promise.all([
-        fetch('/api/net-worth', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }),
-        fetch('/api/deals/valuation', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }),
+        fetch('/api/net-worth'),
+        fetch('/api/deals/valuation'),
       ]);
+
+      if (!financialRes.ok && financialRes.status === 401) {
+        // Session expired - redirect to login
+        window.location.href = '/login';
+        return;
+      }
 
       if (financialRes.ok) {
         const data = await financialRes.json();
         setFinancialData(data);
+      }
+
+      if (!dealRes.ok && dealRes.status === 401) {
+        // Session expired - redirect to login
+        window.location.href = '/login';
+        return;
       }
 
       if (dealRes.ok) {
