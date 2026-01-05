@@ -31,12 +31,10 @@ export default function StaffPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/staff', {
-        credentials: 'include',
+        method: 'GET',
+        credentials: 'include',  // Automatically sends HTTP-only session cookies
         headers: {
-          'Authorization': `Bearer ${document.cookie
-            .split('; ')
-            .find(row => row.startsWith('auth-token='))
-            ?.split('=')[1]}`,
+          'Content-Type': 'application/json',
         },
       });
 

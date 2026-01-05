@@ -13,23 +13,8 @@ import {
  */
 export async function GET(request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.slice(7);
-    const payload = verifyToken(token);
-
-    if (!payload) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
+    // Get user from session
+    const user = await requireApiAuth();
 
     const [
       trendData,

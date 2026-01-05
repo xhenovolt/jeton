@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireApiAuth } from '@/lib/api-auth.js';
 import { createSnapshot } from '@/lib/reports';
 import { logAudit } from '@/lib/audit';
+import { query } from '@/lib/db.js';
 
 /**
  * POST /api/snapshots/create
@@ -9,28 +10,27 @@ import { logAudit } from '@/lib/audit';
  */
 export async function POST(request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Get user from session
+    const user = await requireApiAuth();
 
-    const token = authHeader.slice(7);
-    const payload = verifyToken(token);
+    // Get user record to check role
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [user.userId]
+    );
+    const userRecord = userResult.rows[0];
 
-    if (!payload) {
+    if (!userRecord) {
       return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
     // Check if founder
-    if (payload.role !== 'FOUNDER') {
+    if (userRecord.role !== 'FOUNDER') {
       await logAudit({
-        actor_id: payload.userId,
+        actor_id: user.userId,
         action: 'SNAPSHOT_CREATE_DENIED',
         entity: 'snapshot',
         status: 'FAILURE',
@@ -54,10 +54,10 @@ export async function POST(request) {
       );
     }
 
-    const snapshot = await createSnapshot(type, payload.userId);
+    const snapshot = await createSnapshot(type, user.userId);
 
     await logAudit({
-      actor_id: payload.userId,
+      actor_id: user.userId,
       action: 'SNAPSHOT_CREATE',
       entity: 'snapshot',
       entity_id: snapshot.id,
@@ -67,6 +67,7 @@ export async function POST(request) {
 
     return NextResponse.json(snapshot, { status: 201 });
   } catch (error) {
+    if (error instanceof NextResponse) throw error;
     console.error('Error in POST /api/snapshots/create:', error);
     return NextResponse.json(
       { error: 'Failed to create snapshot' },

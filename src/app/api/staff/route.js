@@ -8,7 +8,6 @@ import { NextResponse } from 'next/server';
 import { requireApiAuth } from '@/lib/api-auth.js';
 import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
-import { isStaffAdmin } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
 import { z } from 'zod';
 
@@ -22,62 +21,51 @@ const createStaffSchema = z.object({
   phone: z.string().optional(),
 });
 
-// Helper function to extract token from cookies or Authorization header
-async function getToken(req) {
-  // Try Authorization header first (Bearer token)
-  const authHeader = req.headers.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.slice(7);
-  }
-
-  // Fall back to cookie (HttpOnly from browser)
-  try {
-    const cookieStore = await cookies();
-    return cookieStore.get('auth-token')?.value;
-  } catch (error) {
-    return null;
-  }
-}
-
 export async function GET(req) {
   try {
-    // Extract token from either cookies or Authorization header
-    const token = await getToken(req);
-
-    if (!token) {
-      await logAudit({
-        action: 'ROUTE_DENIED',
-        entity: 'STAFF',
-        status: 'FAILURE',
-        metadata: { reason: 'No token provided' },
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      await logAudit({
-        action: 'ROUTE_DENIED',
-        entity: 'STAFF',
-        status: 'FAILURE',
-        metadata: { reason: 'Invalid token' },
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get user
-    const userResult = await query(
-      'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
-    );
-    const user = userResult.rows[0];
+    // Use session-based auth via requireApiAuth
+    // This handles all auth validation defensively
+    const user = await requireApiAuth();
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      await logAudit({
+        action: 'ROUTE_DENIED',
+        entity: 'STAFF',
+        status: 'FAILURE',
+        metadata: { reason: 'Invalid session' },
+      });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permission - any authenticated user can view staff
+    // Get full user record to check status and role
+    const userResult = await query(
+      'SELECT id, role, status, email FROM users WHERE id = $1',
+      [user.userId]
+    );
+    const userRecord = userResult.rows[0];
+
+    if (!userRecord) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    
+    const userRole = userRecord.role;
+
+    // Check permission - admin users can view staff
+    if (!['FOUNDER', 'ADMIN'].includes(userRole)) {
+      await logAudit({
+        userId: user.userId,
+        action: 'STAFF_VIEW',
+        entity: 'STAFF',
+        status: 'DENIED',
+        metadata: { reason: 'Insufficient permissions' },
+      });
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Fetch staff members
     const result = await query(`
       SELECT 
         u.id,
@@ -96,6 +84,14 @@ export async function GET(req) {
       ORDER BY u.created_at DESC
     `);
 
+    await logAudit({
+      userId: user.userId,
+      action: 'STAFF_VIEW',
+      entity: 'STAFF',
+      status: 'SUCCESS',
+      metadata: { count: result.rows.length },
+    });
+
     return NextResponse.json({
       staff: result.rows,
     });
@@ -110,28 +106,37 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    // Extract token from either cookies or Authorization header
-    const token = await getToken(req);
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get user
-    const userResult = await query(
-      'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
-    );
-    const user = userResult.rows[0];
+    // Use session-based auth
+    const user = await requireApiAuth();
 
     if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user role
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [user.userId]
+    );
+    const userRecord = userResult.rows[0];
+
+    if (!userRecord) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check permission - only FOUNDER/ADMIN can create staff
+    if (!['FOUNDER', 'ADMIN'].includes(userRecord.role)) {
+      await logAudit({
+        userId: user.userId,
+        action: 'STAFF_CREATE',
+        entity: 'STAFF',
+        status: 'DENIED',
+        metadata: { reason: 'Insufficient permissions' },
+      });
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
     }
 
     // Parse and validate request
@@ -189,10 +194,10 @@ export async function POST(req) {
 
     // Log action
     await logAudit({
-      actor_id: user.id,
-      action: 'STAFF_CREATED',
+      userId: user.userId,
+      action: 'STAFF_CREATE',
       entity: 'STAFF',
-      entity_id: newUser.id,
+      entityId: newUser.id,
       status: 'SUCCESS',
       metadata: {
         email,

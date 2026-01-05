@@ -8,28 +8,16 @@ import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateLiability } from '@/lib/validation.js';
 import { getLiabilityById, updateLiability, deleteLiability } from '@/lib/financial.js';
 import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
-import { cookies } from 'next/headers.js';
 
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
+    ,
         { status: 401 }
       );
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireApiAuth();
 
     const liability = await getLiabilityById(params.id);
     if (!liability) {
@@ -52,32 +40,20 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    const requestMetadata = extractRequestMetadata(request);
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
+    ,
         { status: 401 }
       );
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireApiAuth();
 
     // Only FOUNDER can update liabilities
-    if (decoded.role !== 'FOUNDER') {
+    if (user.role !== 'FOUNDER') {
       await logAudit({
         action: 'LIABILITY_UPDATE_DENIED',
         entity: 'LIABILITY',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Insufficient permissions' },
         ipAddress: requestMetadata.ipAddress,
@@ -121,7 +97,7 @@ export async function PUT(request, { params }) {
         action: 'LIABILITY_UPDATE',
         entity: 'LIABILITY',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Database error' },
         ipAddress: requestMetadata.ipAddress,
@@ -139,7 +115,7 @@ export async function PUT(request, { params }) {
       action: 'LIABILITY_UPDATE',
       entity: 'LIABILITY',
       entityId: id,
-      actorId: decoded.userId,
+      actorId: user.userId,
       status: 'SUCCESS',
       metadata: {
         name: updated.name,
@@ -170,32 +146,20 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    const requestMetadata = extractRequestMetadata(request);
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
+    ,
         { status: 401 }
       );
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireApiAuth();
 
     // Only FOUNDER can delete liabilities
-    if (decoded.role !== 'FOUNDER') {
+    if (user.role !== 'FOUNDER') {
       await logAudit({
         action: 'LIABILITY_DELETE_DENIED',
         entity: 'LIABILITY',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Insufficient permissions' },
         ipAddress: requestMetadata.ipAddress,
@@ -225,7 +189,7 @@ export async function DELETE(request, { params }) {
         action: 'LIABILITY_DELETE',
         entity: 'LIABILITY',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         status: 'FAILURE',
         metadata: { reason: 'Database error' },
         ipAddress: requestMetadata.ipAddress,
@@ -243,7 +207,7 @@ export async function DELETE(request, { params }) {
       action: 'LIABILITY_DELETE',
       entity: 'LIABILITY',
       entityId: id,
-      actorId: decoded.userId,
+      actorId: user.userId,
       status: 'SUCCESS',
       metadata: {
         name: liability.name,

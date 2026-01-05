@@ -8,23 +8,8 @@ import { getSnapshot } from '@/lib/reports';
  */
 export async function GET(request, { params }) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.slice(7);
-    const payload = verifyToken(token);
-
-    if (!payload) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
+    // Get user from session
+    const user = await requireApiAuth();
 
     const { id } = await params;
     const snapshot = await getSnapshot(id);
@@ -38,6 +23,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(snapshot);
   } catch (error) {
+    if (error instanceof NextResponse) throw error;
     console.error('Error in GET /api/snapshots/[id]:', error);
     return NextResponse.json(
       { error: 'Failed to fetch snapshot' },

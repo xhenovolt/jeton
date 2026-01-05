@@ -30,7 +30,6 @@ async function getToken(req) {
 
   // Fall back to cookie (HttpOnly from browser)
   try {
-    const cookieStore = await cookies();
     return cookieStore.get('auth-token')?.value;
   } catch (error) {
     return null;
@@ -49,10 +48,7 @@ export async function GET(req, { params }) {
     }
 
     // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireApiAuth();
 
     // Get staff member
     const result = await query(
@@ -101,15 +97,12 @@ export async function PUT(req, { params }) {
     }
 
     // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireApiAuth();
 
     // Get current user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
+      [user.userId]
     );
     const user = userResult.rows[0];
 
@@ -251,15 +244,12 @@ export async function PATCH(req, { params }) {
     }
 
     // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireApiAuth();
 
     // Get current user
     const userResult = await query(
       'SELECT id, role, status FROM users WHERE id = $1',
-      [decoded.userId]
+      [user.userId]
     );
     const user = userResult.rows[0];
 

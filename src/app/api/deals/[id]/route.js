@@ -10,22 +10,14 @@ import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateDeal } from '@/lib/validation.js';
 import { getDealById, updateDeal, deleteDeal } from '@/lib/deals.js';
 import { logAudit } from '@/lib/audit.js';
+import { query } from '@/lib/db.js';
 
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    // Get user from session
+    const user = await requireApiAuth();
 
     const deal = await getDealById(id);
     if (!deal) {
@@ -37,6 +29,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(deal);
   } catch (error) {
+    if (error instanceof NextResponse) throw error;
     console.error('Error in GET /api/deals/[id]:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -49,25 +42,30 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Get user from session
+    const user = await requireApiAuth();
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Get user record to check role
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [user.userId]
+    );
+    const userRecord = userResult.rows[0];
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    if (!userRecord) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
 
     // Check if user is FOUNDER
-    if (decoded.role !== 'FOUNDER') {
+    if (userRecord.role !== 'FOUNDER') {
       await logAudit({
         action: 'DEAL_UPDATE_DENIED',
         entity: 'deal',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent'),
         status: 'FAILURE',
@@ -105,7 +103,7 @@ export async function PUT(request, { params }) {
       action: 'DEAL_UPDATE',
       entity: 'deal',
       entityId: id,
-      actorId: decoded.userId,
+      actorId: user.userId,
       metadata: {
         title: updatedDeal.title,
         value_estimate: updatedDeal.value_estimate,
@@ -119,6 +117,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(updatedDeal);
   } catch (error) {
+    if (error instanceof NextResponse) throw error;
     console.error('Error in PUT /api/deals/[id]:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -131,25 +130,30 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
 
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Get user from session
+    const user = await requireApiAuth();
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Get user record to check role
+    const userResult = await query(
+      'SELECT id, role, status FROM users WHERE id = $1',
+      [user.userId]
+    );
+    const userRecord = userResult.rows[0];
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    if (!userRecord) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
 
     // Check if user is FOUNDER
-    if (decoded.role !== 'FOUNDER') {
+    if (userRecord.role !== 'FOUNDER') {
       await logAudit({
         action: 'DEAL_DELETE_DENIED',
         entity: 'deal',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent'),
         status: 'FAILURE',
@@ -177,7 +181,7 @@ export async function DELETE(request, { params }) {
         action: 'DEAL_DELETE',
         entity: 'deal',
         entityId: id,
-        actorId: decoded.userId,
+        actorId: user.userId,
         metadata: {
           title: deal.title,
           value_estimate: deal.value_estimate,
@@ -196,6 +200,7 @@ export async function DELETE(request, { params }) {
       );
     }
   } catch (error) {
+    if (error instanceof NextResponse) throw error;
     console.error('Error in DELETE /api/deals/[id]:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
