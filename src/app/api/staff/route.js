@@ -118,7 +118,11 @@ export async function POST(req) {
   } catch (error) {
     console.error('Error creating staff:', error);
     return Response.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
