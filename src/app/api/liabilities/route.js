@@ -3,55 +3,26 @@
  * Retrieve all liabilities or create a new liability
  */
 
-import { NextResponse } from 'next/server.js';
-import { requireApiAuth } from '@/lib/api-auth.js';
 import { validateLiability } from '@/lib/validation.js';
 import { getLiabilities, createLiability } from '@/lib/financial.js';
-import { logAudit, extractRequestMetadata } from '@/lib/audit.js';
 import { query } from '@/lib/db.js';
-import { canAccess } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
-    // Validate session and get user
-    const user = await requireApiAuth();
-
-    // Get user to check permissions
-    const userResult = await query(
-      'SELECT id, role, status FROM users WHERE id = $1',
-      [user.userId]
-    );
-    const userRow = userResult.rows[0];
-
-    if (!userRow) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check permission to read liabilities
-    if (!canAccess(userRow, 'liabilities', 'read')) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
     // Get liabilities excluding soft-deleted records
     const result = await query(
       'SELECT * FROM liabilities WHERE deleted_at IS NULL ORDER BY created_at DESC'
     );
 
-    return NextResponse.json({
-      liabilities: result.rows,
-      total: result.rows.length,
+    return Response.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
     });
   } catch (error) {
-    if (error instanceof NextResponse) throw error;
     console.error('Get liabilities error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
+    return Response.json(
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -59,49 +30,14 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    // Get user from session
-    const user = await requireApiAuth();
-    const requestMetadata = extractRequestMetadata(request);
-
-    // Get user to check permissions
-    const userResult = await query(
-      'SELECT id, role, status FROM users WHERE id = $1',
-      [user.userId]
-    );
-    const userRecord = userResult.rows[0];
-
-    if (!userRecord) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check permission to create liabilities
-    if (!canAccess(userRecord, 'liabilities', 'create')) {
-      await logAudit({
-        action: 'LIABILITY_CREATE_DENIED',
-        entity: 'LIABILITY',
-        actorId: user.userId,
-        status: 'FAILURE',
-        metadata: { reason: 'Insufficient permissions' },
-        ipAddress: requestMetadata.ipAddress,
-        userAgent: requestMetadata.userAgent,
-      });
-
-      return NextResponse.json(
-        { error: 'Forbidden - you do not have permission to create liabilities' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
 
     // Validate input
     const validation = validateLiability(body);
     if (!validation.success) {
-      return NextResponse.json(
+      return Response.json(
         {
+          success: false,
           error: 'Validation failed',
           fields: validation.errors,
         },
@@ -109,54 +45,28 @@ export async function POST(request) {
       );
     }
 
-    // Create liability
-    const liability = await createLiability(validation.data, user.userId);
+    // Create liability (without user tracking)
+    const liability = await createLiability(validation.data, null);
 
     if (!liability) {
-      await logAudit({
-        action: 'LIABILITY_CREATE',
-        entity: 'LIABILITY',
-        actorId: user.userId,
-        status: 'FAILURE',
-        metadata: { reason: 'Database error' },
-        ipAddress: requestMetadata.ipAddress,
-        userAgent: requestMetadata.userAgent,
-      });
-
-      return NextResponse.json(
-        { error: 'Failed to create liability' },
+      return Response.json(
+        { success: false, error: 'Failed to create liability' },
         { status: 500 }
       );
     }
 
-    // Log audit event
-    await logAudit({
-      action: 'LIABILITY_CREATE',
-      entity: 'LIABILITY',
-      entityId: liability.id,
-      actorId: user.userId,
-      status: 'SUCCESS',
-      metadata: {
-        name: liability.name,
-        category: liability.category,
-        amount: liability.outstanding_amount,
-      },
-      ipAddress: requestMetadata.ipAddress,
-      userAgent: requestMetadata.userAgent,
-    });
-
-    return NextResponse.json(
+    return Response.json(
       {
+        success: true,
+        data: liability,
         message: 'Liability created successfully',
-        liability,
       },
       { status: 201 }
     );
   } catch (error) {
-    if (error instanceof NextResponse) throw error;
     console.error('Create liability error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
+    return Response.json(
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

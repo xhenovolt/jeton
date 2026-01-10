@@ -28,6 +28,7 @@ const MIGRATIONS = [
   '008_corporate_equity_refactor.sql',
   '009_add_equity_type_classification.sql',
   '010_two_layer_share_model.sql',
+  '014_create_shareholdings_complete.sql',
 ];
 
 async function runMigrations() {

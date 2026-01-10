@@ -19,8 +19,8 @@ export default function LayoutClient({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
   
-  // Show navigation only on /app routes
-  const showNavigation = pathname.startsWith('/app');
+  // Show navigation only on /app and /admin routes
+  const showNavigation = pathname.startsWith('/app') || pathname.startsWith('/admin');
   
   // Monitor sidebar collapsed state
   useEffect(() => {

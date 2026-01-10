@@ -13,6 +13,7 @@
 
 import { query } from '@/lib/db.js';
 import { getValuationSummary } from '@/lib/valuations.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 
 /**
  * Get strategic company value (SINGLE SOURCE OF TRUTH)
@@ -82,7 +83,16 @@ async function getStrategicCompanyValue() {
 export async function GET(request) {
   const startTime = Date.now();
   try {
-    console.log('[API] GET /api/shares/allocations - Starting request');
+    // Authenticate user
+    const user = await requireApiAuth();
+    
+    console.log('[API] GET /api/shares/allocations - Starting request for user:', user.userId);
+    
+    // Get shares config first
+    const sharesResult = await query('SELECT authorized_shares FROM shares LIMIT 1');
+    const authorizedShares = sharesResult.rows[0]?.authorized_shares || 0;
+    
+    // Get all active allocations
     const result = await query(`
       SELECT 
         sa.id,
@@ -97,10 +107,8 @@ export async function GET(request) {
         sa.notes,
         sa.status,
         sa.created_at,
-        sa.updated_at,
-        s.authorized_shares
+        sa.updated_at
       FROM share_allocations sa
-      CROSS JOIN shares s
       WHERE sa.status = 'active'
       ORDER BY sa.allocation_date DESC
     `);
@@ -111,7 +119,6 @@ export async function GET(request) {
     console.log('[API] GET /api/shares/allocations - Found', result.rows.length, 'allocations');
 
     const allocations = result.rows.map(row => {
-      const authorizedShares = parseInt(row.authorized_shares);
       const sharesAllocated = parseInt(row.shares_allocated);
       const pricePerShare = authorizedShares > 0 ? strategicValue / authorizedShares : 0;
       const allocatedValue = sharesAllocated * pricePerShare;
@@ -146,9 +153,29 @@ export async function GET(request) {
     });
   } catch (error) {
     const elapsed = Date.now() - startTime;
-    console.error(`[API] GET /api/shares/allocations - ERROR after ${elapsed}ms:`, error.message || error);
+    
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn(`[API] GET /api/shares/allocations - Unauthorized after ${elapsed}ms`);
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.error(`[API] GET /api/shares/allocations - ERROR after ${elapsed}ms:`, {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message || 'Internal server error' },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
@@ -156,6 +183,11 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
+    console.log('[API] POST /api/shares/allocations - Starting request for user:', user.userId);
+    
     const body = await request.json();
     const {
       owner_id,
@@ -228,9 +260,28 @@ export async function POST(request) {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error('Share allocation POST error:', error);
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn('[API] POST /api/shares/allocations - Unauthorized');
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.error('[API] POST /api/shares/allocations - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }

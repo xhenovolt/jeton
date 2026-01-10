@@ -1,5 +1,3 @@
-import { NextResponse } from 'next/server';
-import { requireApiAuth } from '@/lib/api-auth.js';
 import { 
   getExecutiveSummary,
   getTopAssets,
@@ -12,9 +10,6 @@ import {
  */
 export async function GET(request) {
   try {
-    // Get user from session
-    const user = await requireApiAuth();
-
     const [
       summary,
       topAssets,
@@ -25,15 +20,18 @@ export async function GET(request) {
       getTopLiabilities(5)
     ]);
 
-    return NextResponse.json({
-      summary,
-      topAssets,
-      topLiabilities
+    return Response.json({
+      success: true,
+      data: {
+        summary,
+        topAssets,
+        topLiabilities,
+      },
     });
   } catch (error) {
     console.error('Error in /api/reports/executive:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch executive report' },
+    return Response.json(
+      { success: false, error: 'Failed to fetch executive report' },
       { status: 500 }
     );
   }

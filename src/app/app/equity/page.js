@@ -18,7 +18,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
+import { EmailAutocomplete } from '@/components/common/EmailAutocomplete';
 import { useCurrency } from '@/lib/currency-context';
 
 /**
@@ -55,6 +57,7 @@ export default function EquityPage() {
   const [shareholderForm, setShareholderForm] = useState({
     shareholder_name: '',
     shareholder_email: '',
+    shareholder_user_id: '', // Store the selected user's ID from autocomplete
     shares_owned: '',
     holder_type: 'investor',
     acquisition_price: '',
@@ -88,9 +91,9 @@ export default function EquityPage() {
 
       // Fetch config, cap table, and pending issuances
       const [configRes, capTableRes, issuancesRes] = await Promise.all([
-        fetch('/api/equity/config'),
-        fetch('/api/equity/cap-table'),
-        fetch('/api/equity/issuance?status=pending'),
+        fetchWithAuth('/api/equity/config'),
+        fetchWithAuth('/api/equity/cap-table'),
+        fetchWithAuth('/api/equity/issuance?status=pending'),
       ]);
 
       const configData = await configRes.json();
@@ -118,7 +121,7 @@ export default function EquityPage() {
 
   const handleUpdateConfig = async () => {
     try {
-      const res = await fetch('/api/equity/config', {
+      const res = await fetchWithAuth('/api/equity/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(configForm),
@@ -141,13 +144,18 @@ export default function EquityPage() {
 
   const handleAddShareholder = async () => {
     try {
-      // First get user ID (would come from auth context in real app)
-      const res = await fetch('/api/equity/shareholders', {
+      // Validate that we have a selected user from the autocomplete
+      if (!shareholderForm.shareholder_user_id) {
+        setError('Please select a user from the email suggestions');
+        return;
+      }
+
+      const res = await fetchWithAuth('/api/equity/shareholders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...shareholderForm,
-          shareholder_id: crypto.randomUUID(), // Placeholder
+          shareholder_id: shareholderForm.shareholder_user_id, // Use selected user's ID
           shares_owned: parseInt(shareholderForm.shares_owned),
           acquisition_price: shareholderForm.acquisition_price
             ? parseFloat(shareholderForm.acquisition_price)
@@ -164,6 +172,7 @@ export default function EquityPage() {
         setShareholderForm({
           shareholder_name: '',
           shareholder_email: '',
+          shareholder_user_id: '',
           shares_owned: '',
           holder_type: 'investor',
           acquisition_price: '',
@@ -180,7 +189,7 @@ export default function EquityPage() {
 
   const handleTransferShares = async () => {
     try {
-      const res = await fetch('/api/equity/transfer', {
+      const res = await fetchWithAuth('/api/equity/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -218,7 +227,7 @@ export default function EquityPage() {
 
   const handleProposeIssuance = async () => {
     try {
-      const res = await fetch('/api/equity/issuance', {
+      const res = await fetchWithAuth('/api/equity/issuance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -257,7 +266,7 @@ export default function EquityPage() {
 
   const handleApproveIssuance = async (issuanceId) => {
     try {
-      const res = await fetch('/api/equity/issuance', {
+      const res = await fetchWithAuth('/api/equity/issuance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -702,16 +711,24 @@ export default function EquityPage() {
 
                 <div>
                   <label className="text-sm font-medium">Email</label>
-                  <input
-                    type="email"
+                  <EmailAutocomplete
                     value={shareholderForm.shareholder_email}
-                    onChange={(e) =>
+                    onChange={(email) =>
                       setShareholderForm({
                         ...shareholderForm,
-                        shareholder_email: e.target.value,
+                        shareholder_email: email,
                       })
                     }
-                    className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg"
+                    onSelectUser={(user) =>
+                      setShareholderForm({
+                        ...shareholderForm,
+                        shareholder_email: user.email,
+                        shareholder_name: user.full_name,
+                        shareholder_user_id: user.id, // Store the user ID from autocomplete
+                      })
+                    }
+                    placeholder="Search existing users..."
+                    className="w-full mt-1"
                   />
                 </div>
 

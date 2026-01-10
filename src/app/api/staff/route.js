@@ -4,11 +4,8 @@
  * POST: Create new staff account
  */
 
-import { NextResponse } from 'next/server';
-import { requireApiAuth } from '@/lib/api-auth.js';
 import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
-import { logAudit } from '@/lib/audit';
 import { z } from 'zod';
 
 const createStaffSchema = z.object({
@@ -23,48 +20,6 @@ const createStaffSchema = z.object({
 
 export async function GET(req) {
   try {
-    // Use session-based auth via requireApiAuth
-    // This handles all auth validation defensively
-    const user = await requireApiAuth();
-
-    if (!user) {
-      await logAudit({
-        action: 'ROUTE_DENIED',
-        entity: 'STAFF',
-        status: 'FAILURE',
-        metadata: { reason: 'Invalid session' },
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get full user record to check status and role
-    const userResult = await query(
-      'SELECT id, role, status, email FROM users WHERE id = $1',
-      [user.userId]
-    );
-    const userRecord = userResult.rows[0];
-
-    if (!userRecord) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    
-    const userRole = userRecord.role;
-
-    // Check permission - admin users can view staff
-    if (!['FOUNDER', 'ADMIN'].includes(userRole)) {
-      await logAudit({
-        userId: user.userId,
-        action: 'STAFF_VIEW',
-        entity: 'STAFF',
-        status: 'DENIED',
-        metadata: { reason: 'Insufficient permissions' },
-      });
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
     // Fetch staff members
     const result = await query(`
       SELECT 
@@ -84,21 +39,14 @@ export async function GET(req) {
       ORDER BY u.created_at DESC
     `);
 
-    await logAudit({
-      userId: user.userId,
-      action: 'STAFF_VIEW',
-      entity: 'STAFF',
-      status: 'SUCCESS',
-      metadata: { count: result.rows.length },
-    });
-
-    return NextResponse.json({
-      staff: result.rows,
+    return Response.json({
+      success: true,
+      data: result.rows,
     });
   } catch (error) {
     console.error('Error fetching staff:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
+    return Response.json(
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -106,46 +54,13 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    // Use session-based auth
-    const user = await requireApiAuth();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get user role
-    const userResult = await query(
-      'SELECT id, role, status FROM users WHERE id = $1',
-      [user.userId]
-    );
-    const userRecord = userResult.rows[0];
-
-    if (!userRecord) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Check permission - only FOUNDER/ADMIN can create staff
-    if (!['FOUNDER', 'ADMIN'].includes(userRecord.role)) {
-      await logAudit({
-        userId: user.userId,
-        action: 'STAFF_CREATE',
-        entity: 'STAFF',
-        status: 'DENIED',
-        metadata: { reason: 'Insufficient permissions' },
-      });
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
     // Parse and validate request
     const body = await req.json();
     const validation = createStaffSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.errors },
+      return Response.json(
+        { success: false, error: 'Validation failed', details: validation.error.errors },
         { status: 400 }
       );
     }
@@ -166,8 +81,8 @@ export async function POST(req) {
     ]);
 
     if (existingUser.rows.length > 0) {
-      return NextResponse.json(
-        { error: 'Email already exists' },
+      return Response.json(
+        { success: false, error: 'Email already exists' },
         { status: 400 }
       );
     }
@@ -192,33 +107,18 @@ export async function POST(req) {
       [newUser.id, department || null, title || null, phone || null]
     );
 
-    // Log action
-    await logAudit({
-      userId: user.userId,
-      action: 'STAFF_CREATE',
-      entity: 'STAFF',
-      entityId: newUser.id,
-      status: 'SUCCESS',
-      metadata: {
-        email,
-        full_name,
-        role,
-        department,
-        title,
-      },
-    });
-
-    return NextResponse.json(
+    return Response.json(
       {
-        staff: newUser,
+        success: true,
+        data: newUser,
         message: 'Staff account created successfully',
       },
       { status: 201 }
     );
   } catch (error) {
     console.error('Error creating staff:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
+    return Response.json(
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

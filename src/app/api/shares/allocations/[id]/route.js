@@ -4,9 +4,15 @@
  */
 
 import { query } from '@/lib/db.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 
 export async function PUT(request, { params }) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
+    console.log('[API] PUT /api/shares/allocations/[id] - Starting request for user:', user.userId);
+    
     const { id } = params;
     const body = await request.json();
     const {
@@ -98,9 +104,28 @@ export async function PUT(request, { params }) {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error('Share allocation PUT error:', error);
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn('[API] PUT /api/shares/allocations/[id] - Unauthorized');
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.error('[API] PUT /api/shares/allocations/[id] - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
@@ -108,6 +133,11 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
+    console.log('[API] DELETE /api/shares/allocations/[id] - Starting request for user:', user.userId);
+    
     const { id } = params;
 
     const result = await query(
@@ -133,9 +163,28 @@ export async function DELETE(request, { params }) {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error('Share allocation DELETE error:', error);
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn('[API] DELETE /api/shares/allocations/[id] - Unauthorized');
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.error('[API] DELETE /api/shares/allocations/[id] - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }

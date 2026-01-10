@@ -354,6 +354,18 @@ export async function issueNewShares(issuance) {
         WHERE id = (SELECT id FROM shares_config LIMIT 1)
       `, [shares_amount]);
 
+      // Verify recipient exists in users table before creating shareholding
+      const recipientCheckResult = await query(
+        'SELECT id FROM users WHERE id = $1',
+        [to_shareholder_id]
+      );
+
+      if (recipientCheckResult.rowCount === 0) {
+        throw new Error(
+          `User with ID ${to_shareholder_id} does not exist. Please create the user first.`
+        );
+      }
+
       // Insert or update shareholding
       const upsertResult = await query(`
         INSERT INTO shareholdings (
@@ -363,6 +375,7 @@ export async function issueNewShares(issuance) {
           valuation_snapshot_id
         )
         SELECT $1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, 'active', $8
+        FROM users u WHERE u.id = $1
         ON CONFLICT (shareholder_id) DO UPDATE
         SET shares_owned = shareholdings.shares_owned + $2,
             updated_at = CURRENT_TIMESTAMP
@@ -456,6 +469,19 @@ export async function transferShares(transfer) {
     await query('BEGIN');
 
     try {
+      // Verify recipient exists in users table before creating shareholding
+      const recipientCheckResult = await query(
+        'SELECT id FROM users WHERE id = $1',
+        [to_shareholder_id]
+      );
+
+      if (recipientCheckResult.rowCount === 0) {
+        await query('ROLLBACK');
+        throw new Error(
+          `User with ID ${to_shareholder_id} does not exist. Please create the user first.`
+        );
+      }
+
       // Reduce sender shares
       await query(`
         UPDATE shareholdings
@@ -470,6 +496,7 @@ export async function transferShares(transfer) {
           status, acquisition_date
         )
         SELECT $1, $2, $3, 'active', CURRENT_DATE
+        FROM users u WHERE u.id = $1
         ON CONFLICT (shareholder_id) DO UPDATE
         SET shares_owned = shareholdings.shares_owned + $2,
             updated_at = CURRENT_TIMESTAMP

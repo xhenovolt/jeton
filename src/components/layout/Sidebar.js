@@ -56,7 +56,7 @@ function Tooltip({ children, label }) {
 /**
  * Navigation menu structure - organized by domain
  */
-const menuItems = [
+const baseMenuItems = [
   { label: 'Dashboard', href: '/app/dashboard', icon: Home },
   { label: 'Overview', href: '/app/overview', icon: Eye },
   {
@@ -94,15 +94,19 @@ const menuItems = [
       { label: 'IP Portfolio', href: '/app/intellectual-property' },
     ],
   },
-  {
-    label: 'Admin',
-    icon: Users,
-    submenu: [
-      { label: 'Audit Logs', href: '/app/audit-logs' },
-      { label: 'Reports', href: '/app/reports' },
-    ],
-  },
 ];
+
+// Admin menu - shown conditionally for admin/superadmin users
+const adminMenuItems = {
+  label: 'Admin',
+  icon: Users,
+  submenu: [
+    { label: 'Users', href: '/app/admin/users' },
+    { label: 'Roles & Permissions', href: '/app/admin/roles' },
+    { label: 'Audit Logs', href: '/app/admin/audit-logs' },
+    { label: 'Activity', href: '/app/admin/activity' },
+  ],
+};
 
 /**
  * Sidebar Component - Enhanced
@@ -119,6 +123,36 @@ export default function Sidebar() {
     'Intellectual Property': false,
     Admin: false,
   });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [menuItems, setMenuItems] = useState(baseMenuItems);
+
+  // Fetch current user to check if they're admin
+  useEffect(() => {
+    fetchCurrentUser();
+  }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        
+        // Add admin menu if user is admin or superadmin
+        if (data.user?.is_superadmin || data.user?.role === 'admin' || data.user?.role === 'superadmin') {
+          setMenuItems([...baseMenuItems, adminMenuItems]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load collapsed state from localStorage
   useEffect(() => {
@@ -195,7 +229,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {navMenuItems.map((item) => {
             const Icon = item.icon;
             const hasSubmenu = item.submenu && item.submenu.length > 0;

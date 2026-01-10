@@ -25,10 +25,10 @@ export async function POST(request) {
       );
     }
 
-    const { email, password } = validation.data;
+    const { email, password, username, full_name } = validation.data;
     const requestMetadata = extractRequestMetadata(request);
 
-    // Check if user already exists
+    // Check if email already exists
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
       await logAuthEvent({
@@ -44,6 +44,22 @@ export async function POST(request) {
       );
     }
 
+    // Check if username is provided and unique
+    if (username) {
+      const { query } = await import('@/lib/db.js');
+      const usernameCheck = await query(
+        'SELECT id FROM users WHERE username = $1',
+        [username]
+      );
+
+      if (usernameCheck.rowCount > 0) {
+        return NextResponse.json(
+          { error: 'Username already taken', code: 'USERNAME_TAKEN' },
+          { status: 409 }
+        );
+      }
+    }
+
     // Hash password
     const passwordHash = await hashPassword(password);
 
@@ -51,7 +67,10 @@ export async function POST(request) {
     const user = await createUser({
       email,
       passwordHash,
+      username: username || null,
+      full_name: full_name || null,
       role: 'FOUNDER',
+      status: 'dormant', // Users are dormant until activated by admin
     });
 
     if (!user || user.error) {
@@ -81,7 +100,10 @@ export async function POST(request) {
 
     // Set cookie - do NOT return user data in JSON
     const response = NextResponse.json(
-      { message: 'Account created successfully' },
+      { 
+        message: 'Account created successfully. Please wait for admin activation.',
+        userId: user.id,
+      },
       { status: 201 }
     );
 

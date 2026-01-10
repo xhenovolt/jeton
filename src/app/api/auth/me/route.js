@@ -1,12 +1,13 @@
 /**
  * GET /api/auth/me
- * Get current user information from session
+ * Get current user information from session with roles and permissions
  */
 
 import { NextResponse } from 'next/server.js';
 import { cookies } from 'next/headers.js';
 import { getSession, getSessionFromCookies } from '@/lib/session.js';
 import { logRouteAccess, extractRequestMetadata } from '@/lib/audit.js';
+import { query } from '@/lib/db.js';
 
 export async function GET(request) {
   try {
@@ -47,6 +48,27 @@ export async function GET(request) {
       );
     }
 
+    // Fetch detailed user information
+    const userResult = await query(
+      `SELECT 
+        u.id,
+        u.email,
+        u.role,
+        u.status
+      FROM users u
+      WHERE u.id = $1`,
+      [session.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const user = userResult.rows[0];
+
     // Log successful access
     await logRouteAccess({
       action: 'PROTECTED_ROUTE_ACCESS',
@@ -58,10 +80,15 @@ export async function GET(request) {
     return NextResponse.json(
       {
         user: {
-          id: session.userId,
-          email: session.user.email,
-          role: session.user.role,
-          status: session.user.status,
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          full_name: user.full_name,
+          profile_photo_url: user.profile_photo_url,
+          role: user.role,
+          status: user.status,
+          is_superadmin: user.is_superadmin,
+          roles: user.roles || [],
         },
       },
       { status: 200 }

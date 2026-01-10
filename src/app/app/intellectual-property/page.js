@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, TrendingUp, Users, Package } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 
 /**
@@ -32,7 +33,7 @@ export default function IntellectualPropertyPage() {
   const fetchIP = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/intellectual-property');
+      const response = await fetchWithAuth('/api/intellectual-property');
       const result = await response.json();
       if (result.success) {
         setIP(result.data);

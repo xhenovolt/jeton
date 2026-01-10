@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Shield, Globe, AlertTriangle } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 
 /**
@@ -30,7 +31,7 @@ export default function InfrastructurePage() {
   const fetchInfrastructure = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/infrastructure');
+      const response = await fetchWithAuth('/api/infrastructure');
       const result = await response.json();
       if (result.success) {
         setInfrastructure(result.data);
@@ -109,7 +110,7 @@ export default function InfrastructurePage() {
   const handleDeleteInfra = async (id) => {
     if (!confirm('Are you sure you want to delete this infrastructure item?')) return;
     try {
-      const response = await fetch(`/api/infrastructure/${id}`, {
+      const response = await fetchWithAuth(`/api/infrastructure/${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();

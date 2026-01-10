@@ -23,7 +23,7 @@ export async function GET(request) {
     let paramIndex = 1;
 
     if (search) {
-      whereClause += ` AND (customer_name ILIKE $${paramIndex} OR product_service ILIKE $${paramIndex} OR customer_email ILIKE $${paramIndex})`;
+      whereClause += ` AND (customer_name ILIKE $${paramIndex} OR customer_email ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
@@ -58,7 +58,6 @@ export async function GET(request) {
         s.deal_id,
         s.customer_name,
         s.customer_email,
-        s.product_service,
         s.quantity,
         s.unit_price,
         s.total_amount,
@@ -67,12 +66,9 @@ export async function GET(request) {
         s.currency,
         s.notes,
         s.created_at,
-        s.updated_at,
-        COALESCE(SUM(sp.amount), 0)::DECIMAL as total_paid
+        s.updated_at
       FROM sales s
-      LEFT JOIN sales_payments sp ON s.id = sp.sale_id
       ${whereClause}
-      GROUP BY s.id
       ORDER BY s.sale_date DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `,
@@ -84,8 +80,6 @@ export async function GET(request) {
       quantity: parseInt(row.quantity),
       unit_price: parseFloat(row.unit_price),
       total_amount: parseFloat(row.total_amount),
-      total_paid: parseFloat(row.total_paid),
-      remaining_balance: parseFloat(row.total_amount) - parseFloat(row.total_paid),
     }));
 
     return Response.json({
@@ -109,6 +103,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
     const body = await request.json();
     const {
       deal_id,

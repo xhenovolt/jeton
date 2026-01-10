@@ -4,9 +4,12 @@
  */
 
 import { query } from '@/lib/db.js';
+import { requireApiAuth } from '@/lib/api-auth.js';
 
 export async function GET(request) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
     const result = await query(`
       SELECT 
         id,
@@ -35,6 +38,23 @@ export async function GET(request) {
       count: result.rowCount,
     });
   } catch (error) {
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn('Assets GET error:', error.message);
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    if (error.status === 403) {
+      console.warn('Assets GET error:', error.message);
+      return Response.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
     console.error('Assets GET error:', error);
     return Response.json(
       { success: false, error: error.message },
@@ -49,6 +69,9 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
     const body = await request.json();
 
     // Validation
@@ -119,6 +142,23 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
+    // Handle auth errors
+    if (error.status === 401) {
+      console.warn('Assets POST error:', error.message);
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    if (error.status === 403) {
+      console.warn('Assets POST error:', error.message);
+      return Response.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
     console.error('Assets POST error:', error);
     return Response.json(
       { success: false, error: error.message },

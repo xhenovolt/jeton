@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, Plus, Edit2, Trash2, Eye, DollarSign, TrendingUp } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency, getStatusColor, getStatusBgColor, calculatePaymentProgress } from '@/lib/sales';
 
 export default function SalesPage() {
@@ -55,7 +56,7 @@ export default function SalesPage() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await fetch(`/api/sales?${params}`);
+      const response = await fetchWithAuth(`/api/sales?${params}`);
       const result = await response.json();
 
       if (result.success) {
@@ -79,7 +80,7 @@ export default function SalesPage() {
       if (endDate) params.append('endDate', endDate);
       if (statusFilter) params.append('status', statusFilter);
 
-      const response = await fetch(`/api/sales/report?${params}`);
+      const response = await fetchWithAuth(`/api/sales/report?${params}`);
       const result = await response.json();
 
       if (result.success) {
@@ -155,7 +156,7 @@ export default function SalesPage() {
   const handleUpdateSale = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`/api/sales/${editingId}`, {
+      const response = await fetchWithAuth(`/api/sales/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -197,7 +198,7 @@ export default function SalesPage() {
     if (!confirm('Are you sure you want to delete this sale?')) return;
 
     try {
-      const response = await fetch(`/api/sales/${id}`, {
+      const response = await fetchWithAuth(`/api/sales/${id}`, {
         method: 'DELETE',
       });
 
@@ -222,7 +223,7 @@ export default function SalesPage() {
         return;
       }
 
-      const response = await fetch(`/api/sales/${selectedSale.id}/payment`, {
+      const response = await fetchWithAuth(`/api/sales/${selectedSale.id}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -243,7 +244,7 @@ export default function SalesPage() {
         });
         setShowPaymentModal(false);
         // Refresh sale details
-        const detailResponse = await fetch(`/api/sales/${selectedSale.id}`);
+        const detailResponse = await fetchWithAuth(`/api/sales/${selectedSale.id}`);
         const detailResult = await detailResponse.json();
         if (detailResult.success) {
           setSelectedSale(detailResult.data);
@@ -261,7 +262,7 @@ export default function SalesPage() {
   // View details
   const handleViewDetails = async (saleId) => {
     try {
-      const response = await fetch(`/api/sales/${saleId}`);
+      const response = await fetchWithAuth(`/api/sales/${saleId}`);
       const result = await response.json();
       if (result.success) {
         setSelectedSale(result.data);

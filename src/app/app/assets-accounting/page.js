@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, TrendingDown, Zap, Building2 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 /**
  * Accounting Assets Management Page
@@ -29,7 +30,7 @@ export default function AssetsAccountingPage() {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/assets-accounting');
+      const response = await fetchWithAuth('/api/assets-accounting');
       const result = await response.json();
       if (result.success) {
         setAssets(result.data);
@@ -47,7 +48,7 @@ export default function AssetsAccountingPage() {
       const url = editingId ? `/api/assets-accounting/${editingId}` : '/api/assets-accounting';
       const method = editingId ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +121,7 @@ export default function AssetsAccountingPage() {
   const handleDeleteAsset = async (id) => {
     if (!confirm('Are you sure you want to delete this asset?')) return;
     try {
-      const response = await fetch(`/api/assets-accounting/${id}`, {
+      const response = await fetchWithAuth(`/api/assets-accounting/${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();

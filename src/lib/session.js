@@ -70,7 +70,7 @@ export async function getSession(sessionId) {
       userId: sessionRow.user_id,
       expiresAt: sessionRow.expires_at,
       user: {
-        id: sessionRow.id,
+        id: sessionRow.user_id,
         email: sessionRow.email,
         role: sessionRow.role,
         status: sessionRow.status,
@@ -89,14 +89,47 @@ export async function getSession(sessionId) {
  */
 export async function updateSessionActivity(sessionId) {
   try {
-    await query(
+    const sessionResult = await query(
       `UPDATE sessions 
        SET last_activity = CURRENT_TIMESTAMP
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING user_id`,
       [sessionId]
     );
+
+    // Also update user's last_seen timestamp
+    if (sessionResult.rows[0]?.user_id) {
+      await updateUserLastSeen(sessionResult.rows[0].user_id);
+    }
   } catch (error) {
     console.error('Error updating session activity:', error.message);
+  }
+}
+
+/**
+ * Update user's last_seen timestamp and online status
+ * @param {string} userId - User ID
+ * @returns {Promise<void>}
+ */
+export async function updateUserLastSeen(userId) {
+  try {
+    // Try to update both last_seen and is_online columns
+    // If they don't exist yet, the error will be caught and logged
+    await query(
+      `UPDATE users 
+       SET last_seen = CURRENT_TIMESTAMP,
+           is_online = true
+       WHERE id = $1`,
+      [userId]
+    );
+  } catch (error) {
+    // Column might not exist yet if migration hasn't run
+    // This is safe to ignore during migration period
+    if (error.code === '42703') {
+      // Column does not exist error - migration not run yet
+      return;
+    }
+    console.error('Error updating user last_seen:', error.message);
   }
 }
 

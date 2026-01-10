@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Zap, AlertCircle } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay, { CurrencyTotal } from '@/components/common/CurrencyDisplay';
 
 /**
@@ -23,9 +24,9 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
       const [valuationRes, sharesRes, salesRes] = await Promise.all([
-        fetch('/api/valuations'),
-        fetch('/api/shares'),
-        fetch('/api/sales/report'),
+        fetchWithAuth('/api/valuations'),
+        fetchWithAuth('/api/shares'),
+        fetchWithAuth('/api/sales/report'),
       ]);
 
       const valuationData = await valuationRes.json();

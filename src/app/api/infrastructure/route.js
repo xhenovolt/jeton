@@ -34,9 +34,19 @@ export async function GET(request) {
       count: result.rowCount,
     });
   } catch (error) {
-    console.error('Infrastructure GET error:', error);
+    console.error('[API] GET /api/infrastructure - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
@@ -132,9 +142,19 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Infrastructure POST error:', error);
+    console.error('[API] POST /api/infrastructure - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }

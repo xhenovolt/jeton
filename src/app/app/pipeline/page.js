@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import { PipelineBoard } from '@/components/financial/PipelineBoard';
 import { DealDialog } from '@/components/financial/DealDialog';
@@ -31,12 +32,12 @@ export default function PipelinePage() {
     try {
       setPageLoading(true);
       const [dealsRes, valuationRes] = await Promise.all([
-        fetch('/api/deals', {
+        fetchWithAuth('/api/deals', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           },
         }),
-        fetch('/api/deals/valuation', {
+        fetchWithAuth('/api/deals/valuation', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           },

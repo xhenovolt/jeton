@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Edit2, TrendingDown } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 import LiabilitiesTable from '@/components/financial/LiabilitiesTable';
 import LiabilityDialog from '@/components/financial/LiabilityDialog';
@@ -21,7 +22,7 @@ export default function LiabilitiesPage() {
   const fetchLiabilities = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/liabilities', { credentials: 'include' });
+      const response = await fetchWithAuth('/api/liabilities');
       const data = await response.json();
       
       if (response.ok) {

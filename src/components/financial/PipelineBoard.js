@@ -127,7 +127,6 @@ export function PipelineBoard({ deals, onStageChange, onEdit, onDelete }) {
                   <CurrencyDisplay amount={total} />
                 </p>
               </div>
-
               {/* Column Body */}
               <div
                 onDragOver={handleDragOver}
@@ -138,7 +137,7 @@ export function PipelineBoard({ deals, onStageChange, onEdit, onDelete }) {
                   dragOverStage === stage ? 'ring-2 ring-current ring-offset-2' : ''
                 }`}
               >
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="sync">
                   {stageDeal.length > 0 ? (
                     stageDeal.map((deal) => (
                       <div

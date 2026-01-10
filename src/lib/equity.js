@@ -256,6 +256,19 @@ export async function addShareholder(shareholder) {
       throw new Error('Invalid equity_type. Must be PURCHASED or GRANTED.');
     }
 
+    // CRITICAL: Verify user exists in users table before creating shareholding
+    // This prevents "violates foreign key constraint" error
+    const userCheckResult = await query(
+      'SELECT id FROM users WHERE id = $1',
+      [shareholder_id]
+    );
+
+    if (userCheckResult.rowCount === 0) {
+      throw new Error(
+        `User with ID ${shareholder_id} does not exist. Please create the user first before adding as shareholder.`
+      );
+    }
+
     const config = await getShareConfiguration();
 
     // Validate total allocated won't exceed issued

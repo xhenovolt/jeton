@@ -78,8 +78,10 @@ export const menuItems = [
     icon: Users,
     category: 'sections',
     submenu: [
-      { label: 'Audit Logs', href: '/app/audit-logs' },
-      { label: 'Reports', href: '/app/reports' },
+      { label: 'Users', href: '/admin/users' },
+      { label: 'Roles & Permissions', href: '/admin/roles' },
+      { label: 'Audit Logs', href: '/admin/audit-logs' },
+      { label: 'Activity Analytics', href: '/admin/activity-analytics' },
     ],
   },
 ];
@@ -128,6 +130,10 @@ export const protectedRoutes = [
   '/app/audit-logs',
   '/app/sales',
   '/app/valuation',
+  '/admin/users',
+  '/admin/roles',
+  '/admin/audit-logs',
+  '/admin/activity-analytics',
 ];
 
 /**

@@ -29,6 +29,7 @@ const PROTECTED_ROUTES = [
   '/equity',
   '/audit-logs',
   '/sales',
+  '/admin',
 ];
 
 // Routes that are only for unauthenticated users

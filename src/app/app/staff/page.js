@@ -14,6 +14,7 @@ import {
   UserCheck,
   Loader,
 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import StaffDialog from '@/components/staff/StaffDialog';
 import StaffTable from '@/components/staff/StaffTable';
 
@@ -30,18 +31,16 @@ export default function StaffPage() {
   async function fetchStaff() {
     try {
       setLoading(true);
-      const response = await fetch('/api/staff', {
-        method: 'GET',
-        credentials: 'include',  // Automatically sends HTTP-only session cookies
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetchWithAuth('/api/staff');
 
       if (!response.ok) throw new Error('Failed to fetch staff');
 
-      const data = await response.json();
-      setStaff(data.staff);
+      const result = await response.json();
+      if (result.success) {
+        setStaff(result.data);
+      } else {
+        throw new Error(result.error || 'Failed to fetch staff');
+      }
     } catch (error) {
       console.error('Error fetching staff:', error);
     } finally {

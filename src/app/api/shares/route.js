@@ -160,9 +160,20 @@ export async function GET(request) {
 
   } catch (error) {
     const elapsed = Date.now() - startTime;
-    console.error(`[API] GET /api/shares - ERROR after ${elapsed}ms:`, error.message || error);
+    
+    console.error(`[API] GET /api/shares - ERROR after ${elapsed}ms:`, {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message || 'Internal server error' },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
@@ -170,6 +181,8 @@ export async function GET(request) {
 
 export async function PUT(request) {
   try {
+    console.log('[API] PUT /api/shares - Starting request');
+    
     const body = await request.json();
     const { authorized_shares, class_type } = body;
 
@@ -268,9 +281,28 @@ export async function PUT(request) {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error('Shares PUT error:', error);
+    // Handle auth errors from requireApiAuth
+    if (error.status === 401) {
+      console.warn('[API] PUT /api/shares - Unauthorized');
+      return Response.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.error('[API] PUT /api/shares - ERROR:', {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+      stack: error.stack?.split('\n')[0],
+    });
+    
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }

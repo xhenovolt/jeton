@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, X, LogOut, Settings, HelpCircle, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 /**
  * Top Navigation Bar Component
@@ -18,13 +19,52 @@ export function Navbar() {
   const searchInputRef = useRef(null);
   const profileRef = useRef(null);
 
-  // Mock user data (replace with real user context later)
-  const [user] = useState({
-    name: 'Admin User',
-    email: 'admin@jeton.ai',
-    role: 'Administrator',
-    avatar: '👤',
-  });
+  // Fetch real user data from database
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAvatarText = () => {
+    if (!user) return '👤';
+    return (user.full_name || user.username || user.email)
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   // Monitor sidebar collapsed state from localStorage
   useEffect(() => {
@@ -204,12 +244,24 @@ export function Navbar() {
           onClick={() => setProfileOpen(!profileOpen)}
           className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/20 text-lg">
-            {user.avatar}
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/20 text-lg overflow-hidden">
+            {user?.profile_photo_url ? (
+              <img
+                src={user.profile_photo_url}
+                alt={user.full_name || 'User'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              getAvatarText()
+            )}
           </div>
           <div className="hidden sm:flex flex-col items-start">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">{user.role}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {loading ? 'Loading...' : user?.full_name || user?.username || 'User'}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {loading ? '...' : user?.is_superadmin ? 'Superadmin' : user?.roles?.[0] || 'User'}
+            </p>
           </div>
           <ChevronDown size={16} className={`text-gray-600 dark:text-gray-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -220,13 +272,25 @@ export function Navbar() {
             {/* User Info Section */}
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600/20 text-2xl">
-                  {user.avatar}
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600/20 text-2xl overflow-hidden">
+                  {user?.profile_photo_url ? (
+                    <img
+                      src={user.profile_photo_url}
+                      alt={user.full_name || 'User'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    getAvatarText()
+                  )}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100">{user.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">{user.role}</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">
+                    {user?.full_name || user?.username || 'User'}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                    {user?.is_superadmin ? 'Superadmin' : user?.roles?.[0] || 'User'}
+                  </p>
                 </div>
               </div>
             </div>

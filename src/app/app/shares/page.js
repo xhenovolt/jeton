@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, TrendingUp, Users, Percent, DollarSign, AlertCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CurrencyDisplay from '@/components/common/CurrencyDisplay';
 
 /**
@@ -54,42 +55,118 @@ export default function SharesPage() {
     try {
       if (!refreshing) setLoading(true);
       setRefreshing(true);
+      setError(null); // Clear previous errors
 
       // Create abort controller with 30-second timeout (increased for cold connections)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const [sharesRes, allocRes] = await Promise.all([
-        fetch('/api/shares', { signal: controller.signal }),
-        fetch('/api/shares/allocations', { signal: controller.signal }),
+        fetchWithAuth('/api/shares', { signal: controller.signal }),
+        fetchWithAuth('/api/shares/allocations', { signal: controller.signal }),
       ]);
 
       clearTimeout(timeoutId);
 
+      // Enhanced error logging with full response details
       if (!sharesRes.ok || !allocRes.ok) {
-        console.error('API Error:', { sharesStatus: sharesRes.status, allocStatus: allocRes.status });
-        setError('Failed to load share data. Please try again.');
+        const sharesError = !sharesRes.ok ? await sharesRes.json().catch(() => ({ error: `HTTP ${sharesRes.status}` })) : null;
+        const allocError = !allocRes.ok ? await allocRes.json().catch(() => ({ error: `HTTP ${allocRes.status}` })) : null;
+        
+        console.error('[SharesPage] API Error:', {
+          sharesStatus: sharesRes.status,
+          sharesError: sharesError,
+          allocStatus: allocRes.status,
+          allocError: allocError,
+          timestamp: new Date().toISOString(),
+        });
+        
+        // Provide detailed error message
+        let errorMsg = 'Failed to load share data. ';
+        if (sharesRes.status === 401) errorMsg += 'Session expired. Please login again.';
+        else if (!sharesRes.ok) errorMsg += `Server error: ${sharesRes.status}.`;
+        else if (!allocRes.ok) errorMsg += `Allocation server error: ${allocRes.status}.`;
+        
+        setError(errorMsg);
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
-      const sharesData = await sharesRes.json();
-      const allocData = await allocRes.json();
+      // Parse responses and validate they contain data
+      let sharesData, allocData;
+      
+      try {
+        sharesData = await sharesRes.json();
+        if (!sharesData || typeof sharesData !== 'object') {
+          throw new Error('Invalid shares response format');
+        }
+      } catch (e) {
+        console.error('[SharesPage] Failed to parse shares response:', e.message);
+        setError('Invalid response from shares API. Please try again.');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      
+      try {
+        allocData = await allocRes.json();
+        if (!allocData || typeof allocData !== 'object') {
+          throw new Error('Invalid allocations response format');
+        }
+      } catch (e) {
+        console.error('[SharesPage] Failed to parse allocations response:', e.message);
+        setError('Invalid response from allocations API. Please try again.');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
+      // Check API response success flags
+      if (sharesData.error || allocData.error) {
+        console.error('[SharesPage] API returned error flags:', {
+          sharesError: sharesData.error,
+          allocError: allocData.error,
+        });
+        setError(sharesData.error || allocData.error || 'Failed to load data');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Update state with valid data
       if (sharesData.success && sharesData.data) {
         setShareConfig(sharesData.data);
         // Initialize config form with current authorized shares
         setConfigForm({
-          authorized_shares: sharesData.data.authorized_shares.toString(),
+          authorized_shares: sharesData.data.authorized_shares?.toString() || '',
         });
       }
 
       if (allocData.success && Array.isArray(allocData.data)) {
         setAllocations(allocData.data);
+      } else if (allocData.success) {
+        console.warn('[SharesPage] Allocations response missing data array');
+        setAllocations([]);
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      // Catch network errors, abort errors, and other exceptions
+      const isAborted = error.name === 'AbortError';
+      const isNetworkError = error instanceof TypeError;
+      
+      console.error('[SharesPage] Fetch failed:', {
+        message: error.message,
+        name: error.name,
+        isAborted,
+        isNetworkError,
+        timestamp: new Date().toISOString(),
+      });
+      
+      let errorMsg = 'Failed to fetch share data.';
+      if (isAborted) errorMsg = 'Request timed out. Please check your connection.';
+      else if (isNetworkError) errorMsg = 'Network error. Please check your connection.';
+      
+      setError(errorMsg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -112,6 +189,17 @@ export default function SharesPage() {
         }),
       });
 
+      // Check HTTP status
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        console.error(`[SharesPage] ${method} allocation failed:`, {
+          status: response.status,
+          error: errorData,
+        });
+        alert(`Error: ${errorData.error || `HTTP ${response.status}`}`);
+        return;
+      }
+
       const result = await response.json();
       if (result.success) {
         setShowModal(false);
@@ -119,11 +207,16 @@ export default function SharesPage() {
         resetForm();
         await fetchData();
       } else {
-        alert('Error: ' + result.error);
+        console.error('[SharesPage] API returned error:', result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Failed to save allocation:', error);
-      alert('Failed to save allocation');
+      console.error(`[SharesPage] Failed to save allocation:`, {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n')[0],
+      });
+      alert('Failed to save allocation: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -147,16 +240,32 @@ export default function SharesPage() {
       const response = await fetch(`/api/shares/allocations/${id}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        console.error('[SharesPage] DELETE allocation failed:', {
+          status: response.status,
+          error: errorData,
+        });
+        alert(`Error: ${errorData.error || `HTTP ${response.status}`}`);
+        return;
+      }
+
       const result = await response.json();
       if (result.success) {
         setShowDeleteConfirm(null);
         await fetchData();
       } else {
-        alert('Error: ' + result.error);
+        console.error('[SharesPage] API returned error:', result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Failed to delete allocation:', error);
-      alert('Failed to delete allocation');
+      console.error('[SharesPage] Failed to delete allocation:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n')[0],
+      });
+      alert('Failed to delete allocation: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -181,7 +290,7 @@ export default function SharesPage() {
 
   const submitConfigUpdate = async (authorizedShares) => {
     try {
-      const response = await fetch('/api/shares', {
+      const response = await fetchWithAuth('/api/shares', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,17 +298,32 @@ export default function SharesPage() {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        console.error('[SharesPage] PUT config failed:', {
+          status: response.status,
+          error: errorData,
+        });
+        alert(`Error: ${errorData.error || `HTTP ${response.status}`}`);
+        return;
+      }
+
       const result = await response.json();
       if (result.success) {
         setShowConfigModal(false);
         setShowWarning(null);
         await fetchData();
       } else {
-        alert('Error: ' + result.error);
+        console.error('[SharesPage] API returned error:', result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Failed to update config:', error);
-      alert('Failed to update equity structure');
+      console.error('[SharesPage] Failed to update config:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n')[0],
+      });
+      alert('Failed to update equity structure: ' + (error.message || 'Unknown error'));
     }
   };
 

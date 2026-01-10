@@ -47,7 +47,7 @@ async function fetchExchangeRates() {
 
     const data = await response.json();
 
-    if (!data.success && !data.rates) {
+    if (!data.rates || typeof data.rates !== 'object') {
       throw new Error('Invalid API response format');
     }
 

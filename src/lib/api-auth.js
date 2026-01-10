@@ -41,16 +41,15 @@ export async function getApiAuthUser() {
  * Middleware for API routes - validates session and returns user
  * Use in API routes like: const user = await requireApiAuth();
  * @returns {Promise<Object>} User object
- * @throws {Response} 401 Unauthorized if not authenticated
+ * @throws {Object} Error object with status 401 if not authenticated
  */
 export async function requireApiAuth() {
   const user = await getApiAuthUser();
 
   if (!user) {
-    throw NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+    const error = new Error('Unauthorized');
+    error.status = 401;
+    throw error;
   }
 
   return user;
@@ -60,7 +59,7 @@ export async function requireApiAuth() {
  * Require specific role for API access
  * @param {string|string[]} requiredRoles - Role(s) required
  * @returns {Promise<Object>} User object if authorized
- * @throws {Response} 401 if not authenticated, 403 if unauthorized
+ * @throws {Object} Error object with status 401 or 403
  */
 export async function requireApiRole(requiredRoles) {
   const user = await requireApiAuth();
@@ -68,10 +67,9 @@ export async function requireApiRole(requiredRoles) {
   const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
 
   if (!roles.includes(user.role)) {
-    throw NextResponse.json(
-      { error: 'Forbidden: Insufficient permissions' },
-      { status: 403 }
-    );
+    const error = new Error('Forbidden: Insufficient permissions');
+    error.status = 403;
+    throw error;
   }
 
   return user;

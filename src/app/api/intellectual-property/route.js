@@ -49,6 +49,9 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
+    // Authenticate user
+    const user = await requireApiAuth();
+    
     const body = await request.json();
 
     // Validation

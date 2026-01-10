@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, DollarSign, Wallet, Zap, CheckCircle, XCircle } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import CountUpNumber from '@/components/financial/CountUpNumber';
 
 export default function OverviewPage() {
@@ -29,8 +30,8 @@ export default function OverviewPage() {
       setLoading(true);
       // Remove Authorization header - using session cookies instead
       const [financialRes, dealRes] = await Promise.all([
-        fetch('/api/net-worth'),
-        fetch('/api/deals/valuation'),
+        fetchWithAuth('/api/net-worth'),
+        fetchWithAuth('/api/deals/valuation'),
       ]);
 
       if (!financialRes.ok && financialRes.status === 401) {
