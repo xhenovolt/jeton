@@ -281,15 +281,6 @@ export async function PUT(request) {
       data: result.rows[0],
     });
   } catch (error) {
-    // Handle auth errors from requireApiAuth
-    if (error.status === 401) {
-      console.warn('[API] PUT /api/shares - Unauthorized');
-      return Response.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
     console.error('[API] PUT /api/shares - ERROR:', {
       message: error.message,
       status: error.status,

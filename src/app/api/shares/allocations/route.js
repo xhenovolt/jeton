@@ -13,7 +13,6 @@
 
 import { query } from '@/lib/db.js';
 import { getValuationSummary } from '@/lib/valuations.js';
-import { requireApiAuth } from '@/lib/api-auth.js';
 
 /**
  * Get strategic company value (SINGLE SOURCE OF TRUTH)
@@ -83,10 +82,7 @@ async function getStrategicCompanyValue() {
 export async function GET(request) {
   const startTime = Date.now();
   try {
-    // Authenticate user
-    const user = await requireApiAuth();
-    
-    console.log('[API] GET /api/shares/allocations - Starting request for user:', user.userId);
+    console.log('[API] GET /api/shares/allocations - Starting request');
     
     // Get shares config first
     const sharesResult = await query('SELECT authorized_shares FROM shares LIMIT 1');
@@ -154,15 +150,6 @@ export async function GET(request) {
   } catch (error) {
     const elapsed = Date.now() - startTime;
     
-    // Handle auth errors
-    if (error.status === 401) {
-      console.warn(`[API] GET /api/shares/allocations - Unauthorized after ${elapsed}ms`);
-      return Response.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
     console.error(`[API] GET /api/shares/allocations - ERROR after ${elapsed}ms:`, {
       message: error.message,
       status: error.status,
@@ -183,10 +170,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    // Authenticate user
-    const user = await requireApiAuth();
-    
-    console.log('[API] POST /api/shares/allocations - Starting request for user:', user.userId);
+    console.log('[API] POST /api/shares/allocations - Starting request');
     
     const body = await request.json();
     const {

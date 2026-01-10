@@ -4,14 +4,10 @@
  */
 
 import { query } from '@/lib/db.js';
-import { requireApiAuth } from '@/lib/api-auth.js';
 
 export async function PUT(request, { params }) {
   try {
-    // Authenticate user
-    const user = await requireApiAuth();
-    
-    console.log('[API] PUT /api/shares/allocations/[id] - Starting request for user:', user.userId);
+    console.log('[API] PUT /api/shares/allocations/[id] - Starting request');
     
     const { id } = params;
     const body = await request.json();
@@ -133,10 +129,7 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    // Authenticate user
-    const user = await requireApiAuth();
-    
-    console.log('[API] DELETE /api/shares/allocations/[id] - Starting request for user:', user.userId);
+    console.log('[API] DELETE /api/shares/allocations/[id] - Starting request');
     
     const { id } = params;
 
@@ -163,15 +156,6 @@ export async function DELETE(request, { params }) {
       data: result.rows[0],
     });
   } catch (error) {
-    // Handle auth errors
-    if (error.status === 401) {
-      console.warn('[API] DELETE /api/shares/allocations/[id] - Unauthorized');
-      return Response.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
     console.error('[API] DELETE /api/shares/allocations/[id] - ERROR:', {
       message: error.message,
       status: error.status,
