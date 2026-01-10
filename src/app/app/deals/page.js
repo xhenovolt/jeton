@@ -32,8 +32,8 @@ export default function DealsPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setDeals(data.deals);
-        const total = data.deals.reduce((sum, deal) => sum + Number(deal.value_estimate), 0);
+        setDeals(data.data);
+        const total = data.data.reduce((sum, deal) => sum + Number(deal.value_estimate), 0);
         setTotalValue(total);
       } else {
         console.error('Failed to fetch deals');

@@ -71,7 +71,7 @@ export default function EditDealPage() {
         expected_close_date: dealData.deal.expected_close_date ? dealData.deal.expected_close_date.split('T')[0] : '',
       });
 
-      setStaff(staffData.staff || []);
+      setStaff(staffData.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load deal');

@@ -60,8 +60,8 @@ export default function SalesPage() {
       const result = await response.json();
 
       if (result.success) {
-        setSales(result.data.sales);
-        setTotalPages(result.data.pages);
+        setSales(result.data);
+        setTotalPages(result.pagination.pages);
       } else {
         setError(result.error);
       }

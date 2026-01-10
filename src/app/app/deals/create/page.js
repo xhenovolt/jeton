@@ -44,7 +44,7 @@ export default function CreateDealPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setStaff(data.staff || []);
+        setStaff(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching staff:', error);

@@ -26,8 +26,8 @@ export default function LiabilitiesPage() {
       const data = await response.json();
       
       if (response.ok) {
-        setLiabilities(data.liabilities || []);
-        const total = (data.liabilities || [])
+        setLiabilities(data.data || []);
+        const total = (data.data || [])
           .filter(l => l.status !== 'CLEARED')
           .reduce(
             (sum, liability) => sum + parseFloat(liability.outstanding_amount || 0),
