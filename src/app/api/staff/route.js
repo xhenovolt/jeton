@@ -60,7 +60,12 @@ export async function POST(req) {
 
     if (!validation.success) {
       return Response.json(
-        { success: false, error: 'Validation failed', details: validation.error.errors },
+        { 
+          success: false, 
+          error: 'Validation failed', 
+          details: validation.error.errors,
+          received: body
+        },
         { status: 400 }
       );
     }
