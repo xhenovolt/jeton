@@ -48,7 +48,7 @@ export default function PipelinePage() {
         const dealsData = await dealsRes.json();
         const valuationData = await valuationRes.json();
 
-        setDeals(dealsData.deals);
+        setDeals(dealsData.data);
         setStats({
           totalValue: valuationData.totalPipelineValue,
           weightedValue: valuationData.weightedPipelineValue,

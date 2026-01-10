@@ -36,7 +36,7 @@ export default function ReportsPage() {
       if (!response.ok) throw new Error('Failed to fetch snapshots');
 
       const data = await response.json();
-      setSnapshots(data.snapshots);
+      setSnapshots(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load snapshots');
     } finally {
