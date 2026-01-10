@@ -126,13 +126,31 @@ export default function OverviewPage() {
       </motion.div>
 
       {loading ? (
-        // Loading skeleton - placeholder cards
+        // Loading state - show cards with 0 values and loading indicators
         <>
           {/* Main Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <motion.div key={i} variants={itemVariants} className="bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-lg p-6 h-32 animate-pulse" />
-            ))}
+            <CardContent
+              icon={DollarSign}
+              label="Total Assets"
+              value={0}
+              color="from-blue-500 to-blue-600"
+              subtext={`${financialData.currency} in company assets`}
+            />
+            <CardContent
+              icon={Wallet}
+              label="Total Liabilities"
+              value={0}
+              color="from-red-500 to-red-600"
+              subtext={`${financialData.currency} owed`}
+            />
+            <CardContent
+              icon={TrendingUp}
+              label="Net Worth"
+              value={0}
+              color="from-green-500 to-green-600"
+              subtext={`Net financial position`}
+            />
           </div>
 
           {/* Pipeline/Deal Section */}
@@ -141,9 +159,20 @@ export default function OverviewPage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[1, 2].map((i) => (
-              <motion.div key={i} variants={itemVariants} className="bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-lg p-6 h-32 animate-pulse" />
-            ))}
+            <CardContent
+              icon={TrendingUp}
+              label="Pipeline Value"
+              value={0}
+              color="from-purple-500 to-purple-600"
+              subtext="Total deal estimates in pipeline"
+            />
+            <CardContent
+              icon={Zap}
+              label="Expected Revenue"
+              value={0}
+              color="from-indigo-500 to-indigo-600"
+              subtext="Weighted by probability"
+            />
           </div>
         </>
       ) : (
