@@ -45,8 +45,11 @@ export async function POST(request) {
       );
     }
 
-    // Create asset (without user tracking)
-    const asset = await createAsset(validation.data, null);
+    // Get userId from headers or session (optional for now since created_by is nullable)
+    const userId = request.headers.get('x-user-id') || null;
+
+    // Create asset
+    const asset = await createAsset(validation.data, userId);
 
     if (!asset) {
       return Response.json(
@@ -66,7 +69,12 @@ export async function POST(request) {
   } catch (error) {
     console.error('Create asset error:', error);
     return Response.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        message: error.message,
+        details: error.detail || error.hint
+      },
       { status: 500 }
     );
   }

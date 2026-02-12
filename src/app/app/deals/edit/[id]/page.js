@@ -42,14 +42,10 @@ export default function EditDealPage() {
     try {
       const [dealRes, staffRes] = await Promise.all([
         fetch(`/api/deals/${dealId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
+          credentials: 'include',
         }),
         fetch('/api/staff', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
+          credentials: 'include',
         }),
       ]);
 
@@ -99,7 +95,6 @@ export default function EditDealPage() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify({
           ...formData,
@@ -133,9 +128,6 @@ export default function EditDealPage() {
       const response = await fetch(`/api/deals/${dealId}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
       });
 
       if (!response.ok) {

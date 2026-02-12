@@ -37,9 +37,7 @@ export default function CreateDealPage() {
   const fetchStaff = async () => {
     try {
       const response = await fetch('/api/staff', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        credentials: 'include',
       });
       
       if (response.ok) {
@@ -72,7 +70,6 @@ export default function CreateDealPage() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify({
           ...formData,

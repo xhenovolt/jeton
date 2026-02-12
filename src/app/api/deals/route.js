@@ -42,7 +42,10 @@ export async function POST(request) {
       );
     }
 
-    const deal = await createDeal(validation.data);
+    // Get userId from headers or session (optional for now since created_by is nullable)
+    const userId = request.headers.get('x-user-id') || null;
+
+    const deal = await createDeal(validation.data, userId);
 
     return Response.json(
       {
@@ -55,7 +58,12 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error in POST /api/deals:', error);
     return Response.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        message: error.message,
+        details: error.detail || error.hint
+      },
       { status: 500 }
     );
   }

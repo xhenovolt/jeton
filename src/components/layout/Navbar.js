@@ -60,6 +60,8 @@ export function Navbar() {
         method: 'POST',
         credentials: 'include',
       });
+      // Clear any localStorage auth tokens
+      localStorage.removeItem('auth_token');
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
@@ -329,6 +331,8 @@ export function Navbar() {
                       credentials: 'include',
                     });
                     if (response.ok) {
+                      // Clear any localStorage auth tokens
+                      localStorage.removeItem('auth_token');
                       window.location.href = '/login';
                     }
                   } catch (error) {

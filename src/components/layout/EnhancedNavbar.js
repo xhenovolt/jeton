@@ -124,6 +124,8 @@ export function EnhancedNavbar() {
         method: 'POST',
         credentials: 'include',
       });
+      // Clear any localStorage auth tokens
+      localStorage.removeItem('auth_token');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);

@@ -17,7 +17,10 @@ export async function POST(request) {
       );
     }
 
-    const snapshot = await createSnapshot(type);
+    // Get userId from headers or session (optional for now since created_by is nullable)
+    const userId = request.headers.get('x-user-id') || null;
+
+    const snapshot = await createSnapshot(type, userId);
 
     return Response.json(
       { success: true, data: snapshot, message: 'Snapshot created successfully' },
@@ -26,7 +29,12 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error in POST /api/snapshots/create:', error);
     return Response.json(
-      { success: false, error: 'Failed to create snapshot' },
+      { 
+        success: false, 
+        error: 'Failed to create snapshot',
+        message: error.message,
+        details: error.detail || error.hint
+      },
       { status: 500 }
     );
   }

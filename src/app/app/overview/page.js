@@ -31,7 +31,7 @@ import CountUpNumber from '@/components/financial/CountUpNumber';
 // ============================================================================
 
 const REFRESH_INTERVAL = 60000; // 60 seconds - refresh data periodically
-const API_TIMEOUT = 10000; // 10 seconds - timeout for API calls
+const API_TIMEOUT = 30000; // 30 seconds - timeout for API calls (increased to handle slow initial load)
 
 // ============================================================================
 // TYPES & DEFAULTS

@@ -56,20 +56,17 @@ export async function GET(request) {
       SELECT 
         s.id,
         s.deal_id,
+        s.salesperson_id,
         s.customer_name,
         s.customer_email,
-        s.quantity,
-        s.unit_price,
-        s.total_amount,
-        s.sale_date,
-        s.status,
+        s.amount,
         s.currency,
-        s.notes,
+        s.status,
         s.created_at,
         s.updated_at
       FROM sales s
       ${whereClause}
-      ORDER BY s.sale_date DESC
+      ORDER BY s.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `,
       [...params, limit, offset]
@@ -77,9 +74,7 @@ export async function GET(request) {
 
     const sales = result.rows.map(row => ({
       ...row,
-      quantity: parseInt(row.quantity),
-      unit_price: parseFloat(row.unit_price),
-      total_amount: parseFloat(row.total_amount),
+      amount: parseFloat(row.amount),
     }));
 
     return Response.json({
@@ -106,50 +101,49 @@ export async function POST(request) {
     const body = await request.json();
     const {
       deal_id,
+      salesperson_id,
       customer_name,
       customer_email,
-      product_service,
-      quantity,
-      unit_price,
-      sale_date,
-      currency,
-      notes,
+      amount,
+      currency = 'UGX',
+      status = 'Pending',
     } = body;
 
     // Validation
-    if (!customer_name || !product_service || !quantity || unit_price === undefined) {
+    if (!customer_name || amount === undefined) {
       return Response.json(
-        { success: false, error: 'Missing required fields: customer_name, product_service, quantity, unit_price' },
+        { success: false, error: 'Missing required fields: customer_name, amount' },
         { status: 400 }
       );
     }
 
-    if (quantity <= 0 || unit_price < 0) {
+    if (amount < 0) {
       return Response.json(
-        { success: false, error: 'Quantity must be positive and unit_price must be non-negative' },
+        { success: false, error: 'Amount must be non-negative' },
         { status: 400 }
       );
     }
+
+    // Get userId from headers if salesperson_id not provided
+    const userId = salesperson_id || request.headers.get('x-user-id') || null;
 
     const result = await query(
       `
       INSERT INTO sales (
-        deal_id, customer_name, customer_email, product_service, quantity, 
-        unit_price, sale_date, currency, notes
+        deal_id, salesperson_id, customer_name, customer_email, amount, 
+        currency, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
       `,
       [
         deal_id || null,
+        userId,
         customer_name,
         customer_email || null,
-        product_service,
-        quantity,
-        unit_price,
-        sale_date || new Date().toISOString(),
-        currency || 'UGX',
-        notes || null,
+        amount,
+        currency,
+        status,
       ]
     );
 
@@ -158,17 +152,18 @@ export async function POST(request) {
       success: true,
       data: {
         ...sale,
-        quantity: parseInt(sale.quantity),
-        unit_price: parseFloat(sale.unit_price),
-        total_amount: parseFloat(sale.total_amount),
-        total_paid: 0,
-        remaining_balance: parseFloat(sale.total_amount),
+        amount: parseFloat(sale.amount),
       },
-    });
+    }, { status: 201 });
   } catch (error) {
     console.error('Sales POST error:', error);
     return Response.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        message: error.message,
+        details: error.detail || error.hint
+      },
       { status: 500 }
     );
   }

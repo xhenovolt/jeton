@@ -21,16 +21,9 @@ export default function ReportsPage() {
   const fetchSnapshots = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
-
-      if (!token) {
-        setError('Not authenticated');
-        return;
-      }
 
       const response = await fetch('/api/snapshots', {
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!response.ok) throw new Error('Failed to fetch snapshots');
@@ -47,13 +40,11 @@ export default function ReportsPage() {
   const handleCreateSnapshot = async () => {
     try {
       setCreating(true);
-      const token = localStorage.getItem('auth_token');
 
       const response = await fetch('/api/snapshots/create', {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ type: snapshotType })

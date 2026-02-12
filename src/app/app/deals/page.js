@@ -26,9 +26,6 @@ export default function DealsPage() {
       setPageLoading(true);
       const response = await fetch('/api/deals', {
         credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -66,9 +63,6 @@ export default function DealsPage() {
       const response = await fetch(`/api/deals/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
       });
       if (response.ok) {
         setDeals(deals.filter(deal => deal.id !== id));
@@ -93,7 +87,6 @@ export default function DealsPage() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(formData),
       });
@@ -113,11 +106,21 @@ export default function DealsPage() {
         setIsDialogOpen(false);
         setSelectedDeal(null);
       } else {
-        const error = await response.json();
-        console.error('Error saving deal:', error);
+        const errorData = await response.json();
+        const errorMessage = errorData?.details 
+          ? JSON.stringify(errorData.details)
+          : errorData?.message || errorData?.error || 'Failed to save deal';
+        console.error('Error saving deal:', { 
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          fullResponse: errorData 
+        });
+        alert(`Error: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error saving deal:', error);
+      alert(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
