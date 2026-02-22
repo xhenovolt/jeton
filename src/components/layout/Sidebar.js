@@ -68,6 +68,17 @@ const baseMenuItems = [
     ],
   },
   {
+    label: 'Sales Intelligence',
+    icon: Handshake,
+    submenu: [
+      { label: 'Today\'s Prospecting', href: '/app/prospecting/dashboard' },
+      { label: 'Prospects', href: '/app/prospecting' },
+      { label: 'Deals', href: '/app/deals' },
+      { label: 'Pipeline', href: '/app/pipeline' },
+      { label: 'Sales', href: '/app/sales' },
+    ],
+  },
+  {
     label: 'Investments',
     icon: TrendingUp,
     submenu: [
@@ -84,7 +95,6 @@ const baseMenuItems = [
       { label: 'Liabilities', href: '/app/liabilities' },
       { label: 'Corporate Equity', href: '/app/equity' },
       { label: 'Share Allocations', href: '/app/shares' },
-      { label: 'Sales', href: '/app/sales' },
     ],
   },
   {
@@ -118,6 +128,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     Operations: false,
+    'Sales Intelligence': false,
     Investments: false,
     Finance: true,
     'Intellectual Property': false,

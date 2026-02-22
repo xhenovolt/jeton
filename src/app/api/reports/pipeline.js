@@ -1,7 +1,6 @@
 /**
  * GET /api/reports/pipeline
- * Comprehensive pipeline and sales analytics
- * Supports date ranges, filtering by owner, stage, and currency
+ * Unified pipeline/revenue analytics (cash vs promise)
  */
 
 import { query } from '@/lib/db.js';
@@ -13,44 +12,38 @@ export async function GET(request) {
     const endDate = searchParams.get('endDate') || null;
     const ownerId = searchParams.get('ownerId') || null;
     const stage = searchParams.get('stage') || null;
-    const timeframe = searchParams.get('timeframe') || 'daily'; // daily, weekly, monthly, yearly
-    const includeCharts = searchParams.get('charts') !== 'false';
+    const timeframe = searchParams.get('timeframe') || 'daily';
 
-    // Build where clauses
-    let dealWhere = 'WHERE d.deleted_at IS NULL AND d.status = \'ACTIVE\'';
-    let salesWhere = 'WHERE s.deal_id IS NOT NULL';
+    let dealWhere = "WHERE d.deleted_at IS NULL AND d.status = 'ACTIVE'";
     const params = [];
     let paramIndex = 1;
 
     if (startDate) {
       dealWhere += ` AND d.created_at >= $${paramIndex}`;
       params.push(startDate);
-      paramIndex++;
+      paramIndex += 1;
     }
 
     if (endDate) {
       dealWhere += ` AND d.created_at < $${paramIndex}`;
       params.push(endDate);
-      paramIndex++;
+      paramIndex += 1;
     }
 
     if (ownerId) {
       dealWhere += ` AND d.created_by = $${paramIndex}`;
       params.push(ownerId);
-      paramIndex++;
+      paramIndex += 1;
     }
 
     if (stage) {
       dealWhere += ` AND d.stage = $${paramIndex}`;
       params.push(stage);
-      paramIndex++;
+      paramIndex += 1;
     }
 
-    // ========================================
-    // 1. SUMMARY METRICS
-    // ========================================
-
-    const metricsQuery = `
+    const metricsResult = await query(
+      `
       SELECT
         COUNT(DISTINCT d.id) as total_deals,
         COUNT(DISTINCT CASE WHEN d.stage = 'Won' THEN d.id END) as won_deals_count,
@@ -62,36 +55,35 @@ export async function GET(request) {
         COALESCE(SUM(CASE WHEN d.stage NOT IN ('Won', 'Lost') THEN d.value_estimate ELSE 0 END), 0)::DECIMAL as pending_deals_value,
         COALESCE(SUM(d.value_estimate * d.probability / 100), 0)::DECIMAL as weighted_pipeline_value,
         COALESCE(AVG(d.value_estimate), 0)::DECIMAL as avg_deal_value,
-        COALESCE(SUM(CASE WHEN s.status = 'Paid' THEN s.total_amount ELSE 0 END), 0)::DECIMAL as revenue_collected,
-        COALESCE(SUM(CASE WHEN s.status IN ('Pending', 'Partially Paid') THEN s.remaining_balance ELSE 0 END), 0)::DECIMAL as revenue_pending
+        COALESCE(SUM(rr.amount_received), 0)::DECIMAL as revenue_collected,
+        COALESCE(SUM(rr.amount_outstanding), 0)::DECIMAL as revenue_pending,
+        COALESCE(SUM(CASE WHEN rr.payment_status IN ('Credit', 'Overdue') THEN rr.amount_outstanding ELSE 0 END), 0)::DECIMAL as credit_exposure,
+        COUNT(CASE WHEN rr.payment_status IN ('Credit', 'Overdue') THEN 1 END) as credit_sales_count,
+        COUNT(CASE WHEN rr.payment_status = 'Overdue' THEN 1 END) as overdue_clients
       FROM deals d
-      LEFT JOIN sales s ON d.id = s.deal_id
+      LEFT JOIN revenue_records rr ON rr.deal_id = d.id
       ${dealWhere}
-    `;
+      `,
+      params
+    );
 
-    const metricsResult = await query(metricsQuery, params);
     const metrics = metricsResult.rows[0];
+    const conversionRate = Number(metrics.total_deals || 0) > 0
+      ? ((Number(metrics.won_deals_count || 0) / Number(metrics.total_deals || 0)) * 100).toFixed(1)
+      : '0.0';
 
-    // Calculate conversion rate
-    const conversionRate = metrics.total_deals > 0
-      ? ((metrics.won_deals_count / metrics.total_deals) * 100).toFixed(1)
-      : 0;
-
-    // ========================================
-    // 2. BY STAGE BREAKDOWN
-    // ========================================
-
-    const byStageQuery = `
+    const stageResult = await query(
+      `
       SELECT
         d.stage,
         COUNT(*) as deal_count,
         COALESCE(SUM(d.value_estimate), 0)::DECIMAL as stage_value,
         COALESCE(AVG(d.value_estimate), 0)::DECIMAL as avg_value,
         COALESCE(SUM(d.value_estimate * d.probability / 100), 0)::DECIMAL as weighted_value,
-        COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN s.id END) as deals_with_sales,
-        COALESCE(SUM(s.total_amount), 0)::DECIMAL as total_sales_amount
+        COALESCE(SUM(rr.amount_received), 0)::DECIMAL as cash_collected,
+        COALESCE(SUM(rr.amount_outstanding), 0)::DECIMAL as promise_value
       FROM deals d
-      LEFT JOIN sales s ON d.id = s.deal_id
+      LEFT JOIN revenue_records rr ON rr.deal_id = d.id
       ${dealWhere}
       GROUP BY d.stage
       ORDER BY
@@ -104,220 +96,171 @@ export async function GET(request) {
           WHEN d.stage = 'Lost' THEN 6
           ELSE 7
         END
-    `;
+      `,
+      params
+    );
 
-    const byStageResult = await query(byStageQuery, params);
-
-    // ========================================
-    // 3. BY OWNER BREAKDOWN
-    // ========================================
-
-    const byOwnerQuery = `
+    const ownerResult = await query(
+      `
       SELECT
         d.created_by as owner_id,
         u.name as owner_name,
         COUNT(DISTINCT d.id) as total_deals,
         COUNT(DISTINCT CASE WHEN d.stage = 'Won' THEN d.id END) as won_deals,
-        COALESCE(SUM(d.value_estimate), 0)::DECIMAL as owner_pipeline_value,
-        COALESCE(SUM(CASE WHEN d.stage = 'Won' THEN d.value_estimate ELSE 0 END), 0)::DECIMAL as owner_won_value,
-        COALESCE(SUM(d.value_estimate * d.probability / 100), 0)::DECIMAL as owner_weighted_value,
-        COALESCE(SUM(s.total_amount), 0)::DECIMAL as owner_sales_total
+        COALESCE(SUM(d.value_estimate), 0)::DECIMAL as pipeline_value,
+        COALESCE(SUM(CASE WHEN d.stage = 'Won' THEN d.value_estimate ELSE 0 END), 0)::DECIMAL as won_value,
+        COALESCE(SUM(d.value_estimate * d.probability / 100), 0)::DECIMAL as weighted_value,
+        COALESCE(SUM(rr.amount_received), 0)::DECIMAL as collected_cash
       FROM deals d
       LEFT JOIN users u ON d.created_by = u.id
-      LEFT JOIN sales s ON d.id = s.deal_id
+      LEFT JOIN revenue_records rr ON rr.deal_id = d.id
       ${dealWhere}
       GROUP BY d.created_by, u.name
-      ORDER BY owner_won_value DESC NULLS LAST
-    `;
-
-    const byOwnerResult = await query(byOwnerQuery, params);
-
-    // ========================================
-    // 4. DAILY/WEEKLY/MONTHLY TRENDS
-    // ========================================
+      ORDER BY won_value DESC NULLS LAST
+      `,
+      params
+    );
 
     let dateGroup = 'DATE(d.created_at)';
-    let dateLabel = 'date';
+    if (timeframe === 'weekly') dateGroup = "DATE_TRUNC('week', d.created_at)::DATE";
+    else if (timeframe === 'monthly') dateGroup = "DATE_TRUNC('month', d.created_at)::DATE";
+    else if (timeframe === 'yearly') dateGroup = "DATE_TRUNC('year', d.created_at)::DATE";
 
-    if (timeframe === 'weekly') {
-      dateGroup = 'DATE_TRUNC(\'week\', d.created_at)::DATE';
-      dateLabel = 'week_start';
-    } else if (timeframe === 'monthly') {
-      dateGroup = 'DATE_TRUNC(\'month\', d.created_at)::DATE';
-      dateLabel = 'month_start';
-    } else if (timeframe === 'yearly') {
-      dateGroup = 'DATE_TRUNC(\'year\', d.created_at)::DATE';
-      dateLabel = 'year_start';
-    }
-
-    const trendsQuery = `
+    const trendsResult = await query(
+      `
       SELECT
         ${dateGroup} as period_date,
         COUNT(DISTINCT d.id) as deals_count,
         COALESCE(SUM(d.value_estimate), 0)::DECIMAL as period_revenue,
         COUNT(DISTINCT CASE WHEN d.stage = 'Won' THEN d.id END) as period_won_count,
         COALESCE(SUM(CASE WHEN d.stage = 'Won' THEN d.value_estimate ELSE 0 END), 0)::DECIMAL as period_won_value,
-        COALESCE(SUM(s.total_amount), 0)::DECIMAL as period_sales_total,
-        COALESCE(SUM(CASE WHEN s.status = 'Paid' THEN s.total_amount ELSE 0 END), 0)::DECIMAL as period_paid_revenue
+        COALESCE(SUM(rr.amount_received), 0)::DECIMAL as period_cash,
+        COALESCE(SUM(rr.amount_outstanding), 0)::DECIMAL as period_promise
       FROM deals d
-      LEFT JOIN sales s ON d.id = s.deal_id
+      LEFT JOIN revenue_records rr ON rr.deal_id = d.id
       ${dealWhere}
       GROUP BY period_date
       ORDER BY period_date DESC
       LIMIT 365
-    `;
+      `,
+      params
+    );
 
-    const trendsResult = await query(trendsQuery, params);
-
-    // ========================================
-    // 5. DEAL-TO-SALES CONVERSION
-    // ========================================
-
-    const conversionQuery = `
+    const conversionsResult = await query(
+      `
       SELECT
         d.id as deal_id,
         d.title as deal_title,
         d.client_name,
         d.value_estimate as deal_value,
-        d.stage as deal_stage,
-        s.id as sale_id,
-        s.status as sale_status,
-        s.total_amount as sale_amount,
-        s.total_paid,
-        s.remaining_balance,
-        CASE WHEN s.id IS NOT NULL THEN true ELSE false END as has_sale
+        rr.id as revenue_id,
+        rr.sale_id,
+        rr.status as sale_status,
+        rr.payment_status,
+        rr.amount_total as sale_amount,
+        rr.amount_received as total_paid,
+        rr.amount_outstanding as remaining_balance,
+        CASE WHEN rr.id IS NOT NULL THEN true ELSE false END as has_sale
       FROM deals d
-      LEFT JOIN sales s ON d.id = s.deal_id
+      LEFT JOIN revenue_records rr ON rr.deal_id = d.id AND rr.type = 'sale'
       WHERE d.stage = 'Won' AND d.deleted_at IS NULL
       ORDER BY d.created_at DESC
       LIMIT 100
-    `;
+      `
+    );
 
-    const conversionResult = await query(conversionQuery, []);
+    const receivablesSummary = await query(
+      `
+      SELECT
+        COUNT(*)::INTEGER as total_credit_sales,
+        COUNT(CASE WHEN status = 'Overdue' THEN 1 END)::INTEGER as overdue_clients,
+        COUNT(CASE WHEN due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 day' AND status != 'Settled' THEN 1 END)::INTEGER as upcoming_due_payments,
+        COALESCE(SUM(CASE WHEN status = 'Overdue' THEN amount_due ELSE 0 END), 0)::DECIMAL as overdue_amount
+      FROM revenue_receivables
+      `
+    );
 
-    // ========================================
-    // 6. FUNNEL ANALYSIS (stage transitions)
-    // ========================================
+    const rec = receivablesSummary.rows[0] || {};
 
-    const funnelQuery = `
-      SELECT
-        'Lead' as stage,
-        COUNT(*) as count,
-        1 as position
-      FROM deals
-      WHERE deleted_at IS NULL AND status = 'ACTIVE' AND stage IN ('Lead', 'Contacted', 'Proposal Sent', 'Negotiation', 'Won', 'Lost')
-      
-      UNION ALL
-      
-      SELECT
-        'Contacted' as stage,
-        COUNT(*) as count,
-        2 as position
-      FROM deals
-      WHERE deleted_at IS NULL AND status = 'ACTIVE' AND stage IN ('Contacted', 'Proposal Sent', 'Negotiation', 'Won', 'Lost')
-      
-      UNION ALL
-      
-      SELECT
-        'Proposal Sent' as stage,
-        COUNT(*) as count,
-        3 as position
-      FROM deals
-      WHERE deleted_at IS NULL AND status = 'ACTIVE' AND stage IN ('Proposal Sent', 'Negotiation', 'Won', 'Lost')
-      
-      UNION ALL
-      
-      SELECT
-        'Negotiation' as stage,
-        COUNT(*) as count,
-        4 as position
-      FROM deals
-      WHERE deleted_at IS NULL AND status = 'ACTIVE' AND stage IN ('Negotiation', 'Won', 'Lost')
-      
-      UNION ALL
-      
-      SELECT
-        'Won' as stage,
-        COUNT(*) as count,
-        5 as position
-      FROM deals
-      WHERE deleted_at IS NULL AND status = 'ACTIVE' AND stage = 'Won'
-      
-      ORDER BY position
-    `;
-
-    const funnelResult = await query(funnelQuery, []);
+    const salesVelocity = Number(metrics.won_deals_count || 0) > 0
+      ? (Number(metrics.won_deals_value || 0) / Number(metrics.won_deals_count || 1))
+      : 0;
 
     return Response.json({
       success: true,
       data: {
         metrics: {
-          total_deals: metrics.total_deals,
-          won_deals: metrics.won_deals_count,
-          lost_deals: metrics.lost_deals_count,
-          pending_deals: metrics.pending_deals_count,
-          total_pipeline_value: parseFloat(metrics.total_pipeline_value),
-          won_deals_value: parseFloat(metrics.won_deals_value),
-          lost_deals_value: parseFloat(metrics.lost_deals_value),
-          pending_deals_value: parseFloat(metrics.pending_deals_value),
-          weighted_pipeline_value: parseFloat(metrics.weighted_pipeline_value),
-          avg_deal_value: parseFloat(metrics.avg_deal_value),
+          total_deals: Number(metrics.total_deals || 0),
+          won_deals: Number(metrics.won_deals_count || 0),
+          lost_deals: Number(metrics.lost_deals_count || 0),
+          pending_deals: Number(metrics.pending_deals_count || 0),
+          total_pipeline_value: parseFloat(metrics.total_pipeline_value || 0),
+          won_deals_value: parseFloat(metrics.won_deals_value || 0),
+          lost_deals_value: parseFloat(metrics.lost_deals_value || 0),
+          pending_deals_value: parseFloat(metrics.pending_deals_value || 0),
+          weighted_pipeline_value: parseFloat(metrics.weighted_pipeline_value || 0),
+          revenue_collected: parseFloat(metrics.revenue_collected || 0),
+          revenue_pending: parseFloat(metrics.revenue_pending || 0),
+          credit_exposure: parseFloat(metrics.credit_exposure || 0),
           conversion_rate: parseFloat(conversionRate),
-          revenue_collected: parseFloat(metrics.revenue_collected),
-          revenue_pending: parseFloat(metrics.revenue_pending),
+          avg_deal_size: parseFloat(metrics.avg_deal_value || 0),
+          sales_velocity: parseFloat(salesVelocity || 0),
+          cash_vs_promise: {
+            cash: parseFloat(metrics.revenue_collected || 0),
+            promise: parseFloat(metrics.revenue_pending || 0),
+          },
+          total_credit_sales: Number(rec.total_credit_sales || metrics.credit_sales_count || 0),
+          overdue_clients: Number(rec.overdue_clients || metrics.overdue_clients || 0),
+          upcoming_due_payments: Number(rec.upcoming_due_payments || 0),
+          overdue_amount: parseFloat(rec.overdue_amount || 0),
         },
-        by_stage: byStageResult.rows.map(row => ({
+        by_stage: stageResult.rows.map((row) => ({
           stage: row.stage,
-          deal_count: row.deal_count,
-          stage_value: parseFloat(row.stage_value),
-          avg_value: parseFloat(row.avg_value),
-          weighted_value: parseFloat(row.weighted_value),
-          deals_with_sales: row.deals_with_sales,
-          total_sales_amount: parseFloat(row.total_sales_amount),
+          deal_count: Number(row.deal_count || 0),
+          stage_value: parseFloat(row.stage_value || 0),
+          avg_value: parseFloat(row.avg_value || 0),
+          weighted_value: parseFloat(row.weighted_value || 0),
+          cash_collected: parseFloat(row.cash_collected || 0),
+          promise_value: parseFloat(row.promise_value || 0),
         })),
-        by_owner: byOwnerResult.rows.map(row => ({
+        by_owner: ownerResult.rows.map((row) => ({
           owner_id: row.owner_id,
           owner_name: row.owner_name,
-          total_deals: row.total_deals,
-          won_deals: row.won_deals,
-          pipeline_value: parseFloat(row.owner_pipeline_value),
-          won_value: parseFloat(row.owner_won_value),
-          weighted_value: parseFloat(row.owner_weighted_value),
-          sales_total: parseFloat(row.owner_sales_total),
+          total_deals: Number(row.total_deals || 0),
+          won_deals: Number(row.won_deals || 0),
+          pipeline_value: parseFloat(row.pipeline_value || 0),
+          won_value: parseFloat(row.won_value || 0),
+          weighted_value: parseFloat(row.weighted_value || 0),
+          sales_total: parseFloat(row.collected_cash || 0),
         })),
-        trends: trendsResult.rows.map(row => ({
+        trends: trendsResult.rows.map((row) => ({
           period_date: row.period_date,
-          deals_count: row.deals_count,
-          period_revenue: parseFloat(row.period_revenue),
-          won_count: row.period_won_count,
-          won_value: parseFloat(row.period_won_value),
-          sales_total: parseFloat(row.period_sales_total),
-          paid_revenue: parseFloat(row.period_paid_revenue),
+          deals_count: Number(row.deals_count || 0),
+          period_revenue: parseFloat(row.period_revenue || 0),
+          won_count: Number(row.period_won_count || 0),
+          won_value: parseFloat(row.period_won_value || 0),
+          sales_total: parseFloat(row.period_cash || 0),
+          paid_revenue: parseFloat(row.period_cash || 0),
+          promise_revenue: parseFloat(row.period_promise || 0),
         })),
-        conversions: conversionResult.rows.map(row => ({
+        conversions: conversionsResult.rows.map((row) => ({
           deal_id: row.deal_id,
           deal_title: row.deal_title,
           client_name: row.client_name,
-          deal_value: parseFloat(row.deal_value),
+          deal_value: parseFloat(row.deal_value || 0),
           sale_id: row.sale_id,
           sale_status: row.sale_status,
+          payment_status: row.payment_status,
           sale_amount: row.sale_amount ? parseFloat(row.sale_amount) : null,
           total_paid: row.total_paid ? parseFloat(row.total_paid) : null,
           remaining_balance: row.remaining_balance ? parseFloat(row.remaining_balance) : null,
           has_sale: row.has_sale,
         })),
-        funnel: funnelResult.rows.map(row => ({
-          stage: row.stage,
-          count: row.count,
-          position: row.position,
-        })),
+        funnel: [],
       },
     });
   } catch (error) {
     console.error('Pipeline report error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }

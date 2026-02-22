@@ -22,6 +22,7 @@ export default function CreateDealPage() {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
+    client_name: '',
     description: '',
     value_estimate: '',
     probability: 50,
@@ -65,22 +66,33 @@ export default function CreateDealPage() {
     setSubmitting(true);
 
     try {
+      // Prepare data - convert empty strings to null/undefined
+      const submitData = {
+        title: formData.title,
+        client_name: formData.client_name || undefined,
+        description: formData.description || undefined,
+        value_estimate: parseFloat(formData.value_estimate) || 0,
+        probability: parseInt(formData.probability) || 50,
+        stage: formData.stage,
+        assigned_to: formData.assigned_to || undefined,
+        expected_close_date: formData.expected_close_date || undefined,
+      };
+
       const response = await fetch('/api/deals', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          value_estimate: parseFloat(formData.value_estimate),
-          probability: parseInt(formData.probability),
-        }),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        setError(error.message || 'Failed to create deal');
+        const errorData = await response.json();
+        const errorMessage = errorData?.details 
+          ? JSON.stringify(errorData.details)
+          : errorData?.error || errorData?.message || 'Failed to create deal';
+        setError(errorMessage);
         return;
       }
 
@@ -137,6 +149,21 @@ export default function CreateDealPage() {
             onChange={handleInputChange}
             placeholder="e.g., Enterprise License Agreement"
             required
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+
+        {/* Client Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Client Name
+          </label>
+          <input
+            type="text"
+            name="client_name"
+            value={formData.client_name}
+            onChange={handleInputChange}
+            placeholder="e.g., Acme Corporation"
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
@@ -230,12 +257,16 @@ export default function CreateDealPage() {
             onChange={handleInputChange}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
-            <option value="">Select a staff member...</option>
-            {staff.map(person => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
+            <option value="">Select a staff member... (optional)</option>
+            {staff && staff.length > 0 ? (
+              staff.map(person => (
+                <option key={person.id} value={person.id}>
+                  {person.full_name || person.name || 'Unknown'}
+                </option>
+              ))
+            ) : (
+              <option disabled>No staff members available</option>
+            )}
           </select>
         </div>
 

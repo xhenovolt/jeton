@@ -26,6 +26,7 @@ export default function EditDealPage() {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
+    client_name: '',
     description: '',
     value_estimate: '',
     probability: 50,
@@ -40,25 +41,22 @@ export default function EditDealPage() {
 
   const fetchData = async () => {
     try {
-      const [dealRes, staffRes] = await Promise.all([
-        fetch(`/api/deals/${dealId}`, {
-          credentials: 'include',
-        }),
-        fetch('/api/staff', {
-          credentials: 'include',
-        }),
-      ]);
+      // first, fetch the deal itself; staff can be optional
+      const dealRes = await fetch(`/api/deals/${dealId}`, {
+        credentials: 'include',
+      });
 
       if (!dealRes.ok) {
-        setError('Deal not found');
+        const text = await dealRes.text().catch(() => dealRes.statusText);
+        setError(`Deal load failed: ${text || dealRes.status}`);
+        setLoading(false);
         return;
       }
 
       const dealData = await dealRes.json();
-      const staffData = staffRes.ok ? await staffRes.json() : { staff: [] };
-
       setFormData({
         title: dealData.deal.title || '',
+        client_name: dealData.deal.client_name || '',
         description: dealData.deal.description || '',
         value_estimate: dealData.deal.value_estimate || '',
         probability: dealData.deal.probability || 50,
@@ -67,10 +65,23 @@ export default function EditDealPage() {
         expected_close_date: dealData.deal.expected_close_date ? dealData.deal.expected_close_date.split('T')[0] : '',
       });
 
-      setStaff(staffData.data || []);
+      // fetch staff separately; failure here should not block page
+      try {
+        const staffRes = await fetch('/api/staff', { credentials: 'include' });
+        if (staffRes.ok) {
+          const staffData = await staffRes.json();
+          setStaff(staffData.data || []);
+        } else {
+          console.warn('Failed to load staff list, status', staffRes.status);
+          setStaff([]);
+        }
+      } catch (err) {
+        console.warn('Error fetching staff list:', err);
+        setStaff([]);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to load deal');
+      console.error('Error fetching deal:', error);
+      setError(error.message || 'Unable to load deal');
     } finally {
       setLoading(false);
     }
@@ -90,22 +101,33 @@ export default function EditDealPage() {
     setSubmitting(true);
 
     try {
+      // Prepare data - convert empty strings to null/undefined
+      const submitData = {
+        title: formData.title,
+        client_name: formData.client_name || undefined,
+        description: formData.description || undefined,
+        value_estimate: parseFloat(formData.value_estimate) || 0,
+        probability: parseInt(formData.probability) || 50,
+        stage: formData.stage,
+        assigned_to: formData.assigned_to || undefined,
+        expected_close_date: formData.expected_close_date || undefined,
+      };
+
       const response = await fetch(`/api/deals/${dealId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          value_estimate: parseFloat(formData.value_estimate),
-          probability: parseInt(formData.probability),
-        }),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        setError(error.message || 'Failed to update deal');
+        const errorData = await response.json();
+        const errorMessage = errorData?.details 
+          ? JSON.stringify(errorData.details)
+          : errorData?.error || errorData?.message || 'Failed to update deal';
+        setError(errorMessage);
         return;
       }
 
@@ -200,6 +222,21 @@ export default function EditDealPage() {
           />
         </div>
 
+        {/* Client Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Client Name
+          </label>
+          <input
+            type="text"
+            name="client_name"
+            value={formData.client_name}
+            onChange={handleInputChange}
+            placeholder="e.g., Acme Corporation"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+
         {/* Description */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -289,12 +326,16 @@ export default function EditDealPage() {
             onChange={handleInputChange}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
-            <option value="">Select a staff member...</option>
-            {staff.map(person => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
+            <option value="">Select a staff member... (optional)</option>
+            {staff && staff.length > 0 ? (
+              staff.map(person => (
+                <option key={person.id} value={person.id}>
+                  {person.full_name || person.name || 'Unknown'}
+                </option>
+              ))
+            ) : (
+              <option disabled>No staff members available</option>
+            )}
           </select>
         </div>
 

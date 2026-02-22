@@ -57,12 +57,13 @@ export const liabilitySchema = z.object({
  */
 export const dealSchema = z.object({
   title: z.string().min(1, 'Deal title is required').max(255),
-  description: z.string().max(1000).optional().or(z.literal(null)),
+  client_name: z.string().max(255).optional().or(z.literal('')),
+  description: z.string().max(1000).optional().or(z.literal('')),
   value_estimate: z.coerce.number().nonnegative('Value estimate must be non-negative').optional().default(0),
   stage: z.enum(['Lead', 'Contacted', 'Proposal Sent', 'Negotiation', 'Won', 'Lost']).default('Lead'),
   probability: z.coerce.number().min(0).max(100).optional().default(50),
-  assigned_to: z.string().uuid().optional().or(z.literal(null)),
-  expected_close_date: z.string().date().optional().or(z.literal(null)),
+  assigned_to: z.string().uuid().optional().or(z.literal('')).transform(val => val === '' ? null : val),
+  expected_close_date: z.string().date().optional().or(z.literal('')),
   status: z.enum(['ACTIVE', 'CLOSED', 'ARCHIVED']).default('ACTIVE'),
 });
 

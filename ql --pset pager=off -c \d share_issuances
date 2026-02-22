@@ -1,0 +1,38 @@
+                                        Table "public.share_issuances"
+          Column           |           Type           | Collation | Nullable |            Default             
+---------------------------+--------------------------+-----------+----------+--------------------------------
+ id                        | uuid                     |           | not null | gen_random_uuid()
+ shares_issued             | bigint                   |           | not null | 
+ issued_at_price           | numeric(19,4)            |           |          | 
+ valuation_post_issuance   | numeric(19,2)            |           |          | 
+ recipient_id              | bigint                   |           |          | 
+ recipient_type            | character varying(50)    |           |          | 
+ issuance_reason           | character varying(500)   |           |          | 
+ issuance_type             | character varying(50)    |           | not null | 'equity'::character varying
+ equity_type               | character varying(50)    |           | not null | 'PURCHASED'::character varying
+ approval_status           | character varying(50)    |           | not null | 'pending'::character varying
+ requires_confirmation     | boolean                  |           |          | true
+ confirmation_received     | boolean                  |           |          | false
+ previous_issued_shares    | bigint                   |           |          | 
+ ownership_dilution_impact | numeric(5,2)             |           |          | 
+ created_by_id             | bigint                   |           |          | 
+ created_at                | timestamp with time zone |           |          | CURRENT_TIMESTAMP
+ approved_by_id            | bigint                   |           |          | 
+ approved_at               | timestamp with time zone |           |          | 
+ issued_at                 | timestamp with time zone |           |          | 
+ notes                     | text                     |           |          | 
+Indexes:
+    "share_issuances_pkey" PRIMARY KEY, btree (id)
+    "idx_share_issuances_approval_status" btree (approval_status)
+    "idx_share_issuances_approved_by" btree (approved_by_id)
+    "idx_share_issuances_created_by" btree (created_by_id)
+    "idx_share_issuances_recipient" btree (recipient_id)
+Check constraints:
+    "positive_issued" CHECK (shares_issued > 0)
+    "positive_price" CHECK (issued_at_price IS NULL OR issued_at_price > 0::numeric)
+    "valid_issuance_equity_type" CHECK (equity_type::text = ANY (ARRAY['PURCHASED'::character varying, 'GRANTED'::character varying]::text[]))
+Foreign-key constraints:
+    "share_issuances_approved_by_id_fkey" FOREIGN KEY (approved_by_id) REFERENCES users(id) ON DELETE SET NULL
+    "share_issuances_created_by_id_fkey" FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE SET NULL
+    "share_issuances_recipient_id_fkey" FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL
+

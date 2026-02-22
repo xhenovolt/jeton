@@ -1,0 +1,24 @@
+        column_name        
+---------------------------
+ id
+ shares_issued
+ issued_at_price
+ valuation_post_issuance
+ recipient_id
+ recipient_type
+ issuance_reason
+ issuance_type
+ equity_type
+ approval_status
+ requires_confirmation
+ confirmation_received
+ previous_issued_shares
+ ownership_dilution_impact
+ created_by_id
+ created_at
+ approved_by_id
+ approved_at
+ issued_at
+ notes
+(20 rows)
+

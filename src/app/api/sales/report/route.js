@@ -1,173 +1,209 @@
 /**
  * GET /api/sales/report
- * Get sales report with date filtering and aggregate metrics
+ * Revenue report powered by unified revenue_records/payments/receivables
  */
 
 import { query } from '@/lib/db.js';
+import { ensureRevenueRecordsTable } from '@/lib/revenue.js';
 
 export async function GET(request) {
   try {
+    // the metrics rely on revenue_records; guarantee the table is present
+    await ensureRevenueRecordsTable();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status');
 
-    // Build where clause
-    let whereClause = 'WHERE 1=1';
+    let whereClause = "WHERE rr.type = 'sale'";
     const params = [];
     let paramIndex = 1;
 
     if (startDate) {
-      whereClause += ` AND s.sale_date >= $${paramIndex}`;
+      whereClause += ` AND rr.created_at >= $${paramIndex}`;
       params.push(new Date(startDate).toISOString());
-      paramIndex++;
+      paramIndex += 1;
     }
 
     if (endDate) {
-      whereClause += ` AND s.sale_date < $${paramIndex}`;
+      whereClause += ` AND rr.created_at < $${paramIndex}`;
       params.push(new Date(endDate).toISOString());
-      paramIndex++;
+      paramIndex += 1;
     }
 
     if (status) {
-      whereClause += ` AND s.status = $${paramIndex}`;
+      whereClause += ` AND rr.payment_status = $${paramIndex}`;
       params.push(status);
-      paramIndex++;
+      paramIndex += 1;
     }
 
-    // Fetch detailed sales data
-    const salesResult = await query(
-      `
-      SELECT 
-        s.id,
-        s.customer_name,
-        s.product_service,
-        s.quantity,
-        s.unit_price,
-        s.total_amount,
-        s.status,
-        s.sale_date,
-        s.currency,
-        COALESCE(SUM(sp.amount), 0)::DECIMAL as total_paid
-      FROM sales s
-      LEFT JOIN sales_payments sp ON s.id = sp.sale_id
-      ${whereClause}
-      GROUP BY s.id
-      ORDER BY s.sale_date DESC
-      `,
-      params
-    );
+    // try to run the report against revenue_records
+    try {
+      const salesResult = await query(
+        `
+        SELECT
+          rr.id,
+          rr.customer_name,
+          rr.title as product_service,
+          rr.amount_total as total_amount,
+          rr.amount_received as total_paid,
+          rr.amount_outstanding as remaining_balance,
+          rr.status,
+          rr.payment_status,
+          rr.created_at as sale_date,
+          rr.due_date,
+          rr.on_credit
+        FROM revenue_records rr
+        ${whereClause}
+        ORDER BY rr.created_at DESC
+        `,
+        params
+      );
 
-    // Calculate aggregate metrics
-    const metricsResult = await query(
-      `
-      SELECT 
-        COUNT(DISTINCT s.id)::INTEGER as total_sales,
-        COUNT(DISTINCT CASE WHEN s.status = 'Paid' THEN s.id END)::INTEGER as paid_count,
-        COUNT(DISTINCT CASE WHEN s.status = 'Partially Paid' THEN s.id END)::INTEGER as partial_count,
-        COUNT(DISTINCT CASE WHEN s.status = 'Pending' THEN s.id END)::INTEGER as pending_count,
-        SUM(s.total_amount)::DECIMAL as total_revenue,
-        SUM(COALESCE(sp.amount, 0))::DECIMAL as total_collected,
-        SUM(s.total_amount - COALESCE(sp.amount, 0))::DECIMAL as total_outstanding
-      FROM sales s
-      LEFT JOIN (
-        SELECT sale_id, SUM(amount)::DECIMAL as amount
-        FROM sales_payments
-        GROUP BY sale_id
-      ) sp ON s.id = sp.sale_id
-      ${whereClause}
-      `,
-      params
-    );
+      const metricsResult = await query(
+        `
+        SELECT
+          COUNT(*)::INTEGER as total_sales,
+          COUNT(CASE WHEN rr.payment_status = 'Paid' THEN 1 END)::INTEGER as paid_count,
+          COUNT(CASE WHEN rr.payment_status = 'Partially Paid' THEN 1 END)::INTEGER as partial_count,
+          COUNT(CASE WHEN rr.payment_status IN ('Unpaid', 'Credit', 'Overdue') THEN 1 END)::INTEGER as pending_count,
+          COUNT(CASE WHEN rr.payment_status IN ('Credit', 'Overdue') THEN 1 END)::INTEGER as credit_count,
+          COALESCE(SUM(rr.amount_total), 0)::DECIMAL as total_revenue,
+          COALESCE(SUM(rr.amount_received), 0)::DECIMAL as total_collected,
+          COALESCE(SUM(rr.amount_outstanding), 0)::DECIMAL as total_outstanding,
+          COALESCE(SUM(CASE WHEN rr.payment_status IN ('Credit', 'Overdue') THEN rr.amount_outstanding ELSE 0 END), 0)::DECIMAL as credit_exposure,
+          COALESCE(AVG(rr.amount_total), 0)::DECIMAL as avg_deal_size
+        FROM revenue_records rr
+        ${whereClause}
+        `,
+        params
+      );
 
-    // Get sales by product summary
-    const productSummaryResult = await query(
-      `
-      SELECT 
-        s.product_service,
-        COUNT(*)::INTEGER as count,
-        SUM(s.quantity)::INTEGER as total_quantity,
-        SUM(s.total_amount)::DECIMAL as total_revenue,
-        SUM(COALESCE(sp.amount, 0))::DECIMAL as total_collected
-      FROM sales s
-      LEFT JOIN (
-        SELECT sale_id, SUM(amount)::DECIMAL as amount
-        FROM sales_payments
-        GROUP BY sale_id
-      ) sp ON s.id = sp.sale_id
-      ${whereClause}
-      GROUP BY s.product_service
-      ORDER BY total_revenue DESC
-      `,
-      params
-    );
+      const receivablesResult = await query(
+        `
+        SELECT
+          COUNT(*)::INTEGER as open_receivables,
+          COALESCE(SUM(amount_due), 0)::DECIMAL as open_amount,
+          COUNT(CASE WHEN due_date < CURRENT_DATE AND status != 'Settled' THEN 1 END)::INTEGER as overdue_count,
+          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Settled' THEN amount_due ELSE 0 END), 0)::DECIMAL as overdue_amount,
+          COUNT(CASE WHEN due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 day' AND status != 'Settled' THEN 1 END)::INTEGER as upcoming_due_count,
+          COALESCE(SUM(CASE WHEN due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 day' AND status != 'Settled' THEN amount_due ELSE 0 END), 0)::DECIMAL as upcoming_due_amount
+        FROM revenue_receivables
+        `
+      );
 
-    // Get daily sales summary for chart
-    const dailySalesResult = await query(
-      `
-      SELECT 
-        DATE(s.sale_date) as date,
-        COUNT(*)::INTEGER as count,
-        SUM(s.total_amount)::DECIMAL as revenue,
-        SUM(COALESCE(sp.amount, 0))::DECIMAL as collected
-      FROM sales s
-      LEFT JOIN (
-        SELECT sale_id, SUM(amount)::DECIMAL as amount
-        FROM sales_payments
-        GROUP BY sale_id
-      ) sp ON s.id = sp.sale_id
-      ${whereClause}
-      GROUP BY DATE(s.sale_date)
-      ORDER BY date DESC
-      `,
-      params
-    );
+      const dailyResult = await query(
+        `
+        SELECT
+          DATE(rr.created_at) as date,
+          COUNT(*)::INTEGER as count,
+          COALESCE(SUM(rr.amount_total), 0)::DECIMAL as revenue,
+          COALESCE(SUM(rr.amount_received), 0)::DECIMAL as collected
+        FROM revenue_records rr
+        ${whereClause}
+        GROUP BY DATE(rr.created_at)
+        ORDER BY date DESC
+        `,
+        params
+      );
 
-    const metrics = metricsResult.rows[0];
+      const metrics = metricsResult.rows[0];
+      const receivables = receivablesResult.rows[0];
 
-    return Response.json({
-      success: true,
-      data: {
-        metrics: {
-          total_sales: metrics.total_sales,
-          paid_count: metrics.paid_count,
-          partial_count: metrics.partial_count,
-          pending_count: metrics.pending_count,
-          total_revenue: parseFloat(metrics.total_revenue || 0),
-          total_collected: parseFloat(metrics.total_collected || 0),
-          total_outstanding: parseFloat(metrics.total_outstanding || 0),
-          collection_rate: metrics.total_revenue > 0 
-            ? ((parseFloat(metrics.total_collected || 0) / parseFloat(metrics.total_revenue)) * 100).toFixed(1)
-            : 0,
+      return Response.json({
+        success: true,
+        data: {
+          metrics: {
+            total_sales: Number(metrics.total_sales || 0),
+            paid_count: Number(metrics.paid_count || 0),
+            partial_count: Number(metrics.partial_count || 0),
+            pending_count: Number(metrics.pending_count || 0),
+            credit_count: Number(metrics.credit_count || 0),
+            total_revenue: parseFloat(metrics.total_revenue || 0),
+            total_collected: parseFloat(metrics.total_collected || 0),
+            total_outstanding: parseFloat(metrics.total_outstanding || 0),
+            credit_exposure: parseFloat(metrics.credit_exposure || 0),
+            avg_deal_size: parseFloat(metrics.avg_deal_size || 0),
+            collection_rate: parseFloat(metrics.total_revenue || 0) > 0
+              ? ((parseFloat(metrics.total_collected || 0) / parseFloat(metrics.total_revenue || 0)) * 100).toFixed(1)
+              : '0.0',
+            open_receivables: Number(receivables.open_receivables || 0),
+            overdue_count: Number(receivables.overdue_count || 0),
+            overdue_amount: parseFloat(receivables.overdue_amount || 0),
+            upcoming_due_count: Number(receivables.upcoming_due_count || 0),
+            upcoming_due_amount: parseFloat(receivables.upcoming_due_amount || 0),
+          },
+          sales: salesResult.rows.map((row) => ({
+            ...row,
+            total_amount: parseFloat(row.total_amount || 0),
+            total_paid: parseFloat(row.total_paid || 0),
+            remaining_balance: parseFloat(row.remaining_balance || 0),
+          })),
+          productSummary: [],
+          receivables: {
+            open_amount: parseFloat(receivables.open_amount || 0),
+            overdue_amount: parseFloat(receivables.overdue_amount || 0),
+            upcoming_due_amount: parseFloat(receivables.upcoming_due_amount || 0),
+          },
+          dailySummary: dailyResult.rows.map((row) => ({
+            date: row.date,
+            count: Number(row.count || 0),
+            revenue: parseFloat(row.revenue || 0),
+            collected: parseFloat(row.collected || 0),
+          })),
         },
-        sales: salesResult.rows.map(row => ({
-          ...row,
-          quantity: parseInt(row.quantity),
-          unit_price: parseFloat(row.unit_price),
-          total_amount: parseFloat(row.total_amount),
-          total_paid: parseFloat(row.total_paid),
-          remaining_balance: parseFloat(row.total_amount) - parseFloat(row.total_paid),
-        })),
-        productSummary: productSummaryResult.rows.map(row => ({
-          product_service: row.product_service,
-          count: row.count,
-          total_quantity: row.total_quantity,
-          total_revenue: parseFloat(row.total_revenue || 0),
-          total_collected: parseFloat(row.total_collected || 0),
-        })),
-        dailySummary: dailySalesResult.rows.map(row => ({
-          date: row.date,
-          count: row.count,
-          revenue: parseFloat(row.revenue || 0),
-          collected: parseFloat(row.collected || 0),
-        })),
-      },
-    });
+      });
+    } catch (innerErr) {
+      // fallback when revenue_records table doesn't exist
+      if (innerErr.code === '42P01' || /revenue_records/.test(innerErr.message)) {
+        console.warn('Revenue records table missing, computing report from won deals only');
+        // gather simple metrics from deals stage Won
+        const dealsWhere = `WHERE stage = 'Won' AND deleted_at IS NULL` +
+                            (startDate ? ` AND created_at >= $1` : '') +
+                            (endDate ? ` AND created_at < $${startDate ? 2 : 1}` : '');
+        const dateParams = [];
+        if (startDate) dateParams.push(new Date(startDate).toISOString());
+        if (endDate) dateParams.push(new Date(endDate).toISOString());
+
+        const totalRes = await query(`SELECT COUNT(*)::INTEGER as total FROM deals ${dealsWhere}`, dateParams);
+        const totalSales = Number(totalRes.rows[0].total || 0);
+        return Response.json({
+          success: true,
+          data: {
+            metrics: {
+              total_sales: totalSales,
+              paid_count: 0,
+              partial_count: 0,
+              pending_count: totalSales,
+              credit_count: 0,
+              total_revenue: 0,
+              total_collected: 0,
+              total_outstanding: 0,
+              credit_exposure: 0,
+              avg_deal_size: 0,
+              collection_rate: '0.0',
+              open_receivables: 0,
+              overdue_count: 0,
+              overdue_amount: 0,
+              upcoming_due_count: 0,
+              upcoming_due_amount: 0,
+            },
+            sales: [],
+            productSummary: [],
+            receivables: {
+              open_amount: 0,
+              overdue_amount: 0,
+              upcoming_due_amount: 0,
+            },
+            dailySummary: [],
+          },
+        });
+      }
+
+      throw innerErr;
+    }
   } catch (error) {
     console.error('Sales report error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }

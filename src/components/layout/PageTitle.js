@@ -19,6 +19,8 @@ export function PageTitle() {
     '/app/liabilities': 'Liabilities',
     '/app/deals': 'Deals',
     '/app/pipeline': 'Pipeline',
+    '/app/prospecting': 'Prospecting Notebook',
+    '/app/prospecting/dashboard': 'Today\'s Prospecting',
     '/app/staff': 'Staff',
     '/app/audit-logs': 'Audit Logs',
     '/app/settings': 'Settings',

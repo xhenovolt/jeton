@@ -67,6 +67,7 @@ export async function createDeal(data, userId) {
   try {
     const {
       title,
+      client_name,
       description,
       value_estimate = 0,
       stage = 'Lead',
@@ -77,10 +78,10 @@ export async function createDeal(data, userId) {
     } = data;
 
     const result = await query(
-      `INSERT INTO deals (title, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO deals (title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [title, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, userId]
+      [title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, userId]
     );
 
     return result.rows[0];
@@ -98,22 +99,23 @@ export async function createDeal(data, userId) {
  */
 export async function updateDeal(id, data) {
   try {
-    const { title, description, value_estimate, stage, probability, assigned_to, expected_close_date, status } = data;
+    const { title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status } = data;
 
     const result = await query(
       `UPDATE deals 
        SET title = COALESCE($2, title),
-           description = COALESCE($3, description),
-           value_estimate = COALESCE($4, value_estimate),
-           stage = COALESCE($5, stage),
-           probability = COALESCE($6, probability),
-           assigned_to = COALESCE($7, assigned_to),
-           expected_close_date = COALESCE($8, expected_close_date),
-           status = COALESCE($9, status),
+           client_name = COALESCE($3, client_name),
+           description = COALESCE($4, description),
+           value_estimate = COALESCE($5, value_estimate),
+           stage = COALESCE($6, stage),
+           probability = COALESCE($7, probability),
+           assigned_to = COALESCE($8, assigned_to),
+           expected_close_date = COALESCE($9, expected_close_date),
+           status = COALESCE($10, status),
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id, title, description, value_estimate, stage, probability, assigned_to, expected_close_date, status]
+      [id, title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status]
     );
 
     return result.rows[0] || null;

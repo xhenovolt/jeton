@@ -147,9 +147,11 @@ export function Navbar() {
         { id: 5, title: 'Liabilities', category: 'Pages', path: '/app/liabilities' },
         { id: 6, title: 'Deals', category: 'Pages', path: '/app/deals' },
         { id: 7, title: 'Pipeline', category: 'Pages', path: '/app/pipeline' },
-        { id: 8, title: 'Staff', category: 'Admin', path: '/app/staff' },
-        { id: 9, title: 'Settings', category: 'Admin', path: '/app/settings' },
-        { id: 10, title: 'Audit Logs', category: 'Admin', path: '/app/audit-logs' },
+        { id: 8, title: 'Prospects', category: 'Sales', path: '/app/prospecting' },
+        { id: 9, title: 'Today\'s Prospecting', category: 'Sales', path: '/app/prospecting/dashboard' },
+        { id: 10, title: 'Staff', category: 'Admin', path: '/app/staff' },
+        { id: 11, title: 'Settings', category: 'Admin', path: '/app/settings' },
+        { id: 12, title: 'Audit Logs', category: 'Admin', path: '/app/audit-logs' },
       ].filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
 
       setSearchResults(mockResults);

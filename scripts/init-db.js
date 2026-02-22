@@ -283,6 +283,7 @@ async function initializeDatabase() {
         CREATE TABLE IF NOT EXISTS deals (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           title TEXT NOT NULL,
+          client_name TEXT,
           description TEXT,
           value_estimate NUMERIC(14,2) DEFAULT 0,
           stage TEXT NOT NULL DEFAULT 'Lead',

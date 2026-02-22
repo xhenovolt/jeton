@@ -35,11 +35,16 @@ export function DealsTable({ deals, onEdit, onDelete }) {
             setLoading(prev => ({ ...prev, [deal.id]: true }));
             const response = await fetch(`/api/deals/${deal.id}/convert-to-sale`);
             const result = await response.json();
-            
+
             if (result.success) {
               setSaleLinks(prev => ({ ...prev, [deal.id]: result.data }));
+            } else if (result.error && /revenue_records/.test(result.error)) {
+              // table missing; there is nothing to do. just skip further fetches
+              console.warn('Revenue table missing, skipping sale links for deals');
+              break;
             }
           } catch (error) {
+            // network or server error -- log but continue
             console.error(`Failed to fetch sale link for deal ${deal.id}:`, error);
           } finally {
             setLoading(prev => ({ ...prev, [deal.id]: false }));

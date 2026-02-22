@@ -433,8 +433,12 @@ export default function SalesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {sales.map((sale) => (
-                      <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    {sales.map((sale) => {
+                      // some records may originate from a deal that hasn't been converted yet
+                      const recordKey = sale.id || sale.sale_id || sale.deal_id || Math.random();
+                      const isConverted = !!(sale.id || sale.sale_id);
+                      return (
+                        <tr key={recordKey} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{sale.customer_name}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{sale.product_service}</td>
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{sale.quantity}</td>
@@ -464,30 +468,34 @@ export default function SalesPage() {
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleViewDetails(sale.id)}
-                              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                              title="View details"
+                              onClick={() => isConverted && handleViewDetails(sale.id || sale.sale_id)}
+                              disabled={!isConverted}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              title={isConverted ? 'View details' : 'Convert deal to sale to view'}
                             >
                               <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </button>
                             <button
-                              onClick={() => handleEditSale(sale)}
-                              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                              title="Edit"
+                              onClick={() => isConverted && handleEditSale(sale)}
+                              disabled={!isConverted}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              title={isConverted ? 'Edit' : 'Cannot edit unrecorded sale'}
                             >
                               <Edit2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                             </button>
                             <button
-                              onClick={() => handleDeleteSale(sale.id)}
-                              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                              title="Delete"
+                              onClick={() => isConverted && handleDeleteSale(sale.id || sale.sale_id)}
+                              disabled={!isConverted}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              title={isConverted ? 'Delete' : 'Cannot delete until sale is recorded'}
                             >
                               <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
