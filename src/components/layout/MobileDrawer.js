@@ -25,6 +25,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
   const closeButtonRef = useRef(null);
   const [expandedSections, setExpandedSections] = useState({
     Operations: false,
+    'Sales & CRM': false,
     Investments: false,
     Finance: false,
     'Intellectual Property': false,

@@ -18,6 +18,7 @@ import {
   Plus,
   LogOut,
   Percent,
+  Target,
 } from 'lucide-react';
 
 /**
@@ -43,6 +44,19 @@ export const menuItems = [
     submenu: [
       { label: 'Staff', href: '/app/staff' },
       { label: 'Infrastructure', href: '/app/infrastructure' },
+    ],
+  },
+  {
+    label: 'Sales & CRM',
+    icon: Target,
+    category: 'sections',
+    submenu: [
+      { label: 'Prospects', href: '/app/prospects' },
+      { label: 'Prospect Pipeline', href: '/app/prospects/pipeline' },
+      { label: 'Prospect Dashboard', href: '/app/prospects/dashboard' },
+      { label: 'Deals', href: '/app/deals' },
+      { label: 'Pipeline', href: '/app/pipeline' },
+      { label: 'Sales', href: '/app/sales' },
     ],
   },
   {
@@ -93,6 +107,12 @@ export const menuItems = [
 export const quickAccessLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
   {
+    id: 'prospects',
+    label: 'Prospects',
+    icon: Target,
+    href: '/app/prospects',
+  },
+  {
     id: 'assets',
     label: 'Assets',
     icon: Zap,
@@ -130,6 +150,9 @@ export const protectedRoutes = [
   '/app/audit-logs',
   '/app/sales',
   '/app/valuation',
+  '/app/prospects',
+  '/app/prospects/pipeline',
+  '/app/prospects/dashboard',
   '/admin/users',
   '/admin/roles',
   '/admin/audit-logs',

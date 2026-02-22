@@ -26,6 +26,7 @@ import {
   LogOut,
   Plus,
   Percent,
+  Target,
 } from 'lucide-react';
 import { menuItems as navMenuItems } from '@/lib/navigation-config';
 
@@ -68,11 +69,12 @@ const baseMenuItems = [
     ],
   },
   {
-    label: 'Sales Intelligence',
-    icon: Handshake,
+    label: 'Sales & CRM',
+    icon: Target,
     submenu: [
-      { label: 'Today\'s Prospecting', href: '/app/prospecting/dashboard' },
-      { label: 'Prospects', href: '/app/prospecting' },
+      { label: 'Prospects', href: '/app/prospects' },
+      { label: 'Prospect Pipeline', href: '/app/prospects/pipeline' },
+      { label: 'Prospect Dashboard', href: '/app/prospects/dashboard' },
       { label: 'Deals', href: '/app/deals' },
       { label: 'Pipeline', href: '/app/pipeline' },
       { label: 'Sales', href: '/app/sales' },
@@ -128,7 +130,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     Operations: false,
-    'Sales Intelligence': false,
+    'Sales & CRM': false,
     Investments: false,
     Finance: true,
     'Intellectual Property': false,
