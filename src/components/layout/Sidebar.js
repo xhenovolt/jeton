@@ -28,7 +28,7 @@ import {
   Percent,
   Target,
 } from 'lucide-react';
-import { menuItems as navMenuItems } from '@/lib/navigation-config';
+import { menuItems as configMenuItems } from '@/lib/navigation-config';
 
 /**
  * Tooltip Component
@@ -55,72 +55,6 @@ function Tooltip({ children, label }) {
 }
 
 /**
- * Navigation menu structure - organized by domain
- */
-const baseMenuItems = [
-  { label: 'Dashboard', href: '/app/dashboard', icon: Home },
-  { label: 'Overview', href: '/app/overview', icon: Eye },
-  {
-    label: 'Operations',
-    icon: Zap,
-    submenu: [
-      { label: 'Staff', href: '/app/staff' },
-      { label: 'Infrastructure', href: '/app/infrastructure' },
-    ],
-  },
-  {
-    label: 'Sales & CRM',
-    icon: Target,
-    submenu: [
-      { label: 'Prospects', href: '/app/prospects' },
-      { label: 'Prospect Pipeline', href: '/app/prospects/pipeline' },
-      { label: 'Prospect Dashboard', href: '/app/prospects/dashboard' },
-      { label: 'Deals', href: '/app/deals' },
-      { label: 'Pipeline', href: '/app/pipeline' },
-      { label: 'Sales', href: '/app/sales' },
-    ],
-  },
-  {
-    label: 'Investments',
-    icon: TrendingUp,
-    submenu: [
-      { label: 'Deals', href: '/app/deals' },
-      { label: 'Pipeline', href: '/app/pipeline' },
-      { label: 'Valuation', href: '/app/valuation' },
-    ],
-  },
-  {
-    label: 'Finance',
-    icon: Wallet,
-    submenu: [
-      { label: 'Assets', href: '/app/assets-accounting' },
-      { label: 'Liabilities', href: '/app/liabilities' },
-      { label: 'Corporate Equity', href: '/app/equity' },
-      { label: 'Share Allocations', href: '/app/shares' },
-    ],
-  },
-  {
-    label: 'Intellectual Property',
-    icon: Eye,
-    submenu: [
-      { label: 'IP Portfolio', href: '/app/intellectual-property' },
-    ],
-  },
-];
-
-// Admin menu - shown conditionally for admin/superadmin users
-const adminMenuItems = {
-  label: 'Admin',
-  icon: Users,
-  submenu: [
-    { label: 'Users', href: '/app/admin/users' },
-    { label: 'Roles & Permissions', href: '/app/admin/roles' },
-    { label: 'Audit Logs', href: '/app/admin/audit-logs' },
-    { label: 'Activity', href: '/app/admin/activity' },
-  ],
-};
-
-/**
  * Sidebar Component - Enhanced
  * Collapsible navigation with smooth animations, tooltips, and dark mode
  * DESKTOP ONLY - Hidden on mobile (md: breakpoint)
@@ -129,16 +63,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    Operations: false,
-    'Sales & CRM': false,
+    Growth: false,
     Investments: false,
     Finance: true,
-    'Intellectual Property': false,
+    Systems: false,
+    Operations: false,
     Admin: false,
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [menuItems, setMenuItems] = useState(baseMenuItems);
+  const [displayMenuItems, setDisplayMenuItems] = useState(configMenuItems);
 
   // Fetch current user to check if they're admin
   useEffect(() => {
@@ -155,9 +89,9 @@ export default function Sidebar() {
         const data = await response.json();
         setUser(data.user);
         
-        // Add admin menu if user is admin or superadmin
-        if (data.user?.is_superadmin || data.user?.role === 'admin' || data.user?.role === 'superadmin') {
-          setMenuItems([...baseMenuItems, adminMenuItems]);
+        // If user is not admin, filter out Admin menu
+        if (!(data.user?.is_superadmin || data.user?.role === 'admin' || data.user?.role === 'superadmin')) {
+          setDisplayMenuItems(configMenuItems.filter(item => item.label !== 'Admin'));
         }
       }
     } catch (error) {
@@ -243,7 +177,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         <AnimatePresence>
-          {navMenuItems.map((item) => {
+          {displayMenuItems.map((item) => {
             const Icon = item.icon;
             const hasSubmenu = item.submenu && item.submenu.length > 0;
             const isExpanded = expandedSections[item.label];

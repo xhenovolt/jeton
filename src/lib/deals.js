@@ -58,33 +58,120 @@ export async function getDealById(id) {
 }
 
 /**
- * Create new deal
+ * Create new deal with structural enforcement
+ * RULES (Founder-First):
+ * - system_id is REQUIRED (must select which system this deal is for)
+ * - prospect_id OR client_id is REQUIRED (deal must be linked to a person)
+ * - No anonymous deals allowed
+ * 
  * @param {Object} data - Deal data
  * @param {string} userId - Creator user ID
- * @returns {Promise<Object>} Created deal
+ * @returns {Promise<Object>} Created deal or throws structural error
  */
 export async function createDeal(data, userId) {
   try {
     const {
       title,
-      client_name,
       description,
       value_estimate = 0,
       stage = 'Lead',
       probability = 50,
+      system_id,
+      prospect_id,
+      client_id,
       assigned_to,
       expected_close_date,
       status = 'ACTIVE',
     } = data;
 
+    // ========== STRUCTURAL ENFORCEMENT ==========
+    // Rule 1: Deal MUST link to a system
+    if (!system_id) {
+      throw new Error(
+        'STRUCTURAL ERROR: Deal creation requires system_id. ' +
+        'Select which system this deal is selling, then create the deal.'
+      );
+    }
+
+    // Rule 2: Deal MUST link to prospect OR client (not both optional)
+    if (!prospect_id && !client_id) {
+      throw new Error(
+        'STRUCTURAL ERROR: Deal must link to a prospect OR client. ' +
+        'No anonymous deals allowed. Identify the decision-maker first.'
+      );
+    }
+
+    // Rule 3: Validate system_id exists
+    const systemCheck = await query(
+      'SELECT id FROM intellectual_property WHERE id = $1',
+      [system_id]
+    );
+    if (systemCheck.rowCount === 0) {
+      throw new Error(`System with ID ${system_id} does not exist. Select a valid system.`);
+    }
+
+    // Rule 4: If prospect_id provided, validate it exists
+    if (prospect_id) {
+      const prospectCheck = await query(
+        'SELECT id FROM prospect_contacts WHERE id = $1',
+        [prospect_id]
+      );
+      if (prospectCheck.rowCount === 0) {
+        throw new Error(`Prospect with ID ${prospect_id} does not exist.`);
+      }
+    }
+
+    // Rule 5: If client_id provided, validate it exists
+    if (client_id) {
+      const clientCheck = await query(
+        'SELECT id FROM clients WHERE id = $1',
+        [client_id]
+      );
+      if (clientCheck.rowCount === 0) {
+        throw new Error(`Client with ID ${client_id} does not exist.`);
+      }
+    }
+
+    // ========== CREATE DEAL WITH ENFORCED RELATIONSHIPS ==========
     const result = await query(
-      `INSERT INTO deals (title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO deals (
+        title, 
+        description, 
+        value_estimate, 
+        stage, 
+        probability, 
+        system_id,
+        prospect_id,
+        client_id,
+        assigned_to, 
+        expected_close_date, 
+        status, 
+        created_by
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status, userId]
+      [
+        title,
+        description,
+        value_estimate,
+        stage,
+        probability,
+        system_id,
+        prospect_id,
+        client_id,
+        assigned_to,
+        expected_close_date,
+        status,
+        userId,
+      ]
     );
 
-    return result.rows[0];
+    const deal = result.rows[0];
+    
+    // Log deal creation with system link
+    console.log(`✓ Deal created: "${title}" for system ${system_id}, linked to ${prospect_id ? 'prospect' : 'client'}`);
+
+    return deal;
   } catch (error) {
     console.error('Error creating deal:', error);
     throw error;
@@ -92,30 +179,108 @@ export async function createDeal(data, userId) {
 }
 
 /**
- * Update deal
+ * Update deal with structural enforcement
+ * Validates that deal maintains required relationships
+ * 
  * @param {string} id - Deal UUID
  * @param {Object} data - Updated deal data
- * @returns {Promise<Object>} Updated deal
+ * @returns {Promise<Object>} Updated deal or throws structural error
  */
 export async function updateDeal(id, data) {
   try {
-    const { title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status } = data;
+    // Get current deal to validate relationships
+    const currentDeal = await getDealById(id);
+    if (!currentDeal) {
+      throw new Error(`Deal ${id} not found`);
+    }
 
+    const {
+      title,
+      description,
+      value_estimate,
+      stage,
+      probability,
+      system_id = currentDeal.system_id,
+      prospect_id = currentDeal.prospect_id,
+      client_id = currentDeal.client_id,
+      assigned_to,
+      expected_close_date,
+      status,
+    } = data;
+
+    // ========== STRUCTURAL ENFORCEMENT ==========
+    // Rule: If changing system_id, validate it exists
+    if (system_id && system_id !== currentDeal.system_id) {
+      const systemCheck = await query(
+        'SELECT id FROM intellectual_property WHERE id = $1',
+        [system_id]
+      );
+      if (systemCheck.rowCount === 0) {
+        throw new Error(`System with ID ${system_id} does not exist.`);
+      }
+    }
+
+    // Rule: Ensure deal still has prospect_id OR client_id
+    if (!prospect_id && !client_id) {
+      throw new Error(
+        'STRUCTURAL ERROR: Deal must maintain link to prospect OR client. ' +
+        'Cannot remove all contact links.'
+      );
+    }
+
+    // Rule: If prospect_id provided, validate it exists
+    if (prospect_id && prospect_id !== currentDeal.prospect_id) {
+      const prospectCheck = await query(
+        'SELECT id FROM prospect_contacts WHERE id = $1',
+        [prospect_id]
+      );
+      if (prospectCheck.rowCount === 0) {
+        throw new Error(`Prospect with ID ${prospect_id} does not exist.`);
+      }
+    }
+
+    // Rule: If client_id provided, validate it exists
+    if (client_id && client_id !== currentDeal.client_id) {
+      const clientCheck = await query(
+        'SELECT id FROM clients WHERE id = $1',
+        [client_id]
+      );
+      if (clientCheck.rowCount === 0) {
+        throw new Error(`Client with ID ${client_id} does not exist.`);
+      }
+    }
+
+    // ========== UPDATE DEAL ==========
     const result = await query(
       `UPDATE deals 
        SET title = COALESCE($2, title),
-           client_name = COALESCE($3, client_name),
-           description = COALESCE($4, description),
-           value_estimate = COALESCE($5, value_estimate),
-           stage = COALESCE($6, stage),
-           probability = COALESCE($7, probability),
-           assigned_to = COALESCE($8, assigned_to),
-           expected_close_date = COALESCE($9, expected_close_date),
-           status = COALESCE($10, status),
+           description = COALESCE($3, description),
+           value_estimate = COALESCE($4, value_estimate),
+           stage = COALESCE($5, stage),
+           probability = COALESCE($6, probability),
+           system_id = COALESCE($7, system_id),
+           prospect_id = COALESCE($8, prospect_id),
+           client_id = COALESCE($9, client_id),
+           assigned_to = COALESCE($10, assigned_to),
+           expected_close_date = COALESCE($11, expected_close_date),
+           status = COALESCE($12, status),
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id, title, client_name, description, value_estimate, stage, probability, assigned_to, expected_close_date, status]
+      [
+        id,
+        title,
+        description,
+        value_estimate,
+        stage,
+        probability,
+        system_id,
+        prospect_id,
+        client_id,
+        assigned_to,
+        expected_close_date,
+        status,
+      ]
     );
 
     return result.rows[0] || null;

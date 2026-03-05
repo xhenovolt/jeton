@@ -51,20 +51,33 @@ export default function QuickAddProspectModal({ isOpen, onClose, onProspectAdded
       return;
     }
 
+    if (!formData.phone.trim() && !formData.email.trim()) {
+      setError('At least phone or email is required');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      // Map modal fields to API fields
+      const apiPayload = {
+        prospect_name: formData.prospect_name.trim(),
+        phone_number: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        company_name: formData.business_name.trim() || null,
+        source_id: formData.source, // This will be the source name - API needs to handle lookup
+        whatsapp_number: null, // Modal doesn't have whatsapp
+      };
+
+      console.log('Submitting prospect with fields:', apiPayload);
+
       const response = await fetch('/api/prospects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': localStorage.getItem('userId') || '',
         },
-        body: JSON.stringify({
-          ...formData,
-          sales_stage: 'New',
-          status: 'Active',
-        }),
+        body: JSON.stringify(apiPayload),
       });
 
       if (!response.ok) {
@@ -91,6 +104,7 @@ export default function QuickAddProspectModal({ isOpen, onClose, onProspectAdded
       onClose();
     } catch (err) {
       setError(err.message);
+      console.error('Error adding prospect:', err);
     } finally {
       setIsSubmitting(false);
     }

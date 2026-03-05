@@ -45,54 +45,132 @@ export const updateInvoiceSchema = invoiceSchema.partial().extend({
 // Validate invoice data
 export function validateInvoice(data) {
   try {
+    // Guard: ensure data exists
+    if (!data || typeof data !== 'object') {
+      return { 
+        valid: false, 
+        data: null, 
+        errors: { general: 'Request body must be a valid JSON object' } 
+      };
+    }
+
     const validated = invoiceSchema.parse(data);
     return { valid: true, data: validated, errors: {} };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors = {};
-      error.errors.forEach((err) => {
-        const path = err.path.join('.');
+      // Safely access errors property - support both error.errors and error.issues
+      const zodErrors = error.errors || error.issues || [];
+      
+      if (!Array.isArray(zodErrors)) {
+        return { 
+          valid: false, 
+          data: null, 
+          errors: { general: 'Validation error - unable to parse errors' } 
+        };
+      }
+
+      zodErrors.forEach((err) => {
+        const path = err.path?.join('.') || 'unknown';
         errors[path] = err.message;
       });
       return { valid: false, data: null, errors };
     }
-    return { valid: false, data: null, errors: { general: error.message } };
+    
+    // Catch any other error type
+    return { 
+      valid: false, 
+      data: null, 
+      errors: { general: error?.message || 'Validation failed - unknown error' } 
+    };
   }
 }
 
 // Validate update invoice data
 export function validateInvoiceUpdate(data) {
   try {
+    // Guard: ensure data exists
+    if (!data || typeof data !== 'object') {
+      return { 
+        valid: false, 
+        data: null, 
+        errors: { general: 'Request body must be a valid JSON object' } 
+      };
+    }
+
     const validated = updateInvoiceSchema.parse(data);
     return { valid: true, data: validated, errors: {} };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors = {};
-      error.errors.forEach((err) => {
-        const path = err.path.join('.');
+      // Safely access errors property - support both error.errors and error.issues
+      const zodErrors = error.errors || error.issues || [];
+      
+      if (!Array.isArray(zodErrors)) {
+        return { 
+          valid: false, 
+          data: null, 
+          errors: { general: 'Validation error - unable to parse errors' } 
+        };
+      }
+
+      zodErrors.forEach((err) => {
+        const path = err.path?.join('.') || 'unknown';
         errors[path] = err.message;
       });
       return { valid: false, data: null, errors };
     }
-    return { valid: false, data: null, errors: { general: error.message } };
+    
+    // Catch any other error type
+    return { 
+      valid: false, 
+      data: null, 
+      errors: { general: error?.message || 'Validation failed - unknown error' } 
+    };
   }
 }
 
 // Validate invoice items (for updates)
 export function validateInvoiceItems(items) {
   try {
+    // Guard: ensure items is an array
+    if (!Array.isArray(items)) {
+      return { 
+        valid: false, 
+        data: null, 
+        errors: { general: 'Items must be an array' } 
+      };
+    }
+
     const validated = z.array(invoiceItemSchema).min(1).parse(items);
     return { valid: true, data: validated, errors: {} };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors = {};
-      error.errors.forEach((err) => {
-        const path = err.path.join('.');
+      // Safely access errors property - support both error.errors and error.issues
+      const zodErrors = error.errors || error.issues || [];
+      
+      if (!Array.isArray(zodErrors)) {
+        return { 
+          valid: false, 
+          data: null, 
+          errors: { general: 'Validation error - unable to parse errors' } 
+        };
+      }
+
+      zodErrors.forEach((err) => {
+        const path = err.path?.join('.') || 'unknown';
         errors[path] = err.message;
       });
       return { valid: false, data: null, errors };
     }
-    return { valid: false, data: null, errors: { general: error.message } };
+    
+    // Catch any other error type
+    return { 
+      valid: false, 
+      data: null, 
+      errors: { general: error?.message || 'Validation failed - unknown error' } 
+    };
   }
 }
 

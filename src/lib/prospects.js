@@ -119,6 +119,77 @@ export class ProspectActivity {
 // PROSPECT SERVICE (Business Logic)
 // ============================================================================
 
+/**
+ * Resolve user ID - validates that user exists in database
+ * Falls back to first available user if not provided
+ */
+export async function resolveUserId(userIdInput) {
+  try {
+    // If user ID provided, verify it exists
+    if (userIdInput) {
+      const userResult = await query(
+        'SELECT id FROM users WHERE id = $1 LIMIT 1',
+        [userIdInput]
+      );
+      if (userResult.rowCount > 0) {
+        return userIdInput; // Valid user found
+      }
+      console.warn(`User ${userIdInput} not found, falling back to first user`);
+    }
+
+    // Fall back to first available user in database
+    const firstUserResult = await query(
+      'SELECT id FROM users ORDER BY created_at ASC LIMIT 1'
+    );
+    
+    if (firstUserResult.rowCount === 0) {
+      throw new Error('No users exist in database');
+    }
+    
+    const fallbackUserId = firstUserResult.rows[0].id;
+    console.log(`Using fallback user: ${fallbackUserId}`);
+    return fallbackUserId;
+  } catch (error) {
+    console.error('Error resolving user ID:', error);
+    throw new Error(`Failed to resolve user: ${error.message}`);
+  }
+}
+
+/**
+ * Resolve source ID - accepts either UUID or source name string
+ * If given a string that looks like a UUID, use it directly
+ * If given a source name string, look it up in database
+ */
+export async function resolveSourceId(sourceInput) {
+  if (!sourceInput) {
+    throw new Error('Source is required');
+  }
+
+  // Check if it looks like a UUID (36 chars with hyphens)
+  if (typeof sourceInput === 'string' && sourceInput.length === 36 && sourceInput.includes('-')) {
+    return sourceInput; // Assume it's a valid UUID
+  }
+
+  // Look up by source name
+  try {
+    const result = await query(
+      'SELECT id FROM prospect_sources WHERE LOWER(source_name) = LOWER($1) LIMIT 1',
+      [sourceInput]
+    );
+    
+    if (result.rowCount === 0) {
+      throw new Error(`Prospect source "${sourceInput}" not found`);
+    }
+    
+    return result.rows[0].id;
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      throw error;
+    }
+    throw new Error(`Failed to resolve source: ${error.message}`);
+  }
+}
+
 export async function createProspect(prospectData, createdById) {
   try {
     const {
@@ -135,17 +206,26 @@ export async function createProspect(prospectData, createdById) {
       assigned_sales_agent_id,
     } = prospectData;
 
+    // Trim and normalize contact methods (handle empty strings and whitespace)
+    const trimmedEmail = email?.trim() || '';
+    const trimmedPhone = phone_number?.trim() || '';
+    const trimmedWhatsapp = whatsapp_number?.trim() || '';
+
     // Validate required fields
-    if (!prospect_name) {
+    if (!prospect_name || !prospect_name.trim()) {
       throw new Error('Prospect name is required');
     }
 
-    if (!email && !phone_number && !whatsapp_number) {
+    if (!trimmedEmail && !trimmedPhone && !trimmedWhatsapp) {
       throw new Error('At least one contact method (email, phone, or WhatsApp) is required');
     }
 
-    if (!source_id) {
-      throw new Error('Prospect source is required');
+    // Resolve source ID (handles both UUID and source name string)
+    let resolvedSourceId;
+    try {
+      resolvedSourceId = await resolveSourceId(source_id);
+    } catch (sourceError) {
+      throw new Error(`Source error: ${sourceError.message}`);
     }
 
     const result = await query(`
@@ -158,16 +238,16 @@ export async function createProspect(prospectData, createdById) {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, $11, $12, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
-      prospect_name,
-      email || null,
-      phone_number || null,
-      whatsapp_number || null,
-      company_name || null,
+      prospect_name.trim(),
+      trimmedEmail || null,
+      trimmedPhone || null,
+      trimmedWhatsapp || null,
+      company_name ? company_name.trim() : null,
       industry_id || null,
-      city || null,
-      country || null,
-      address || null,
-      source_id,
+      city ? city.trim() : null,
+      country ? country.trim() : null,
+      address ? address.trim() : null,
+      resolvedSourceId,
       assigned_sales_agent_id || null,
       createdById,
     ]);

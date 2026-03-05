@@ -25,10 +25,34 @@ export default function ValuationPage() {
         });
         if (response.ok) {
           const data = await response.json();
-          setValuation(data);
+          // Defensive: ensure data structure with fallback values
+          setValuation({
+            totalPipelineValue: data?.totalPipelineValue || 0,
+            weightedPipelineValue: data?.weightedPipelineValue || 0,
+            wonDealsTotal: data?.wonDealsTotal || 0,
+            lostDealsTotal: data?.lostDealsTotal || 0,
+            currency: data?.currency || 'UGX',
+          });
+        } else {
+          // Set default values on fetch failure
+          setValuation({
+            totalPipelineValue: 0,
+            weightedPipelineValue: 0,
+            wonDealsTotal: 0,
+            lostDealsTotal: 0,
+            currency: 'UGX',
+          });
         }
       } catch (error) {
         console.error('Error fetching valuation:', error);
+        // Set default values on error
+        setValuation({
+          totalPipelineValue: 0,
+          weightedPipelineValue: 0,
+          wonDealsTotal: 0,
+          lostDealsTotal: 0,
+          currency: 'UGX',
+        });
       } finally {
         setIsLoading(false);
       }
@@ -45,6 +69,7 @@ export default function ValuationPage() {
     );
   }
 
+  // Defensive: ensure valuation has required structure
   if (!valuation) {
     return (
       <div className="text-center py-12">
@@ -53,7 +78,12 @@ export default function ValuationPage() {
     );
   }
 
-  const conversionRate = valuation.weightedPipelineValue / (valuation.totalPipelineValue || 1);
+  // Safe access with fallback values
+  const totalPipeline = valuation?.totalPipelineValue || 0;
+  const weightedPipeline = valuation?.weightedPipelineValue || 0;
+  const wonTotal = valuation?.wonDealsTotal || 0;
+  const lostTotal = valuation?.lostDealsTotal || 0;
+  const conversionRate = totalPipeline > 0 ? weightedPipeline / totalPipeline : 0;
 
   return (
     <div className="space-y-8">
@@ -78,7 +108,7 @@ export default function ValuationPage() {
             <div>
               <p className="text-blue-600 dark:text-blue-400 text-sm font-semibold">TOTAL PIPELINE VALUE</p>
               <h3 className="text-4xl font-bold text-slate-900 dark:text-white mt-3">
-                UGX {valuation.totalPipelineValue.toLocaleString()}
+                UGX {totalPipeline.toLocaleString()}
               </h3>
             </div>
             <div className="w-16 h-16 rounded-lg bg-blue-200 dark:bg-blue-900 flex items-center justify-center">
@@ -96,7 +126,7 @@ export default function ValuationPage() {
             <div>
               <p className="text-purple-600 dark:text-purple-400 text-sm font-semibold">EXPECTED REVENUE</p>
               <h3 className="text-4xl font-bold text-slate-900 dark:text-white mt-3">
-                UGX {valuation.weightedPipelineValue.toLocaleString()}
+                UGX {weightedPipeline.toLocaleString()}
               </h3>
             </div>
             <div className="w-16 h-16 rounded-lg bg-purple-200 dark:bg-purple-900 flex items-center justify-center">
@@ -141,7 +171,7 @@ export default function ValuationPage() {
             <div>
               <p className="text-slate-600 dark:text-slate-400 text-sm font-semibold mb-2">WON DEALS</p>
               <h3 className="text-3xl font-bold text-green-600 dark:text-green-400">
-                UGX {valuation.wonDealsTotal.toLocaleString()}
+                UGX {wonTotal.toLocaleString()}
               </h3>
             </div>
             <CheckCircle className="text-green-600 dark:text-green-400" size={28} />
@@ -157,7 +187,7 @@ export default function ValuationPage() {
             <div>
               <p className="text-slate-600 dark:text-slate-400 text-sm font-semibold mb-2">LOST DEALS</p>
               <h3 className="text-3xl font-bold text-red-600 dark:text-red-400">
-                UGX {valuation.lostDealsTotal.toLocaleString()}
+                UGX {lostTotal.toLocaleString()}
               </h3>
             </div>
             <XCircle className="text-red-600 dark:text-red-400" size={28} />

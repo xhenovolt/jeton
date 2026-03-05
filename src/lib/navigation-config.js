@@ -1,30 +1,44 @@
 /**
- * Navigation Configuration - Single Source of Truth
- * Used by both desktop sidebar and mobile drawer
- * Prevents duplicate menu definitions and ensures consistency
+ * Navigation Configuration - FOUNDER OPERATING SYSTEM
+ * 
+ * Single Source of Truth for all navigation
+ * Organized by founder workflow: Prospect→Convert→Contract→Collect→Profit
+ * 
+ * NO DUPLICATES. NO PHANTOM ROUTES.
+ * Every route here must exist in /src/app/
  */
 
 import {
   Home,
-  Building2,
+  Users,
   Zap,
   TrendingUp,
-  Wallet,
-  Handshake,
-  Eye,
-  Users,
+  DollarSign,
   BookOpen,
   Settings,
-  Plus,
   LogOut,
-  Percent,
   Target,
+  CheckCircle,
+  FileText,
+  Building2,
+  Brain,
+  Percent,
+  Eye,
+  BarChart3,
+  AlertCircle,
 } from 'lucide-react';
 
 /**
- * Main navigation menu items organized by category
+ * FOUNDER OPERATING SYSTEM NAVIGATION
+ * Direct mapping to user workflow, not data models
+ * ALL ROUTES CONSOLIDATED IN /app/app/
+ * 
+ * Workflow: Prospect → Follow-up → Convert → Collect → Allocate → Profit
  */
 export const menuItems = [
+  // =========================================================================
+  // PRIMARY - Quick Access
+  // =========================================================================
   {
     label: 'Dashboard',
     href: '/app/dashboard',
@@ -37,65 +51,175 @@ export const menuItems = [
     icon: Eye,
     category: 'primary',
   },
+
+  // =========================================================================
+  // GROWTH - Sales Pipeline & Lead Management
+  // =========================================================================
   {
-    label: 'Operations',
-    icon: Zap,
-    category: 'sections',
-    submenu: [
-      { label: 'Staff', href: '/app/staff' },
-      { label: 'Infrastructure', href: '/app/infrastructure' },
-    ],
-  },
-  {
-    label: 'Sales & CRM',
+    label: 'Growth',
     icon: Target,
     category: 'sections',
     submenu: [
-      { label: 'Prospects', href: '/app/prospects' },
-      { label: 'Prospect Pipeline', href: '/app/prospects/pipeline' },
-      { label: 'Prospect Dashboard', href: '/app/prospects/dashboard' },
-      { label: 'Deals', href: '/app/deals' },
-      { label: 'Pipeline', href: '/app/pipeline' },
-      { label: 'Sales', href: '/app/sales' },
+      {
+        label: 'Prospects',
+        href: '/app/prospecting',
+        description: 'Track and convert leads',
+      },
+      {
+        label: 'Follow-ups',
+        href: '/app/prospecting/followups',
+        description: 'Today\'s follow-ups',
+      },
+      {
+        label: 'Conversions',
+        href: '/app/prospecting/conversions',
+        description: 'Ready to convert',
+      },
+      {
+        label: 'Prospect Dashboard',
+        href: '/app/prospecting/dashboard',
+        description: 'Pipeline overview',
+      },
+      {
+        label: 'Sales',
+        href: '/app/sales',
+        description: 'Sales management',
+      },
     ],
   },
+
+  // =========================================================================
+  // INVESTMENTS - Deals & Valuation
+  // =========================================================================
   {
     label: 'Investments',
     icon: TrendingUp,
     category: 'sections',
     submenu: [
-      { label: 'Deals', href: '/app/deals' },
-      { label: 'Pipeline', href: '/app/pipeline' },
-      { label: 'Valuation', href: '/app/valuation' },
+      {
+        label: 'Deals',
+        href: '/app/deals',
+        description: 'Manage investment deals',
+      },
+      {
+        label: 'Pipeline',
+        href: '/app/pipeline',
+        description: 'Deal pipeline',
+      },
+      {
+        label: 'Valuation',
+        href: '/app/valuation',
+        description: 'Company valuation',
+      },
     ],
   },
+
+  // =========================================================================
+  // FINANCE - Assets, Liabilities & Equity
+  // =========================================================================
   {
     label: 'Finance',
-    icon: Wallet,
+    icon: DollarSign,
     category: 'sections',
     submenu: [
-      { label: 'Assets', href: '/app/assets-accounting' },
-      { label: 'Liabilities', href: '/app/liabilities' },
-      { label: 'Corporate Equity', href: '/app/equity' },
-      { label: 'Share Allocations', href: '/app/shares' },
-      { label: 'Sales', href: '/app/sales' },
+      {
+        label: 'Finance Dashboard',
+        href: '/app/finance',
+        description: 'Revenue, expenses, profit',
+      },
+      {
+        label: 'Assets',
+        href: '/app/assets-accounting',
+        description: 'Asset management',
+      },
+      {
+        label: 'Liabilities',
+        href: '/app/liabilities',
+        description: 'Liability tracking',
+      },
+      {
+        label: 'Corporate Equity',
+        href: '/app/equity',
+        description: 'Share distributions',
+      },
+      {
+        label: 'Share Allocations',
+        href: '/app/shares',
+        description: 'Equity allocations',
+      },
+      {
+        label: 'Invoices',
+        href: '/app/invoices',
+        description: 'Invoice management',
+      },
+      {
+        label: 'Reports',
+        href: '/app/reports',
+        description: 'Financial reports',
+      },
     ],
   },
+
+  // =========================================================================
+  // SYSTEMS - IP Portfolio (What You Sell)
+  // =========================================================================
   {
-    label: 'Intellectual Property',
-    icon: Eye,
-    category: 'sections',
-    submenu: [{ label: 'IP Portfolio', href: '/app/intellectual-property' }],
-  },
-  {
-    label: 'Admin',
-    icon: Users,
+    label: 'Systems',
+    icon: Brain,
     category: 'sections',
     submenu: [
-      { label: 'Users', href: '/admin/users' },
-      { label: 'Roles & Permissions', href: '/admin/roles' },
-      { label: 'Audit Logs', href: '/admin/audit-logs' },
-      { label: 'Activity Analytics', href: '/admin/activity-analytics' },
+      {
+        label: 'IP Portfolio',
+        href: '/app/intellectual-property',
+        description: 'Patents, technology & assets',
+      },
+    ],
+  },
+
+  // =========================================================================
+  // OPERATIONS - Team & Infrastructure
+  // =========================================================================
+  {
+    label: 'Operations',
+    icon: Building2,
+    category: 'sections',
+    submenu: [
+      {
+        label: 'Staff',
+        href: '/app/staff',
+        description: 'Team management',
+      },
+      {
+        label: 'Infrastructure',
+        href: '/app/infrastructure',
+        description: 'Tools and hosting',
+      },
+    ],
+  },
+
+  // =========================================================================
+  // ADMIN - System Management (Admin/Superadmin only)
+  // =========================================================================
+  {
+    label: 'Admin',
+    icon: Settings,
+    category: 'sections',
+    submenu: [
+      {
+        label: 'Users',
+        href: '/app/admin/users',
+        description: 'User accounts & roles',
+      },
+      {
+        label: 'Activity Logs',
+        href: '/app/admin/audit-logs',
+        description: 'System audit trail',
+      },
+      {
+        label: 'Roles & Permissions',
+        href: '/app/admin/roles',
+        description: 'Role management',
+      },
     ],
   },
 ];
@@ -107,22 +231,22 @@ export const menuItems = [
 export const quickAccessLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
   {
-    id: 'prospects',
+    id: 'prospecting',
     label: 'Prospects',
     icon: Target,
-    href: '/app/prospects',
+    href: '/app/prospecting',
   },
   {
-    id: 'assets',
-    label: 'Assets',
-    icon: Zap,
-    href: '/app/assets-accounting',
-  },
-  {
-    id: 'ip',
-    label: 'IP',
+    id: 'deals',
+    label: 'Deals',
     icon: TrendingUp,
-    href: '/app/intellectual-property',
+    href: '/app/deals',
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    icon: BarChart3,
+    href: '/app/finance',
   },
 ];
 
@@ -131,37 +255,28 @@ export const quickAccessLinks = [
  * These routes must not be accessible without a valid session
  */
 export const protectedRoutes = [
-  '/app',
-  '/dashboard',
-  '/app/dashboard',
-  '/app/overview',
-  '/app/assets',
-  '/app/liabilities',
-  '/app/deals',
-  '/app/pipeline',
-  '/app/reports',
-  '/app/staff',
-  '/app/settings',
-  '/app/shares',
-  '/app/infrastructure',
-  '/app/intellectual-property',
-  '/app/assets-accounting',
-  '/app/equity',
-  '/app/audit-logs',
-  '/app/sales',
-  '/app/valuation',
-  '/app/prospects',
-  '/app/prospects/pipeline',
-  '/app/prospects/dashboard',
-  '/admin/users',
-  '/admin/roles',
-  '/admin/audit-logs',
-  '/admin/activity-analytics',
+  '/app/*',
+];
+
+/**
+ * Settings route - always available at footer
+ */
+export const settingsRoute = {
+  href: '/app/settings',
+  label: 'Settings',
+};
+
+/**
+ * Public routes that don't require authentication
+ */
+export const publicRoutes = [
+  '/login',
+  '/register',
 ];
 
 /**
  * Get all hrefs from menu items recursively
- * Useful for active state detection
+ * Useful for active state detection and route validation
  */
 export function getAllHrefs(items = menuItems) {
   const hrefs = [];
@@ -179,7 +294,7 @@ export function getAllHrefs(items = menuItems) {
 }
 
 /**
- * Find a menu item by href
+ * Find a menu item by href/path
  */
 export function findMenuItemByHref(href, items = menuItems) {
   for (const item of items) {
@@ -206,4 +321,29 @@ export function isRouteActive(currentPath, menuPath) {
  */
 export function getParentMenuItems(items = menuItems) {
   return items.filter((item) => item.submenu && item.submenu.length > 0);
+}
+
+/**
+ * Get all valid routes (flattened)
+ */
+export function getAllValidRoutes() {
+  const routes = [];
+  
+  function traverse(items) {
+    items.forEach((item) => {
+      if (item.href) {
+        routes.push({
+          path: item.href,
+          label: item.label,
+          protected: item.href.startsWith('/app') || item.href.startsWith('/admin'),
+        });
+      }
+      if (item.submenu) {
+        traverse(item.submenu);
+      }
+    });
+  }
+
+  traverse(menuItems);
+  return routes;
 }

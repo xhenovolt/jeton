@@ -10,15 +10,14 @@ export async function GET(request) {
   try {
     const valuation = await getDealValuationSummary();
 
+    // Defensive: ensure all expected fields exist with fallback values
     return Response.json({
       success: true,
-      data: {
-        totalPipelineValue: valuation.totalPipelineValue,
-        weightedPipelineValue: valuation.weightedPipelineValue,
-        wonDealsTotal: valuation.wonDealsTotal,
-        lostDealsTotal: valuation.lostDealsTotal,
-        currency: 'UGX',
-      },
+      totalPipelineValue: valuation?.totalPipelineValue || 0,
+      weightedPipelineValue: valuation?.weightedPipelineValue || 0,
+      wonDealsTotal: valuation?.wonDealsTotal || 0,
+      lostDealsTotal: valuation?.lostDealsTotal || 0,
+      currency: 'UGX',
     });
   } catch (error) {
     console.error('Error in GET /api/deals/valuation:', error);
