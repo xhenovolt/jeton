@@ -102,6 +102,21 @@ export const menuItems = [
         description: 'Manage investment deals',
       },
       {
+        label: 'Clients',
+        href: '/app/clients',
+        description: 'Converted prospects',
+      },
+      {
+        label: 'Contracts',
+        href: '/app/contracts',
+        description: 'Active contracts',
+      },
+      {
+        label: 'Payments',
+        href: '/app/payments',
+        description: 'Track payments',
+      },
+      {
         label: 'Pipeline',
         href: '/app/pipeline',
         description: 'Deal pipeline',
@@ -172,6 +187,52 @@ export const menuItems = [
         label: 'IP Portfolio',
         href: '/app/intellectual-property',
         description: 'Patents, technology & assets',
+      },
+    ],
+  },
+
+  // =========================================================================
+  // DOCUMENTATION - System Guides & References
+  // =========================================================================
+  {
+    label: 'Documentation',
+    icon: BookOpen,
+    category: 'sections',
+    submenu: [
+      {
+        label: 'Getting Started',
+        href: '/app/docs/getting-started',
+        description: 'Quick start guide',
+      },
+      {
+        label: 'Founder Manual',
+        href: '/app/docs/founder',
+        description: 'Daily operating playbook',
+      },
+      {
+        label: 'User Guides',
+        href: '/app/docs/guides',
+        description: 'Step-by-step instructions',
+      },
+      {
+        label: 'Workflow',
+        href: '/app/docs/workflow',
+        description: 'Complete business process',
+      },
+      {
+        label: 'Modules',
+        href: '/app/docs/modules',
+        description: 'Module reference',
+      },
+      {
+        label: 'System Map',
+        href: '/app/docs/system-map',
+        description: 'All routes & endpoints',
+      },
+      {
+        label: 'Developer Docs',
+        href: '/app/docs/developer',
+        description: 'Technical architecture',
       },
     ],
   },

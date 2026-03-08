@@ -113,7 +113,7 @@ export async function createDeal(data, userId) {
     // Rule 4: If prospect_id provided, validate it exists
     if (prospect_id) {
       const prospectCheck = await query(
-        'SELECT id FROM prospect_contacts WHERE id = $1',
+        'SELECT id FROM prospects WHERE id = $1',
         [prospect_id]
       );
       if (prospectCheck.rowCount === 0) {
@@ -231,7 +231,7 @@ export async function updateDeal(id, data) {
     // Rule: If prospect_id provided, validate it exists
     if (prospect_id && prospect_id !== currentDeal.prospect_id) {
       const prospectCheck = await query(
-        'SELECT id FROM prospect_contacts WHERE id = $1',
+        'SELECT id FROM prospects WHERE id = $1',
         [prospect_id]
       );
       if (prospectCheck.rowCount === 0) {

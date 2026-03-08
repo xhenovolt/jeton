@@ -47,7 +47,7 @@ export async function POST(request, { params }) {
       name: body.name || prospect.prospect_name,
       email: body.email || prospect.email,
       phone: body.phone || prospect.phone,
-      business_name: body.business_name || prospect.business_name,
+      company_name: body.company_name || body.business_name || prospect.company_name || prospect.business_name,
       address: body.address || prospect.address || null,
     };
 
@@ -61,10 +61,10 @@ export async function POST(request, { params }) {
 
     // Insert client
     const clientResult = await query(
-      `INSERT INTO clients (name, email, phone, business_name, address, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `INSERT INTO clients (prospect_id, name, email, phone, company_name, address, status, converted_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [clientData.name, clientData.email, clientData.phone, clientData.business_name, clientData.address]
+      [prospectId, clientData.name, clientData.email, clientData.phone, clientData.company_name, clientData.address]
     );
 
     const client = clientResult.rows[0];

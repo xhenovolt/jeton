@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getInvoiceById, getInvoiceItems } from '@/lib/db-invoices';
 
-const puppeteer = require('puppeteer');
+// NOTE: PDF generation requires puppeteer which is not compatible with serverless/edge
+// For production, consider using a dedicated PDF service or client-side generation
+// This route returns HTML that can be printed to PDF by the browser
 
 // Helper to generate HTML invoice
 function generateInvoiceHTML(invoice, items) {

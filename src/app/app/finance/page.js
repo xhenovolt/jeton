@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, TrendingUp, DollarSign, PieChart, BarChart3 } from 'lucide-react';
+import { AlertCircle, TrendingUp, DollarSign, PieChart, BarChart3, Wallet, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 
 /**
@@ -10,7 +10,7 @@ import Link from 'next/link';
  * Answers: "Where is the money? Where does it go?"
  */
 export default function FinanceDashboardPage() {
-  const [metrics, setMetrics] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('month'); // month | quarter | year | all
@@ -25,8 +25,12 @@ export default function FinanceDashboardPage() {
           throw new Error('Failed to fetch financial metrics');
         }
 
-        const data = await response.json();
-        setMetrics(data.data || {});
+        const json = await response.json();
+        if (json.success) {
+          setData(json.dashboard || {});
+        } else {
+          throw new Error(json.error || 'Unknown error');
+        }
       } catch (err) {
         console.error('Error fetching metrics:', err);
         setError(err.message);
@@ -101,7 +105,7 @@ export default function FinanceDashboardPage() {
         )}
 
         {/* KPI Cards Grid */}
-        {!error && metrics && (
+        {!error && data && (
           <>
             {/* Top Row - Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -111,10 +115,10 @@ export default function FinanceDashboardPage() {
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
                     <p className="text-3xl font-bold text-gray-900 mt-2">
-                      {formatCurrency(metrics.total_revenue)}
+                      {formatCurrency(data.revenue?.total_collected)}
                     </p>
                     <p className="text-green-600 text-sm mt-2">
-                      {metrics.invoice_count || 0} invoices
+                      {data.revenue?.payment_count || 0} payments
                     </p>
                   </div>
                   <DollarSign className="w-10 h-10 text-green-500 opacity-20" />
@@ -127,10 +131,10 @@ export default function FinanceDashboardPage() {
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Expenses</p>
                     <p className="text-3xl font-bold text-gray-900 mt-2">
-                      {formatCurrency(metrics.total_expenses)}
+                      {formatCurrency(data.expenses?.total_expenses)}
                     </p>
                     <p className="text-red-600 text-sm mt-2">
-                      {metrics.expense_items || 0} items
+                      {data.expenses?.expense_count || 0} items
                     </p>
                   </div>
                   <TrendingUp className="w-10 h-10 text-red-500 opacity-20" />
@@ -139,94 +143,187 @@ export default function FinanceDashboardPage() {
 
               {/* Net Profit */}
               <div className={`rounded-lg border p-6 hover:shadow-lg transition ${
-                (metrics.net_profit || 0) >= 0
+                (data.profitability?.net_profit || 0) >= 0
                   ? 'bg-green-50 border-green-200'
                   : 'bg-red-50 border-red-200'
               }`}>
                 <div className="flex items-start justify-between">
                   <div>
                     <p className={`text-sm font-medium ${
-                      (metrics.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                      (data.profitability?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       Net Profit
                     </p>
                     <p className={`text-3xl font-bold mt-2 ${
-                      (metrics.net_profit || 0) >= 0 ? 'text-green-900' : 'text-red-900'
+                      (data.profitability?.net_profit || 0) >= 0 ? 'text-green-900' : 'text-red-900'
                     }`}>
-                      {formatCurrency(metrics.net_profit)}
+                      {formatCurrency(data.profitability?.net_profit)}
                     </p>
                     <p className="text-gray-600 text-sm mt-2">
-                      {formatPercent(metrics.profit_margin)} margin
+                      {formatPercent(data.profitability?.profit_margin)} margin
                     </p>
                   </div>
                   <BarChart3 className={`w-10 h-10 opacity-20 ${
-                    (metrics.net_profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                    (data.profitability?.net_profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'
                   }`} />
                 </div>
               </div>
             </div>
 
-            {/* Collections & Allocations */}
+            {/* Cash Position & Allocations */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Collections */}
+              {/* Cash Position */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Collections</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-blue-600" />
+                  Cash Position
+                </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Amount Collected</span>
+                    <span className="text-gray-600">Vault Balance</span>
                     <span className="text-xl font-bold text-gray-900">
-                      {formatCurrency(metrics.amount_collected)}
+                      {formatCurrency(data.cash_position?.vault_balance)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Pending Collection</span>
-                    <span className="text-xl font-bold text-orange-600">
-                      {formatCurrency(metrics.pending_amount)}
+                    <span className="text-gray-600">Operating Balance</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {formatCurrency(data.cash_position?.operating_balance)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                    <span className="text-gray-600">Investment Allocated</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {formatCurrency(data.cash_position?.investment_allocated)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-gray-900 font-medium">Total Allocated</span>
+                    <span className="text-xl font-bold text-green-600">
+                      {formatCurrency(data.cash_position?.total_allocated)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Recurring */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-purple-600" />
+                  Recurring Revenue
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                    <span className="text-gray-600">Monthly Recurring</span>
+                    <span className="text-xl font-bold text-gray-900">
+                      {formatCurrency(data.revenue?.monthly_recurring)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                    <span className="text-gray-600">Annual Projection</span>
+                    <span className="text-xl font-bold text-purple-600">
+                      {formatCurrency(data.revenue?.annual_recurring_projection)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Collection Rate</span>
+                    <span className="text-gray-600">Active Contracts</span>
                     <span className="text-lg font-semibold text-gray-900">
-                      {formatPercent(metrics.collection_rate)}
+                      {data.revenue?.contracts_with_revenue || 0}
                     </span>
                   </div>
                 </div>
-                <Link href="/app/collections" className="mt-4 block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-center text-sm font-medium hover:bg-blue-100 transition">
-                  View Collections
-                </Link>
-              </div>
-
-              {/* Allocations Breakdown */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Money Allocation</h3>
-                <div className="space-y-3">
-                  {metrics.allocations && Object.entries(metrics.allocations).map(([type, amount]) => (
-                    <div key={type} className="flex justify-between items-center pb-3 border-b border-gray-100">
-                      <span className="text-gray-600 capitalize">{type}</span>
-                      <span className="font-semibold text-gray-900">
-                        {formatCurrency(amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/app/allocations" className="mt-4 block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-center text-sm font-medium hover:bg-blue-100 transition">
-                  Manage Allocations
-                </Link>
               </div>
             </div>
+
+            {/* Top Systems & Clients */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Top Systems */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-indigo-600" />
+                  Top Systems by Revenue
+                </h3>
+                <div className="space-y-3">
+                  {data.intelligence?.top_systems?.length > 0 ? (
+                    data.intelligence.top_systems.map((sys, i) => (
+                      <div key={sys.system_id || i} className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0">
+                        <div>
+                          <p className="text-gray-900 font-medium">{sys.system_name || 'Unknown'}</p>
+                          <p className="text-gray-500 text-sm">{sys.active_clients || 0} clients</p>
+                        </div>
+                        <span className="text-lg font-bold text-gray-900">
+                          {formatCurrency(sys.installation_revenue_total + (sys.monthly_recurring_total * 12))}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm">No system revenue data</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Top Clients */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-teal-600" />
+                  Top Clients by Revenue
+                </h3>
+                <div className="space-y-3">
+                  {data.intelligence?.top_clients?.length > 0 ? (
+                    data.intelligence.top_clients.map((client, i) => (
+                      <div key={client.client_id || i} className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0">
+                        <div>
+                          <p className="text-gray-900 font-medium">{client.client_name || 'Unknown'}</p>
+                          <p className="text-gray-500 text-sm">{client.contract_count || 0} contracts</p>
+                        </div>
+                        <span className="text-lg font-bold text-gray-900">
+                          {formatCurrency(client.total_collected)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm">No client revenue data</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Data Integrity Alert */}
+            {data.data_integrity && !data.data_integrity.healthy && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-yellow-900">Attention Needed</h3>
+                  <p className="text-yellow-700 text-sm">
+                    {data.data_integrity.orphaned_unallocated_payments > 0 && 
+                      `${data.data_integrity.orphaned_unallocated_payments} payment(s) have unallocated amounts. `}
+                    {data.data_integrity.unfinalized_payments > 0 && 
+                      `${data.data_integrity.unfinalized_payments} payment(s) pending allocation (${formatCurrency(data.data_integrity.unallocated_amount)}). `}
+                  </p>
+                  <Link href="/app/payments" className="text-yellow-800 underline text-sm">
+                    Review Payments
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Expense Breakdown */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Expenses by Category</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {metrics.expense_categories && Object.entries(metrics.expense_categories).map(([category, amount]) => (
-                  <div key={category} className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600 text-sm capitalize">{category}</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">
-                      {formatCurrency(amount)}
-                    </p>
-                  </div>
-                ))}
+                {data.expenses?.by_category?.length > 0 ? (
+                  data.expenses.by_category.filter(cat => cat.total > 0).map((cat) => (
+                    <div key={cat.id} className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600 text-sm capitalize">{cat.name}</p>
+                      <p className="text-xl font-bold text-gray-900 mt-1">
+                        {formatCurrency(cat.total)}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-1">{cat.count} items</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm col-span-3">No expenses recorded</p>
+                )}
               </div>
               <Link href="/app/expenses" className="mt-4 block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-center text-sm font-medium hover:bg-blue-100 transition">
                 Manage Expenses
