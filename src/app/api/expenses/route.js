@@ -1,186 +1,74 @@
-/**
- * GET /api/expenses
- * LIST all expenses with category filtering
- *
- * POST /api/expenses
- * CREATE new expense (can be linked to allocation or standalone)
- */
-
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
+// GET /api/expenses
 export async function GET(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const categoryId = searchParams.get('categoryId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const linkedOnly = searchParams.get('linkedOnly') === 'true';
+    const category = searchParams.get('category');
+    const from_date = searchParams.get('from_date');
+    const to_date = searchParams.get('to_date');
 
-    const offset = (page - 1) * limit;
+    let sql = `SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE 1=1`;
     const params = [];
-    const whereClauses = [];
-    let paramIdx = 1;
+    if (category) { params.push(category); sql += ` AND e.category = $${params.length}`; }
+    if (from_date) { params.push(from_date); sql += ` AND e.expense_date >= $${params.length}`; }
+    if (to_date) { params.push(to_date); sql += ` AND e.expense_date <= $${params.length}`; }
+    sql += ` ORDER BY e.expense_date DESC`;
 
-    if (categoryId) {
-      whereClauses.push(`e.category_id = $${paramIdx++}`);
-      params.push(categoryId);
-    }
-
-    if (linkedOnly) {
-      whereClauses.push('e.linked_allocation_id IS NOT NULL');
-    }
-
-    if (startDate) {
-      whereClauses.push(`e.expense_date >= $${paramIdx++}`);
-      params.push(startDate);
-    }
-
-    if (endDate) {
-      whereClauses.push(`e.expense_date <= $${paramIdx++}`);
-      params.push(endDate);
-    }
-
-    const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
-
-    // Count
-    const countResult = await query(
-      `SELECT COUNT(*) FROM expenses e ${whereSQL}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].count);
-
-    // Get expenses
-    const expensesResult = await query(
-      `SELECT
-         e.*,
-         ec.name as category_name,
-         ec.is_system_defined,
-         a.allocation_type,
-         a.amount as allocation_amount
-       FROM expenses e
-       JOIN expense_categories ec ON e.category_id = ec.id
-       LEFT JOIN allocations a ON e.linked_allocation_id = a.id
-       ${whereSQL}
-       ORDER BY e.expense_date DESC
-       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
-      [...params, limit, offset]
-    );
-
-    return Response.json({
-      success: true,
-      expenses: expensesResult.rows.map(row => ({
-        ...row,
-        amount: parseFloat(row.amount),
-        allocation_amount: row.allocation_amount ? parseFloat(row.allocation_amount) : null,
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    const result = await query(sql, params);
+    return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Error fetching expenses:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[Expenses] GET error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch expenses' }, { status: 500 });
   }
 }
 
+// POST /api/expenses - Create expense WITH automatic ledger entry
 export async function POST(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const body = await request.json();
-    const {
-      category_id,
-      amount,
-      expense_date = new Date().toISOString().split('T')[0],
-      description = null,
-      payment_method = null,
-      reference_number = null,
-      linked_allocation_id = null,
-    } = body;
-
-    // Validation: Required fields
-    if (!category_id) {
-      return Response.json(
-        { success: false, error: 'category_id is required' },
-        { status: 400 }
-      );
+    const { account_id, amount, currency, category, subcategory, vendor, description, expense_date, receipt_url, is_recurring, recurrence_interval, budget_id, tags, notes } = body;
+    
+    if (!account_id || !amount || !category || !description) {
+      return NextResponse.json({ success: false, error: 'account_id, amount, category, and description are required' }, { status: 400 });
     }
 
-    if (!amount || amount <= 0) {
-      return Response.json(
-        { success: false, error: 'amount must be greater than 0' },
-        { status: 400 }
-      );
-    }
-
-    // Validation: Category exists
-    const categoryCheck = await query(
-      'SELECT id FROM expense_categories WHERE id = $1',
-      [category_id]
+    const expResult = await query(
+      `INSERT INTO expenses (account_id, amount, currency, category, subcategory, vendor, description, expense_date, receipt_url, is_recurring, recurrence_interval, status, budget_id, tags, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'recorded',$12,$13,$14,$15) RETURNING *`,
+      [account_id, amount, currency||'USD', category, subcategory||null, vendor||null, description,
+       expense_date||new Date().toISOString().split('T')[0], receipt_url||null,
+       is_recurring||false, recurrence_interval||null, budget_id||null, tags||'{}', notes||null, auth.userId]
     );
 
-    if (categoryCheck.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Category not found' },
-        { status: 404 }
-      );
-    }
+    const expense = expResult.rows[0];
 
-    // Validation: If linked_allocation_id provided, it must exist
-    if (linked_allocation_id) {
-      const allocCheck = await query(
-        'SELECT id, amount FROM allocations WHERE id = $1',
-        [linked_allocation_id]
-      );
-      if (allocCheck.rows.length === 0) {
-        return Response.json(
-          { success: false, error: 'Allocation not found' },
-          { status: 404 }
-        );
-      }
-
-      // Best practice: expense amount should match or be <= allocation amount
-      const allocAmount = parseFloat(allocCheck.rows[0].amount);
-      if (amount > allocAmount) {
-        console.warn(
-          `Expense (${amount}) exceeds linked allocation (${allocAmount}). This is allowed but may indicate data inconsistency.`
-        );
-      }
-    }
-
-    // Create expense
-    const result = await query(
-      `INSERT INTO expenses (
-         category_id, amount, expense_date, description,
-         payment_method, reference_number, linked_allocation_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        category_id,
-        amount,
-        expense_date,
-        description,
-        payment_method,
-        reference_number,
-        linked_allocation_id,
-      ]
+    // Create ledger entry (DEBIT from account - negative amount)
+    const ledgerResult = await query(
+      `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
+       VALUES ($1,$2,$3,'expense',$4,$5,$6,$7,$8) RETURNING id`,
+      [account_id, -Math.abs(amount), currency||'USD', expense.id,
+       `${category}: ${description}${vendor ? ' (' + vendor + ')' : ''}`,
+       category, expense_date||new Date().toISOString().split('T')[0], auth.userId]
     );
 
-    return Response.json(
-      {
-        success: true,
-        expense: {
-          ...result.rows[0],
-          amount: parseFloat(result.rows[0].amount),
-        },
-      },
-      { status: 201 }
-    );
+    await query(`UPDATE expenses SET ledger_entry_id = $1 WHERE id = $2`, [ledgerResult.rows[0].id, expense.id]);
+    expense.ledger_entry_id = ledgerResult.rows[0].id;
+
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'CREATE', 'expense', expense.id, JSON.stringify({ category, amount, vendor })]);
+
+    return NextResponse.json({ success: true, data: expense }, { status: 201 });
   } catch (error) {
-    console.error('Error creating expense:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[Expenses] POST error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to create expense' }, { status: 500 });
   }
 }

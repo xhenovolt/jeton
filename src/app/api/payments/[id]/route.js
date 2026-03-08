@@ -1,139 +1,40 @@
-/**
- * GET /api/payments/[id]
- * GET single payment with all allocations and remaining unallocated amount
- *
- * DELETE /api/payments/[id]
- * DELETE payment (only if unallocated)
- */
-
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
-
-    // Get payment with contract info
-    const paymentResult = await query(
-      `SELECT
-         p.*,
-         c.client_id,
-         cl.name as client_name,
-         ip.name as system_name,
-         (p.amount_received - p.allocated_amount)::numeric as unallocated_amount
-       FROM payments p
-       JOIN contracts c ON p.contract_id = c.id
-       JOIN clients cl ON c.client_id = cl.id
-       LEFT JOIN intellectual_property ip ON c.system_id = ip.id
-       WHERE p.id = $1`,
-      [id]
-    );
-
-    if (paymentResult.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Payment not found' },
-        { status: 404 }
-      );
-    }
-
-    const payment = paymentResult.rows[0];
-
-    // Get all allocations for this payment
-    const allocationsResult = await query(
-      `SELECT
-         a.*,
-         COALESCE(ec.name, a.custom_category) as category_name
-       FROM allocations a
-       LEFT JOIN expense_categories ec ON a.category_id = ec.id
-       WHERE a.payment_id = $1
-       ORDER BY a.created_at DESC`,
-      [id]
-    );
-
-    const allocations = allocationsResult.rows.map(a => ({
-      ...a,
-      amount: parseFloat(a.amount),
-    }));
-
-    // Get approval/audit info
-    const metaResult = await query(
-      `SELECT 
-         COUNT(*) as total_allocations,
-         SUM(amount)::numeric as total_allocated,
-         JSON_AGG(
-           JSON_BUILD_OBJECT('type', allocation_type, 'count', COUNT(*)) 
-         ) as by_type
-       FROM allocations
-       WHERE payment_id = $1
-       GROUP BY payment_id`,
-      [id]
-    );
-
-    const auditInfo = metaResult.rows.length > 0 ? metaResult.rows[0] : 
-      { total_allocations: 0, total_allocated: 0, by_type: null };
-
-    return Response.json({
-      success: true,
-      payment: {
-        ...payment,
-        amount_received: parseFloat(payment.amount_received),
-        allocated_amount: parseFloat(payment.allocated_amount),
-        unallocated_amount: parseFloat(payment.unallocated_amount),
-      },
-      allocations,
-      audit: {
-        ...auditInfo,
-        total_allocated: auditInfo.total_allocated ? parseFloat(auditInfo.total_allocated) : 0,
-        is_fully_allocated: Math.abs(parseFloat(payment.unallocated_amount)) < 0.01,
-      },
-    });
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const { id } = await params;
+    const result = await query(
+      `SELECT p.*, d.title as deal_title, a.name as account_name, c.company_name as client_name
+       FROM payments p JOIN deals d ON p.deal_id = d.id JOIN accounts a ON p.account_id = a.id JOIN clients c ON d.client_id = c.id
+       WHERE p.id = $1`, [id]);
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Error fetching payment:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to fetch payment' }, { status: 500 });
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function PUT(request, { params }) {
   try {
-    const { id } = params;
-
-    // Check if payment has allocations
-    const allocCheck = await query(
-      'SELECT COUNT(*) as count FROM allocations WHERE payment_id = $1',
-      [id]
-    );
-
-    if (parseInt(allocCheck.rows[0].count) > 0) {
-      return Response.json(
-        {
-          success: false,
-          error: 'Cannot delete payment with allocations. Delete allocations first.',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Get payment to verify
-    const paymentCheck = await query(
-      'SELECT * FROM payments WHERE id = $1',
-      [id]
-    );
-
-    if (paymentCheck.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Payment not found' },
-        { status: 404 }
-      );
-    }
-
-    // Delete payment
-    await query('DELETE FROM payments WHERE id = $1', [id]);
-
-    return Response.json({
-      success: true,
-      message: 'Payment deleted successfully',
-    });
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const { id } = await params;
+    const body = await request.json();
+    const fields = ['status','method','reference','payment_date','notes'];
+    const updates = [];
+    const values = [];
+    fields.forEach(f => { if (body[f] !== undefined) { values.push(body[f]); updates.push(`${f} = $${values.length}`); } });
+    if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
+    if (body.status === 'completed') updates.push(`received_at = NOW()`);
+    values.push(id);
+    const result = await query(`UPDATE payments SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting payment:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to update payment' }, { status: 500 });
   }
 }

@@ -1,165 +1,61 @@
-/**
- * GET /api/clients
- * LIST all clients
- *
- * POST /api/clients
- * CREATE new client (typically from prospect conversion)
- */
-
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { validateClient } from '@/lib/validation.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
+// GET /api/clients
 export async function GET(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    const offset = (page - 1) * limit;
+    let sql = `SELECT c.*, 
+      (SELECT COUNT(*) FROM deals d WHERE d.client_id = c.id) as deal_count,
+      (SELECT COALESCE(SUM(d.total_amount),0) FROM deals d WHERE d.client_id = c.id) as total_deal_value
+      FROM clients c WHERE 1=1`;
     const params = [];
-    const whereClauses = [];
-    let paramIdx = 1;
 
-    if (status) {
-      whereClauses.push(`status = $${paramIdx++}`);
-      params.push(status);
-    }
-
+    if (status) { params.push(status); sql += ` AND c.status = $${params.length}`; }
     if (search) {
-      whereClauses.push(`(name ILIKE $${paramIdx} OR email ILIKE $${paramIdx} OR company_name ILIKE $${paramIdx++})`);
       params.push(`%${search}%`);
+      sql += ` AND (c.company_name ILIKE $${params.length} OR c.contact_name ILIKE $${params.length} OR c.email ILIKE $${params.length})`;
     }
+    sql += ` ORDER BY c.created_at DESC`;
 
-    const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
-
-    // Count
-    const countResult = await query(
-      `SELECT COUNT(*) FROM clients ${whereSQL}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].count);
-
-    // Get paginated clients with prospect info
-    const clientsResult = await query(
-      `SELECT 
-         c.*,
-         p.prospect_name as original_prospect_name,
-         p.company_name as prospect_company,
-         (SELECT COUNT(*) FROM contracts con WHERE con.client_id = c.id) as contract_count,
-         (SELECT COALESCE(SUM(pay.amount_received), 0) FROM payments pay 
-          JOIN contracts con ON pay.contract_id = con.id 
-          WHERE con.client_id = c.id) as total_revenue
-       FROM clients c
-       LEFT JOIN prospects p ON c.prospect_id = p.id
-       ${whereSQL}
-       ORDER BY c.created_at DESC
-       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
-      [...params, limit, offset]
-    );
-
-    return Response.json({
-      success: true,
-      clients: clientsResult.rows.map(row => ({
-        ...row,
-        total_revenue: parseFloat(row.total_revenue) || 0,
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    const result = await query(sql, params);
+    return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Error fetching clients:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[Clients] GET error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch clients' }, { status: 500 });
   }
 }
 
+// POST /api/clients - Create client directly (without prospect conversion)
 export async function POST(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const body = await request.json();
-    
-    // Validate input
-    const validation = validateClient(body);
-    if (!validation.success) {
-      return Response.json(
-        { success: false, error: 'Validation failed', details: validation.errors },
-        { status: 400 }
-      );
-    }
+    const { company_name, contact_name, email, phone, website, industry, billing_address, tax_id, payment_terms, preferred_currency, notes, tags } = body;
+    if (!company_name) return NextResponse.json({ success: false, error: 'company_name is required' }, { status: 400 });
 
-    const {
-      name,
-      email,
-      phone,
-      company_name,
-      address,
-      prospect_id,
-      status,
-      notes,
-    } = validation.data;
-
-    // If prospect_id provided, check it exists and isn't already converted
-    if (prospect_id) {
-      const prospectCheck = await query(
-        'SELECT id, status FROM prospects WHERE id = $1',
-        [prospect_id]
-      );
-      if (prospectCheck.rowCount === 0) {
-        return Response.json(
-          { success: false, error: 'Prospect not found' },
-          { status: 404 }
-        );
-      }
-      if (prospectCheck.rows[0].status === 'converted') {
-        // Check if client already exists
-        const existingClient = await query(
-          'SELECT id FROM clients WHERE prospect_id = $1',
-          [prospect_id]
-        );
-        if (existingClient.rowCount > 0) {
-          return Response.json(
-            { success: false, error: 'Prospect already converted to client', client_id: existingClient.rows[0].id },
-            { status: 409 }
-          );
-        }
-      }
-    }
-
-    // Create client
     const result = await query(
-      `INSERT INTO clients (name, email, phone, company_name, address, prospect_id, status, notes, converted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [name, email || null, phone || null, company_name || null, address || null, prospect_id || null, status, notes || null]
+      `INSERT INTO clients (company_name, contact_name, email, phone, website, industry, billing_address, tax_id, payment_terms, preferred_currency, notes, tags, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [company_name, contact_name||null, email||null, phone||null, website||null, industry||null,
+       billing_address||null, tax_id||null, payment_terms||30, preferred_currency||'USD', notes||null, tags||'{}', auth.userId]
     );
 
-    const newClient = result.rows[0];
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'CREATE', 'client', result.rows[0].id, JSON.stringify({ company_name })]);
 
-    // Update prospect status to converted if linked
-    if (prospect_id) {
-      await query(
-        `UPDATE prospects SET status = 'converted', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [prospect_id]
-      );
-      
-      // Log conversion activity
-      await query(
-        `INSERT INTO prospect_activities (prospect_id, activity_type, subject, description, created_by_id, activity_date)
-         VALUES ($1, 'converted', 'Converted to client', $2, NULL, CURRENT_TIMESTAMP)`,
-        [prospect_id, `Client created: ${name}`]
-      );
-    }
-
-    return Response.json(
-      { success: true, client: newClient, message: 'Client created successfully' },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
-    console.error('Error creating client:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[Clients] POST error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to create client' }, { status: 500 });
   }
 }

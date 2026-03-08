@@ -1,198 +1,91 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Filter, Download } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { FileText, Filter } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
-function AuditLogsContent() {
+export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    action: '',
-    entity: '',
-    user_id: '',
-    startDate: '',
-    endDate: '',
-  });
+  const [filters, setFilters] = useState({ action: '', entity_type: '' });
 
-  useEffect(() => {
-    fetchLogs();
-  }, [filters]);
+  useEffect(() => { fetchLogs(); }, [filters.action, filters.entity_type]);
 
   const fetchLogs = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const params = new URLSearchParams();
-      
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-
-      const response = await fetch(`/api/admin/audit-logs?${params}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch audit logs');
-      const data = await response.json();
-      setLogs(data.data || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      if (filters.action) params.set('action', filters.action);
+      if (filters.entity_type) params.set('entity_type', filters.entity_type);
+      params.set('limit', '100');
+      const res = await fetchWithAuth(`/api/admin/audit-logs?${params}`);
+      const json = await res.json();
+      if (json.success) setLogs(json.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+  const ACTION_COLORS = {
+    create: 'bg-emerald-100 text-emerald-700',
+    update: 'bg-blue-100 text-blue-700',
+    delete: 'bg-red-100 text-red-700',
+    login: 'bg-purple-100 text-purple-700',
+    logout: 'bg-gray-100 text-gray-700',
   };
-
-  const handleClearFilters = () => {
-    setFilters({
-      action: '',
-      entity: '',
-      user_id: '',
-      startDate: '',
-      endDate: '',
-    });
-  };
-
-  if (loading) {
-    return <div className="p-6">Loading audit logs...</div>;
-  }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Audit Logs</h1>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-          <Download size={20} />
-          Export
-        </button>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
+        <p className="text-sm text-gray-500 mt-1">System activity and change history</p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-          {error}
+      <div className="flex gap-3 flex-wrap">
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Action</label>
+          <select value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
+            <option value="">All actions</option>
+            {['create','update','delete','login','logout'].map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
         </div>
-      )}
-
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter size={20} />
-          <span className="font-semibold">Filters</span>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Entity Type</label>
+          <select value={filters.entity_type} onChange={e => setFilters(f => ({ ...f, entity_type: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
+            <option value="">All types</option>
+            {['prospect','client','deal','payment','expense','transfer','account','budget','offering','user','session'].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Action</label>
-            <input
-              type="text"
-              name="action"
-              value={filters.action}
-              onChange={handleFilterChange}
-              placeholder="e.g., USER_CREATED"
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Entity</label>
-            <input
-              type="text"
-              name="entity"
-              value={filters.entity}
-              onChange={handleFilterChange}
-              placeholder="e.g., users"
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">User ID</label>
-            <input
-              type="text"
-              name="user_id"
-              value={filters.user_id}
-              onChange={handleFilterChange}
-              placeholder="Filter by user"
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Start Date</label>
-            <input
-              type="date"
-              name="startDate"
-              value={filters.startDate}
-              onChange={handleFilterChange}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">End Date</label>
-            <input
-              type="date"
-              name="endDate"
-              value={filters.endDate}
-              onChange={handleFilterChange}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={handleClearFilters}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-        >
-          Clear Filters
-        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full">
-          <thead className="border-b bg-gray-50">
-            <tr>
-              <th className="text-left px-6 py-3 text-sm font-semibold">Action</th>
-              <th className="text-left px-6 py-3 text-sm font-semibold">Entity</th>
-              <th className="text-left px-6 py-3 text-sm font-semibold">User</th>
-              <th className="text-left px-6 py-3 text-sm font-semibold">Timestamp</th>
-              <th className="text-left px-6 py-3 text-sm font-semibold">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-3 text-sm font-medium">{log.action}</td>
-                <td className="px-6 py-3 text-sm">{log.entity_type}</td>
-                <td className="px-6 py-3 text-sm">{log.user_id || 'System'}</td>
-                <td className="px-6 py-3 text-sm">
-                  {new Date(log.created_at).toLocaleString()}
-                </td>
-                <td className="px-6 py-3 text-sm text-gray-600">
-                  {log.description || '-'}
-                </td>
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+      ) : logs.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">No audit logs found</div>
+      ) : (
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Time</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">User</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Action</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Entity</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Details</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {logs.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No audit logs found matching your filters
+            </thead>
+            <tbody className="divide-y">
+              {logs.map(l => (
+                <tr key={l.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-700">{l.user_name || l.user_email || '—'}</td>
+                  <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[l.action] || 'bg-gray-100 text-gray-700'}`}>{l.action}</span></td>
+                  <td className="px-4 py-3 text-gray-600">{l.entity_type}{l.entity_id ? ` #${l.entity_id.slice(0, 8)}` : ''}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs max-w-xs truncate">{l.details ? JSON.stringify(l.details) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
-  );
-}
-
-export default function AdminAuditLogsPage() {
-  return (
-    <AdminLayout>
-      <AuditLogsContent />
-    </AdminLayout>
   );
 }

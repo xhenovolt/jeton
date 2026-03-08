@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { CurrencyProvider } from '@/lib/currency-context';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { PageTitle } from '@/components/layout/PageTitle';
@@ -53,7 +52,7 @@ export default function LayoutClient({ children }) {
     : 'border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 py-8 text-center text-sm text-gray-600 dark:text-gray-400';
 
   return (
-    <CurrencyProvider>
+    <>
       {/* Page Title Bar - Only on /app routes */}
       {showNavigation && <PageTitle />}
 
@@ -65,7 +64,7 @@ export default function LayoutClient({ children }) {
       {/* Footer */}
       <footer className={footerClasses}>
         <p>
-          © {new Date().getFullYear()} Jeton. Executive Operating System • v1.0
+          © {new Date().getFullYear()} Jeton. Founder Operating System • v2.0
         </p>
       </footer>
 
@@ -84,6 +83,6 @@ export default function LayoutClient({ children }) {
           user={mockUser}
         />
       )}
-    </CurrencyProvider>
+    </>
   );
 }

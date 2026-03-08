@@ -1,337 +1,95 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, TrendingUp, DollarSign, PieChart, BarChart3, Wallet, Building2, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Wallet, ArrowRightLeft, Receipt, PiggyBank } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 
-/**
- * Finance Dashboard
- * Real-time founder view: Revenue, Expenses, Profit, Collections, Pending
- * Answers: "Where is the money? Where does it go?"
- */
-export default function FinanceDashboardPage() {
+function StatCard({ label, value, icon: Icon, color = 'blue', href }) {
+  const Card = (
+    <div className={`bg-white rounded-xl border p-5 ${href ? 'hover:border-blue-300 transition cursor-pointer' : ''}`}>
+      <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><Icon className="w-3.5 h-3.5" />{label}</div>
+      <div className={`text-2xl font-bold text-${color}-600`}>{value}</div>
+    </div>
+  );
+  return href ? <Link href={href}>{Card}</Link> : Card;
+}
+
+export default function FinancePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [dateRange, setDateRange] = useState('month'); // month | quarter | year | all
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const load = async () => {
       try {
-        setLoading(true);
-        const response = await fetch(`/api/financial-dashboard?range=${dateRange}`);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch financial metrics');
-        }
-
-        const json = await response.json();
-        if (json.success) {
-          setData(json.dashboard || {});
-        } else {
-          throw new Error(json.error || 'Unknown error');
-        }
-      } catch (err) {
-        console.error('Error fetching metrics:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+        const res = await fetchWithAuth('/api/reports?type=overview');
+        const json = await res.json();
+        if (json.success) setData(json.data);
+      } catch (err) { console.error(err); } finally { setLoading(false); }
     };
+    load();
+  }, []);
 
-    fetchMetrics();
-  }, [dateRange]);
+  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(value || 0);
-  };
-
-  const formatPercent = (value) => {
-    return `${(value || 0).toFixed(1)}%`;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Loading financial metrics...</div>
-      </div>
-    );
-  }
+  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Finance Dashboard</h1>
-          <p className="text-gray-600 mt-2">Real-time view of money in, expenses, and profit</p>
-        </div>
-
-        {/* Date Range Filter */}
-        <div className="flex gap-2 mb-6">
-          {[
-            { label: 'This Month', value: 'month' },
-            { label: 'This Quarter', value: 'quarter' },
-            { label: 'This Year', value: 'year' },
-            { label: 'All Time', value: 'all' },
-          ].map((btn) => (
-            <button
-              key={btn.value}
-              onClick={() => setDateRange(btn.value)}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                dateRange === btn.value
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-red-900">Error loading metrics</h3>
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* KPI Cards Grid */}
-        {!error && data && (
-          <>
-            {/* Top Row - Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {/* Total Revenue */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
-                      {formatCurrency(data.revenue?.total_collected)}
-                    </p>
-                    <p className="text-green-600 text-sm mt-2">
-                      {data.revenue?.payment_count || 0} payments
-                    </p>
-                  </div>
-                  <DollarSign className="w-10 h-10 text-green-500 opacity-20" />
-                </div>
-              </div>
-
-              {/* Total Expenses */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-gray-600 text-sm font-medium">Total Expenses</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
-                      {formatCurrency(data.expenses?.total_expenses)}
-                    </p>
-                    <p className="text-red-600 text-sm mt-2">
-                      {data.expenses?.expense_count || 0} items
-                    </p>
-                  </div>
-                  <TrendingUp className="w-10 h-10 text-red-500 opacity-20" />
-                </div>
-              </div>
-
-              {/* Net Profit */}
-              <div className={`rounded-lg border p-6 hover:shadow-lg transition ${
-                (data.profitability?.net_profit || 0) >= 0
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-red-50 border-red-200'
-              }`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className={`text-sm font-medium ${
-                      (data.profitability?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      Net Profit
-                    </p>
-                    <p className={`text-3xl font-bold mt-2 ${
-                      (data.profitability?.net_profit || 0) >= 0 ? 'text-green-900' : 'text-red-900'
-                    }`}>
-                      {formatCurrency(data.profitability?.net_profit)}
-                    </p>
-                    <p className="text-gray-600 text-sm mt-2">
-                      {formatPercent(data.profitability?.profit_margin)} margin
-                    </p>
-                  </div>
-                  <BarChart3 className={`w-10 h-10 opacity-20 ${
-                    (data.profitability?.net_profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                  }`} />
-                </div>
-              </div>
-            </div>
-
-            {/* Cash Position & Allocations */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Cash Position */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-blue-600" />
-                  Cash Position
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Vault Balance</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {formatCurrency(data.cash_position?.vault_balance)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Operating Balance</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {formatCurrency(data.cash_position?.operating_balance)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Investment Allocated</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {formatCurrency(data.cash_position?.investment_allocated)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-gray-900 font-medium">Total Allocated</span>
-                    <span className="text-xl font-bold text-green-600">
-                      {formatCurrency(data.cash_position?.total_allocated)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Monthly Recurring */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-purple-600" />
-                  Recurring Revenue
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Monthly Recurring</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {formatCurrency(data.revenue?.monthly_recurring)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-gray-600">Annual Projection</span>
-                    <span className="text-xl font-bold text-purple-600">
-                      {formatCurrency(data.revenue?.annual_recurring_projection)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Active Contracts</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {data.revenue?.contracts_with_revenue || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Top Systems & Clients */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Top Systems */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-indigo-600" />
-                  Top Systems by Revenue
-                </h3>
-                <div className="space-y-3">
-                  {data.intelligence?.top_systems?.length > 0 ? (
-                    data.intelligence.top_systems.map((sys, i) => (
-                      <div key={sys.system_id || i} className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0">
-                        <div>
-                          <p className="text-gray-900 font-medium">{sys.system_name || 'Unknown'}</p>
-                          <p className="text-gray-500 text-sm">{sys.active_clients || 0} clients</p>
-                        </div>
-                        <span className="text-lg font-bold text-gray-900">
-                          {formatCurrency(sys.installation_revenue_total + (sys.monthly_recurring_total * 12))}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-sm">No system revenue data</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Top Clients */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-teal-600" />
-                  Top Clients by Revenue
-                </h3>
-                <div className="space-y-3">
-                  {data.intelligence?.top_clients?.length > 0 ? (
-                    data.intelligence.top_clients.map((client, i) => (
-                      <div key={client.client_id || i} className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0">
-                        <div>
-                          <p className="text-gray-900 font-medium">{client.client_name || 'Unknown'}</p>
-                          <p className="text-gray-500 text-sm">{client.contract_count || 0} contracts</p>
-                        </div>
-                        <span className="text-lg font-bold text-gray-900">
-                          {formatCurrency(client.total_collected)}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-sm">No client revenue data</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Data Integrity Alert */}
-            {data.data_integrity && !data.data_integrity.healthy && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-yellow-900">Attention Needed</h3>
-                  <p className="text-yellow-700 text-sm">
-                    {data.data_integrity.orphaned_unallocated_payments > 0 && 
-                      `${data.data_integrity.orphaned_unallocated_payments} payment(s) have unallocated amounts. `}
-                    {data.data_integrity.unfinalized_payments > 0 && 
-                      `${data.data_integrity.unfinalized_payments} payment(s) pending allocation (${formatCurrency(data.data_integrity.unallocated_amount)}). `}
-                  </p>
-                  <Link href="/app/payments" className="text-yellow-800 underline text-sm">
-                    Review Payments
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {/* Expense Breakdown */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Expenses by Category</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {data.expenses?.by_category?.length > 0 ? (
-                  data.expenses.by_category.filter(cat => cat.total > 0).map((cat) => (
-                    <div key={cat.id} className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-gray-600 text-sm capitalize">{cat.name}</p>
-                      <p className="text-xl font-bold text-gray-900 mt-1">
-                        {formatCurrency(cat.total)}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">{cat.count} items</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm col-span-3">No expenses recorded</p>
-                )}
-              </div>
-              <Link href="/app/expenses" className="mt-4 block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-center text-sm font-medium hover:bg-blue-100 transition">
-                Manage Expenses
-              </Link>
-            </div>
-          </>
-        )}
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
+        <p className="text-sm text-gray-500 mt-1">Financial overview and quick links</p>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Balance" value={fmt(data?.total_balance)} icon={Wallet} color="blue" href="/app/finance/accounts" />
+        <StatCard label="Total Income" value={fmt(data?.total_income)} icon={TrendingUp} color="emerald" href="/app/finance/ledger" />
+        <StatCard label="Total Expenses" value={fmt(data?.total_expenses)} icon={TrendingDown} color="red" href="/app/finance/expenses" />
+        <StatCard label="Net Position" value={fmt((data?.total_income || 0) - Math.abs(data?.total_expenses || 0))} icon={DollarSign} color="purple" />
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { href: '/app/finance/accounts', icon: Wallet, name: 'Accounts', desc: 'Manage bank and cash accounts' },
+          { href: '/app/finance/ledger', icon: DollarSign, name: 'Ledger', desc: 'Full transaction history' },
+          { href: '/app/finance/expenses', icon: Receipt, name: 'Expenses', desc: 'Track and categorize expenses' },
+          { href: '/app/finance/transfers', icon: ArrowRightLeft, name: 'Transfers', desc: 'Move money between accounts' },
+          { href: '/app/finance/budgets', icon: PiggyBank, name: 'Budgets', desc: 'Set and track spending limits' },
+        ].map(link => (
+          <Link key={link.href} href={link.href} className="bg-white rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg"><link.icon className="w-5 h-5 text-blue-600" /></div>
+              <div>
+                <div className="font-medium text-gray-900">{link.name}</div>
+                <div className="text-xs text-gray-400">{link.desc}</div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Account Balances Preview */}
+      {data?.accounts && data.accounts.length > 0 && (
+        <div className="bg-white rounded-xl border p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-900">Account Balances</h2>
+            <Link href="/app/finance/accounts" className="text-sm text-blue-600 hover:text-blue-700">View All</Link>
+          </div>
+          <div className="divide-y">
+            {data.accounts.map(a => (
+              <div key={a.id} className="flex items-center justify-between py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${parseFloat(a.balance) >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-gray-700">{a.name}</span>
+                  <span className="text-xs text-gray-400 capitalize">{a.type}</span>
+                </div>
+                <span className={`text-sm font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(a.balance)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

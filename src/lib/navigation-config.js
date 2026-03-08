@@ -1,326 +1,145 @@
 /**
- * Navigation Configuration - FOUNDER OPERATING SYSTEM
+ * Navigation Configuration - JETON FOUNDER OS
  * 
  * Single Source of Truth for all navigation
- * Organized by founder workflow: Prospect→Convert→Contract→Collect→Profit
+ * Workflow: Prospect → Follow-up → Convert → Deal → Payment → Ledger
  * 
- * NO DUPLICATES. NO PHANTOM ROUTES.
- * Every route here must exist in /src/app/
+ * Every route here exists in /src/app/app/
  */
 
 import {
   Home,
+  Target,
+  Bell,
   Users,
-  Zap,
-  TrendingUp,
+  Briefcase,
+  CreditCard,
   DollarSign,
+  Wallet,
+  BookOpen as LedgerIcon,
+  Receipt,
+  ArrowRightLeft,
+  PiggyBank,
+  Package,
+  BarChart3,
   BookOpen,
   Settings,
-  LogOut,
-  Target,
-  CheckCircle,
+  Shield,
   FileText,
-  Building2,
-  Brain,
-  Percent,
-  Eye,
-  BarChart3,
-  AlertCircle,
 } from 'lucide-react';
 
 /**
- * FOUNDER OPERATING SYSTEM NAVIGATION
- * Direct mapping to user workflow, not data models
- * ALL ROUTES CONSOLIDATED IN /app/app/
- * 
- * Workflow: Prospect → Follow-up → Convert → Collect → Allocate → Profit
+ * FOUNDER WORKFLOW NAVIGATION
+ * Prospect → Follow-up → Convert → Deal → Payment → Ledger
  */
 export const menuItems = [
-  // =========================================================================
-  // PRIMARY - Quick Access
-  // =========================================================================
+  // === PRIMARY ===
   {
     label: 'Dashboard',
     href: '/app/dashboard',
     icon: Home,
     category: 'primary',
   },
-  {
-    label: 'Overview',
-    href: '/app/overview',
-    icon: Eye,
-    category: 'primary',
-  },
 
-  // =========================================================================
-  // GROWTH - Sales Pipeline & Lead Management
-  // =========================================================================
+  // === SALES PIPELINE ===
   {
-    label: 'Growth',
+    label: 'Pipeline',
     icon: Target,
     category: 'sections',
     submenu: [
-      {
-        label: 'Prospects',
-        href: '/app/prospecting',
-        description: 'Track and convert leads',
-      },
-      {
-        label: 'Follow-ups',
-        href: '/app/prospecting/followups',
-        description: 'Today\'s follow-ups',
-      },
-      {
-        label: 'Conversions',
-        href: '/app/prospecting/conversions',
-        description: 'Ready to convert',
-      },
-      {
-        label: 'Prospect Dashboard',
-        href: '/app/prospecting/dashboard',
-        description: 'Pipeline overview',
-      },
-      {
-        label: 'Sales',
-        href: '/app/sales',
-        description: 'Sales management',
-      },
+      { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads' },
+      { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints' },
+      { label: 'Clients', href: '/app/clients', description: 'Converted prospects' },
     ],
   },
 
-  // =========================================================================
-  // INVESTMENTS - Deals & Valuation
-  // =========================================================================
+  // === DEALS & PAYMENTS ===
   {
-    label: 'Investments',
-    icon: TrendingUp,
+    label: 'Deals',
+    icon: Briefcase,
     category: 'sections',
     submenu: [
-      {
-        label: 'Deals',
-        href: '/app/deals',
-        description: 'Manage investment deals',
-      },
-      {
-        label: 'Clients',
-        href: '/app/clients',
-        description: 'Converted prospects',
-      },
-      {
-        label: 'Contracts',
-        href: '/app/contracts',
-        description: 'Active contracts',
-      },
-      {
-        label: 'Payments',
-        href: '/app/payments',
-        description: 'Track payments',
-      },
-      {
-        label: 'Pipeline',
-        href: '/app/pipeline',
-        description: 'Deal pipeline',
-      },
-      {
-        label: 'Valuation',
-        href: '/app/valuation',
-        description: 'Company valuation',
-      },
+      { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals' },
+      { label: 'New Deal', href: '/app/deals/new', description: 'Create a deal' },
+      { label: 'Payments', href: '/app/payments', description: 'Payment records' },
     ],
   },
 
-  // =========================================================================
-  // FINANCE - Assets, Liabilities & Equity
-  // =========================================================================
+  // === FINANCE ===
   {
     label: 'Finance',
     icon: DollarSign,
     category: 'sections',
     submenu: [
-      {
-        label: 'Finance Dashboard',
-        href: '/app/finance',
-        description: 'Revenue, expenses, profit',
-      },
-      {
-        label: 'Assets',
-        href: '/app/assets-accounting',
-        description: 'Asset management',
-      },
-      {
-        label: 'Liabilities',
-        href: '/app/liabilities',
-        description: 'Liability tracking',
-      },
-      {
-        label: 'Corporate Equity',
-        href: '/app/equity',
-        description: 'Share distributions',
-      },
-      {
-        label: 'Share Allocations',
-        href: '/app/shares',
-        description: 'Equity allocations',
-      },
-      {
-        label: 'Invoices',
-        href: '/app/invoices',
-        description: 'Invoice management',
-      },
-      {
-        label: 'Reports',
-        href: '/app/reports',
-        description: 'Financial reports',
-      },
+      { label: 'Overview', href: '/app/finance', description: 'Financial dashboard' },
+      { label: 'Accounts', href: '/app/finance/accounts', description: 'Bank and cash accounts' },
+      { label: 'Ledger', href: '/app/finance/ledger', description: 'Transaction history' },
+      { label: 'Expenses', href: '/app/finance/expenses', description: 'Track spending' },
+      { label: 'Transfers', href: '/app/finance/transfers', description: 'Move between accounts' },
+      { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits' },
     ],
   },
 
-  // =========================================================================
-  // SYSTEMS - IP Portfolio (What You Sell)
-  // =========================================================================
+  // === CATALOG ===
   {
-    label: 'Systems',
-    icon: Brain,
+    label: 'Offerings',
+    href: '/app/offerings',
+    icon: Package,
     category: 'sections',
-    submenu: [
-      {
-        label: 'IP Portfolio',
-        href: '/app/intellectual-property',
-        description: 'Patents, technology & assets',
-      },
-    ],
   },
 
-  // =========================================================================
-  // DOCUMENTATION - System Guides & References
-  // =========================================================================
+  // === REPORTS ===
+  {
+    label: 'Reports',
+    href: '/app/reports',
+    icon: BarChart3,
+    category: 'sections',
+  },
+
+  // === DOCUMENTATION ===
   {
     label: 'Documentation',
     icon: BookOpen,
     category: 'sections',
     submenu: [
-      {
-        label: 'Getting Started',
-        href: '/app/docs/getting-started',
-        description: 'Quick start guide',
-      },
-      {
-        label: 'Founder Manual',
-        href: '/app/docs/founder',
-        description: 'Daily operating playbook',
-      },
-      {
-        label: 'User Guides',
-        href: '/app/docs/guides',
-        description: 'Step-by-step instructions',
-      },
-      {
-        label: 'Workflow',
-        href: '/app/docs/workflow',
-        description: 'Complete business process',
-      },
-      {
-        label: 'Modules',
-        href: '/app/docs/modules',
-        description: 'Module reference',
-      },
-      {
-        label: 'System Map',
-        href: '/app/docs/system-map',
-        description: 'All routes & endpoints',
-      },
-      {
-        label: 'Developer Docs',
-        href: '/app/docs/developer',
-        description: 'Technical architecture',
-      },
+      { label: 'Getting Started', href: '/app/docs/getting-started', description: 'Quick start guide' },
+      { label: 'Founder Manual', href: '/app/docs/founder', description: 'Daily operating playbook' },
+      { label: 'User Guides', href: '/app/docs/guides', description: 'Step-by-step instructions' },
+      { label: 'Workflow', href: '/app/docs/workflow', description: 'Business process' },
+      { label: 'Modules', href: '/app/docs/modules', description: 'Module reference' },
+      { label: 'System Map', href: '/app/docs/system-map', description: 'Routes & endpoints' },
     ],
   },
 
-  // =========================================================================
-  // OPERATIONS - Team & Infrastructure
-  // =========================================================================
-  {
-    label: 'Operations',
-    icon: Building2,
-    category: 'sections',
-    submenu: [
-      {
-        label: 'Staff',
-        href: '/app/staff',
-        description: 'Team management',
-      },
-      {
-        label: 'Infrastructure',
-        href: '/app/infrastructure',
-        description: 'Tools and hosting',
-      },
-    ],
-  },
-
-  // =========================================================================
-  // ADMIN - System Management (Admin/Superadmin only)
-  // =========================================================================
+  // === ADMIN ===
   {
     label: 'Admin',
-    icon: Settings,
+    icon: Shield,
     category: 'sections',
     submenu: [
-      {
-        label: 'Users',
-        href: '/app/admin/users',
-        description: 'User accounts & roles',
-      },
-      {
-        label: 'Activity Logs',
-        href: '/app/admin/audit-logs',
-        description: 'System audit trail',
-      },
-      {
-        label: 'Roles & Permissions',
-        href: '/app/admin/roles',
-        description: 'Role management',
-      },
+      { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles' },
+      { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail' },
     ],
   },
 ];
 
 /**
  * Quick access links for mobile bottom navigation
- * Subset of main navigation for quick access
  */
 export const quickAccessLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
-  {
-    id: 'prospecting',
-    label: 'Prospects',
-    icon: Target,
-    href: '/app/prospecting',
-  },
-  {
-    id: 'deals',
-    label: 'Deals',
-    icon: TrendingUp,
-    href: '/app/deals',
-  },
-  {
-    id: 'finance',
-    label: 'Finance',
-    icon: BarChart3,
-    href: '/app/finance',
-  },
+  { id: 'prospects', label: 'Prospects', icon: Target, href: '/app/prospects' },
+  { id: 'deals', label: 'Deals', icon: Briefcase, href: '/app/deals' },
+  { id: 'finance', label: 'Finance', icon: DollarSign, href: '/app/finance' },
 ];
 
 /**
  * Protected routes that require authentication
- * These routes must not be accessible without a valid session
  */
-export const protectedRoutes = [
-  '/app/*',
-];
+export const protectedRoutes = ['/app/*'];
 
 /**
- * Settings route - always available at footer
+ * Settings route
  */
 export const settingsRoute = {
   href: '/app/settings',
@@ -328,40 +147,28 @@ export const settingsRoute = {
 };
 
 /**
- * Public routes that don't require authentication
+ * Public routes
  */
-export const publicRoutes = [
-  '/login',
-  '/register',
-];
+export const publicRoutes = ['/login', '/register'];
 
 /**
  * Get all hrefs from menu items recursively
- * Useful for active state detection and route validation
  */
 export function getAllHrefs(items = menuItems) {
   const hrefs = [];
-
   items.forEach((item) => {
-    if (item.href) {
-      hrefs.push(item.href);
-    }
-    if (item.submenu) {
-      hrefs.push(...getAllHrefs(item.submenu));
-    }
+    if (item.href) hrefs.push(item.href);
+    if (item.submenu) hrefs.push(...getAllHrefs(item.submenu));
   });
-
   return hrefs;
 }
 
 /**
- * Find a menu item by href/path
+ * Find a menu item by href
  */
 export function findMenuItemByHref(href, items = menuItems) {
   for (const item of items) {
-    if (item.href === href) {
-      return item;
-    }
+    if (item.href === href) return item;
     if (item.submenu) {
       const found = findMenuItemByHref(href, item.submenu);
       if (found) return found;
@@ -389,22 +196,12 @@ export function getParentMenuItems(items = menuItems) {
  */
 export function getAllValidRoutes() {
   const routes = [];
-  
   function traverse(items) {
     items.forEach((item) => {
-      if (item.href) {
-        routes.push({
-          path: item.href,
-          label: item.label,
-          protected: item.href.startsWith('/app') || item.href.startsWith('/admin'),
-        });
-      }
-      if (item.submenu) {
-        traverse(item.submenu);
-      }
+      if (item.href) routes.push({ path: item.href, label: item.label, protected: item.href.startsWith('/app') });
+      if (item.submenu) traverse(item.submenu);
     });
   }
-
   traverse(menuItems);
   return routes;
 }

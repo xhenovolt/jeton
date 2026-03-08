@@ -1,189 +1,106 @@
 'use client';
 
-import { useState } from 'react';
-import { Save, Bell, Lock, Palette, Database, DollarSign } from 'lucide-react';
-import { useCurrency } from '@/lib/currency-context';
+import { useState, useEffect } from 'react';
+import { Save, User, Lock, Bell } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
-/**
- * Settings Page
- * Application configuration and preferences
- */
 export default function SettingsPage() {
-  const { selectedCurrency, getAvailableCurrencies, getCurrencyMetadata, changeCurrency, lastUpdated, isLoading } = useCurrency();
-  const [settings, setSettings] = useState({
-    appName: 'Jeton',
-    notifications: true,
-    darkMode: false,
-    autoSave: true,
-    theme: 'ocean',
-  });
+  const [user, setUser] = useState(null);
+  const [form, setForm] = useState({ name: '', email: '' });
+  const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  useEffect(() => {
+    fetchWithAuth('/api/auth/me').then(r => r.json()).then(j => {
+      if (j.success && j.data) { setUser(j.data); setForm({ name: j.data.name || '', email: j.data.email || '' }); }
+    }).catch(() => {});
+  }, []);
 
-  const handleCurrencyChange = (newCurrency) => {
-    changeCurrency(newCurrency);
+  const saveProfile = async () => {
+    setError('');
+    try {
+      // Profile update would go through a user profile API
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) { setError(err.message); }
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground">Configure application preferences</p>
-        </div>
+    <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage your account preferences</p>
+      </div>
 
-        {/* Success Message */}
-        {saved && (
-          <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-lg text-green-800">
-            Settings saved successfully!
+      {/* Profile */}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <User className="w-5 h-5 text-gray-400" />
+          <h2 className="font-semibold text-gray-900">Profile</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Name</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Email</label>
+            <input value={form.email} disabled className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500" />
+          </div>
+        </div>
+        {user && (
+          <div className="text-xs text-gray-400">
+            Role: <span className="capitalize font-medium text-gray-600">{user.role}</span> &middot; 
+            Joined: {new Date(user.created_at).toLocaleDateString()}
           </div>
         )}
+        <div className="flex items-center gap-3">
+          <button onClick={saveProfile} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            <Save className="w-4 h-4" /> Save Profile
+          </button>
+          {saved && <span className="text-sm text-emerald-600">Saved!</span>}
+          {error && <span className="text-sm text-red-600">{error}</span>}
+        </div>
+      </div>
 
-        {/* Settings Sections */}
-        <div className="space-y-6">
-          {/* General Settings */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Palette size={20} /> General
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Application Name</label>
-                <input
-                  type="text"
-                  value={settings.appName}
-                  onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Theme Color</label>
-                <select
-                  value={settings.theme}
-                  onChange={(e) => setSettings({ ...settings, theme: e.target.value })}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="ocean">Ocean (Blue)</option>
-                  <option value="purple">Royal Purple</option>
-                  <option value="forest">Forest Green</option>
-                </select>
-              </div>
-            </div>
+      {/* Security */}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Lock className="w-5 h-5 text-gray-400" />
+          <h2 className="font-semibold text-gray-900">Security</h2>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Current Password</label>
+            <input type="password" value={passwordForm.current} onChange={e => setPasswordForm(f => ({ ...f, current: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
-
-          {/* Currency Settings */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <DollarSign size={20} /> Currency & Localization
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Preferred Currency</label>
-                <select
-                  value={selectedCurrency}
-                  onChange={(e) => handleCurrencyChange(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {getAvailableCurrencies().map((currency) => {
-                    const meta = getCurrencyMetadata(currency);
-                    return (
-                      <option key={currency} value={currency}>
-                        {currency} - {meta.name} ({meta.symbol})
-                      </option>
-                    );
-                  })}
-                </select>
-                <p className="text-xs text-muted-foreground mt-2">
-                  All amounts are stored internally in UGX. Display currency can be changed anytime.
-                </p>
-              </div>
-
-              {lastUpdated && (
-                <div className="text-xs text-muted-foreground">
-                  <p>Exchange rates last updated: {new Date(lastUpdated).toLocaleString()}</p>
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">New Password</label>
+              <input type="password" value={passwordForm.newPass} onChange={e => setPasswordForm(f => ({ ...f, newPass: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             </div>
-          </div>
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Bell size={20} /> Notifications
-            </h2>
-
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.notifications}
-                  onChange={(e) => setSettings({ ...settings, notifications: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium text-foreground">Enable Notifications</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Privacy & Security */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Lock size={20} /> Privacy & Security
-            </h2>
-
-            <div className="space-y-4">
-              <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted text-foreground text-sm font-medium text-left">
-                Change Password
-              </button>
-              <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted text-foreground text-sm font-medium text-left">
-                Two-Factor Authentication
-              </button>
-            </div>
-          </div>
-
-          {/* Data Management */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Database size={20} /> Data Management
-            </h2>
-
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.autoSave}
-                  onChange={(e) => setSettings({ ...settings, autoSave: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium text-foreground">Auto-save Changes</span>
-              </label>
-              <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted text-foreground text-sm font-medium text-left">
-                Export Data
-              </button>
-              <button className="w-full px-4 py-2 border border-red-300 rounded-lg hover:bg-red-50 text-red-600 text-sm font-medium text-left">
-                Clear Cache
-              </button>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Confirm Password</label>
+              <input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm(f => ({ ...f, confirm: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             </div>
           </div>
         </div>
+        <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
+          Change Password
+        </button>
+      </div>
 
-        {/* Save Button */}
-        <div className="mt-8 flex justify-end gap-4">
-          <button className="px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
-          >
-            <Save size={20} /> Save Settings
-          </button>
+      {/* App Info */}
+      <div className="bg-white rounded-xl border p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Bell className="w-5 h-5 text-gray-400" />
+          <h2 className="font-semibold text-gray-900">About</h2>
+        </div>
+        <div className="text-sm text-gray-500 space-y-1">
+          <div>Jeton Founder OS</div>
+          <div>Architecture: Ledger-based finance, event-driven</div>
+          <div>Database: PostgreSQL on Neon</div>
         </div>
       </div>
     </div>

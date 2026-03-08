@@ -1,313 +1,157 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Trash2, Info } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, Users, Briefcase } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
+
+function StatCard({ label, value, icon: Icon, color = 'blue' }) {
+  return (
+    <div className="bg-white rounded-xl border p-4">
+      <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><Icon className="w-3.5 h-3.5" />{label}</div>
+      <div className={`text-xl font-bold text-${color}-600`}>{value}</div>
+    </div>
+  );
+}
 
 export default function ReportsPage() {
-  const [snapshots, setSnapshots] = useState([]);
+  const [reportType, setReportType] = useState('overview');
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedSnapshot, setSelectedSnapshot] = useState(null);
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareSnapshot, setCompareSnapshot] = useState(null);
-  const [snapshotType, setSnapshotType] = useState('MANUAL');
-  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    fetchSnapshots();
-  }, []);
+  useEffect(() => { fetchReport(); }, [reportType]);
 
-  const fetchSnapshots = async () => {
+  const fetchReport = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const response = await fetch('/api/snapshots', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch snapshots');
-
-      const data = await response.json();
-      setSnapshots(data.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load snapshots');
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetchWithAuth(`/api/reports?type=${reportType}`);
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const handleCreateSnapshot = async () => {
-    try {
-      setCreating(true);
-
-      const response = await fetch('/api/snapshots/create', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ type: snapshotType })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create snapshot');
-      }
-
-      await fetchSnapshots();
-      setSnapshotType('MANUAL');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create snapshot');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const formatCurrency = (value) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}K`;
-    }
-    return value.toString();
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const calculateDifference = (current, previous) => {
-    if (!previous) return null;
-    const diff = current - previous;
-    const percent = ((diff / Math.abs(previous)) * 100).toFixed(1);
-    return { diff, percent };
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading snapshots...</p>
-        </div>
-      </div>
-    );
-  }
+  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-4xl font-bold text-foreground">Financial Reports & Snapshots</h1>
-        <p className="text-muted-foreground mt-2">
-          Capture and compare financial states over time
-        </p>
-      </motion.div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+        <p className="text-sm text-gray-500 mt-1">Financial and business intelligence</p>
+      </div>
 
-      {/* Create Snapshot Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6"
-      >
-        <div className="flex items-center gap-4 mb-4">
-          <Camera className="w-6 h-6 text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Create Financial Snapshot</h2>
-            <p className="text-sm text-muted-foreground">Capture your current financial state for historical comparison</p>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <select
-            value={snapshotType}
-            onChange={(e) => setSnapshotType(e.target.value)}
-            className="px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:border-primary"
-          >
-            <option value="MANUAL">Manual Snapshot</option>
-            <option value="NET_WORTH">Net Worth Snapshot</option>
-            <option value="PIPELINE_VALUE">Pipeline Value Snapshot</option>
-            <option value="FINANCIAL_SUMMARY">Financial Summary</option>
-          </select>
-          <button
-            onClick={handleCreateSnapshot}
-            disabled={creating}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50"
-          >
-            {creating ? 'Creating...' : 'Create Snapshot'}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: 'overview', label: 'Overview', icon: BarChart3 },
+          { key: 'revenue', label: 'Revenue', icon: TrendingUp },
+          { key: 'expenses', label: 'Expenses', icon: TrendingDown },
+          { key: 'deals', label: 'Deals', icon: Briefcase },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setReportType(tab.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${reportType === tab.key ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            <tab.icon className="w-4 h-4" /> {tab.label}
           </button>
-        </div>
-      </motion.div>
+        ))}
+      </div>
 
-      {error && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-red-100 border border-red-300 rounded-lg p-4 text-red-800"
-        >
-          {error}
-        </motion.div>
-      )}
-
-      {/* Snapshots List */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.05 }}
-        className="space-y-4"
-      >
-        {snapshots.length === 0 ? (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <Info className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-muted-foreground">No snapshots yet. Create one to get started.</p>
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+      ) : !data ? (
+        <div className="text-center py-16 text-gray-400">No data available</div>
+      ) : reportType === 'overview' ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Total Balance" value={fmt(data.total_balance)} icon={DollarSign} color="blue" />
+            <StatCard label="Total Income" value={fmt(data.total_income)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Expenses" value={fmt(data.total_expenses)} icon={TrendingDown} color="red" />
+            <StatCard label="Net Position" value={fmt((data.total_income || 0) - Math.abs(data.total_expenses || 0))} icon={BarChart3} color="purple" />
           </div>
-        ) : (
-          snapshots.map((snapshot, idx) => {
-            const diff = compareSnapshot ? calculateDifference(snapshot.data.netWorth, compareSnapshot.data.netWorth) : null;
-
-            return (
-              <motion.div
-                key={snapshot.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => setSelectedSnapshot(snapshot)}
-                className="bg-card border border-border rounded-xl p-6 cursor-pointer hover:border-primary/50 hover:shadow-lg transition"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground">{snapshot.name}</h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
-                        {snapshot.type}
-                      </span>
-                      <p className="text-sm text-muted-foreground">{formatDate(snapshot.createdAt)}</p>
-                    </div>
+          {data.accounts?.length > 0 && (
+            <div className="bg-white rounded-xl border p-5">
+              <h3 className="font-semibold mb-3">Account Balances</h3>
+              <div className="divide-y">
+                {data.accounts.map(a => (
+                  <div key={a.id} className="flex justify-between py-2 text-sm">
+                    <span className="text-gray-700">{a.name} <span className="text-gray-400 capitalize">({a.type})</span></span>
+                    <span className={`font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(a.balance)}</span>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Delete functionality would go here
-                    }}
-                    className="p-2 hover:bg-red-100 rounded-lg transition text-red-600"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 pt-4 border-t border-border">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Net Worth</p>
-                    <p className="text-lg font-bold text-green-600">
-                      {formatCurrency(snapshot.data.netWorth)}
-                    </p>
-                    {diff && (
-                      <p className={`text-xs mt-1 ${diff.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {diff.diff >= 0 ? '+' : ''}{formatCurrency(diff.diff)} ({diff.percent}%)
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total Assets</p>
-                    <p className="text-lg font-bold text-blue-600">
-                      {formatCurrency(snapshot.data.totalAssets)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total Liabilities</p>
-                    <p className="text-lg font-bold text-red-600">
-                      {formatCurrency(snapshot.data.totalLiabilities)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Pipeline Value</p>
-                    <p className="text-lg font-bold text-purple-600">
-                      {formatCurrency(snapshot.data.totalPipeline)}
-                    </p>
-                  </div>
-                </div>
-
-                {compareMode && compareSnapshot && compareSnapshot.id !== snapshot.id && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCompareSnapshot(snapshot);
-                    }}
-                    className="mt-4 w-full py-2 bg-primary/10 text-primary rounded-lg font-semibold hover:bg-primary/20 transition"
-                  >
-                    Compare with {snapshot.name}
-                  </button>
-                )}
-              </motion.div>
-            );
-          })
-        )}
-      </motion.div>
-
-      {/* Selected Snapshot Modal */}
-      <AnimatePresence>
-        {selectedSnapshot && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedSnapshot(null)}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-background border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="p-6 border-b border-border sticky top-0 bg-background">
-                <h2 className="text-2xl font-bold text-foreground">{selectedSnapshot.name}</h2>
-                <p className="text-sm text-muted-foreground mt-1">{formatDate(selectedSnapshot.createdAt)}</p>
+                ))}
               </div>
-
-              <div className="p-6 space-y-6">
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Net Worth', value: selectedSnapshot.data.netWorth, color: 'text-green-600' },
-                    { label: 'Total Assets', value: selectedSnapshot.data.totalAssets, color: 'text-blue-600' },
-                    { label: 'Total Liabilities', value: selectedSnapshot.data.totalLiabilities, color: 'text-red-600' },
-                    { label: 'Pipeline Value', value: selectedSnapshot.data.totalPipeline, color: 'text-purple-600' },
-                    { label: 'Expected Revenue', value: selectedSnapshot.data.weightedRevenue, color: 'text-orange-600' },
-                    { label: 'Won Deals', value: selectedSnapshot.data.wonDeals, color: 'text-emerald-600' }
-                  ].map((metric) => (
-                    <div key={metric.label} className="bg-surface-50 rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground">{metric.label}</p>
-                      <p className={`text-2xl font-bold ${metric.color} mt-2`}>
-                        {formatCurrency(metric.value)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Close Button */}
-                <button
-                  onClick={() => setSelectedSnapshot(null)}
-                  className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition"
-                >
-                  Close
-                </button>
+            </div>
+          )}
+        </div>
+      ) : reportType === 'revenue' ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard label="Total Revenue" value={fmt(data.total_revenue)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Payments" value={data.payment_count?.toString() || '0'} icon={DollarSign} color="blue" />
+            <StatCard label="Avg Payment" value={fmt(data.avg_payment)} icon={BarChart3} color="purple" />
+          </div>
+          {data.by_method?.length > 0 && (
+            <div className="bg-white rounded-xl border p-5">
+              <h3 className="font-semibold mb-3">Revenue by Payment Method</h3>
+              <div className="divide-y">
+                {data.by_method.map((m, i) => (
+                  <div key={i} className="flex justify-between py-2 text-sm">
+                    <span className="text-gray-700 capitalize">{m.method?.replace(/_/g, ' ') || 'Unknown'}</span>
+                    <span className="font-medium text-emerald-600">{fmt(m.total)} <span className="text-gray-400">({m.count})</span></span>
+                  </div>
+                ))}
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          )}
+        </div>
+      ) : reportType === 'expenses' ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard label="Total Expenses" value={fmt(data.total_expenses)} icon={TrendingDown} color="red" />
+            <StatCard label="Expense Count" value={data.expense_count?.toString() || '0'} icon={BarChart3} color="blue" />
+            <StatCard label="Avg Expense" value={fmt(data.avg_expense)} icon={DollarSign} color="orange" />
+          </div>
+          {data.by_category?.length > 0 && (
+            <div className="bg-white rounded-xl border p-5">
+              <h3 className="font-semibold mb-3">Expenses by Category</h3>
+              <div className="space-y-3">
+                {data.by_category.map((c, i) => {
+                  const total = parseFloat(data.total_expenses || 1);
+                  const catTotal = parseFloat(c.total || 0);
+                  const pct = total > 0 ? Math.round((catTotal / total) * 100) : 0;
+                  return (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="capitalize text-gray-700">{c.category?.replace(/_/g, ' ') || 'Uncategorized'}</span>
+                        <span className="font-medium text-red-600">{fmt(c.total)} <span className="text-gray-400">({pct}%)</span></span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : reportType === 'deals' ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard label="Total Deals" value={data.total_deals?.toString() || '0'} icon={Briefcase} color="blue" />
+            <StatCard label="Total Value" value={fmt(data.total_value)} icon={DollarSign} color="purple" />
+            <StatCard label="Total Collected" value={fmt(data.total_collected)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Collection Rate" value={`${data.collection_rate || 0}%`} icon={BarChart3} color="cyan" />
+          </div>
+          {data.by_status?.length > 0 && (
+            <div className="bg-white rounded-xl border p-5">
+              <h3 className="font-semibold mb-3">Deals by Status</h3>
+              <div className="divide-y">
+                {data.by_status.map((s, i) => (
+                  <div key={i} className="flex justify-between py-2 text-sm">
+                    <span className="text-gray-700 capitalize">{s.status?.replace(/_/g, ' ')}</span>
+                    <span className="font-medium">{s.count} deals &middot; <span className="text-blue-600">{fmt(s.total_value)}</span></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

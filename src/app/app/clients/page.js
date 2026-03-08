@@ -1,182 +1,110 @@
 'use client';
 
-/**
- * Clients Page - Converted Prospects
- * Displays all clients (converted from prospects)
- */
+import { useEffect, useState } from 'react';
+import { Plus, Search, Building2, ChevronRight, Handshake, DollarSign } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
+import Link from 'next/link';
 
-import { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Phone, 
-  Mail, 
-  Search,
-  ChevronRight,
-  Users,
-  FileText,
-  DollarSign 
-} from 'lucide-react';
+const STATUS_COLORS = {
+  active: 'bg-emerald-100 text-emerald-700', inactive: 'bg-gray-100 text-gray-500',
+  suspended: 'bg-orange-100 text-orange-700', churned: 'bg-red-100 text-red-700',
+};
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
-  useEffect(() => {
-    async function fetchClients() {
-      try {
-        const res = await fetch('/api/clients');
-        const data = await res.json();
-        if (data.success) {
-          setClients(data.clients || []);
-        }
-      } catch (error) {
-        console.error('Error fetching clients:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchClients();
-  }, []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ company_name: '', contact_name: '', email: '', phone: '', industry: '', payment_terms: 30 });
 
-  const filteredClients = clients.filter(client => 
-    client.name?.toLowerCase().includes(search.toLowerCase()) ||
-    client.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-    client.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => { fetchClients(); }, []);
 
-  const statusColors = {
-    active: 'bg-green-100 text-green-800',
-    inactive: 'bg-gray-100 text-gray-800',
-    churned: 'bg-red-100 text-red-800',
+  const fetchClients = async () => {
+    try {
+      let url = '/api/clients';
+      if (search) url += `?search=${encodeURIComponent(search)}`;
+      const res = await fetchWithAuth(url);
+      const json = await res.json();
+      if (json.success) setClients(json.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const createClient = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetchWithAuth('/api/clients', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if ((await res.json()).success) { setShowForm(false); fetchClients(); }
+    } catch (err) { console.error(err); }
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-        <p className="text-gray-500">Converted prospects and active clients</p>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+          <p className="text-sm text-gray-500 mt-1">{clients.length} clients</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+          <Plus className="w-4 h-4" /> Add Client
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Clients</p>
-              <p className="text-xl font-bold">{clients.length}</p>
-            </div>
+      {showForm && (
+        <form onSubmit={createClient} className="bg-white border rounded-xl p-5 space-y-4">
+          <h3 className="font-semibold text-gray-900">New Client</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input required value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} placeholder="Company Name *" className="border rounded-lg px-3 py-2 text-sm" />
+            <input value={form.contact_name} onChange={e => setForm({...form, contact_name: e.target.value})} placeholder="Contact Name" className="border rounded-lg px-3 py-2 text-sm" />
+            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email" className="border rounded-lg px-3 py-2 text-sm" />
+            <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Phone" className="border rounded-lg px-3 py-2 text-sm" />
+            <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} placeholder="Industry" className="border rounded-lg px-3 py-2 text-sm" />
+            <input type="number" value={form.payment_terms} onChange={e => setForm({...form, payment_terms: parseInt(e.target.value)})} placeholder="Payment Terms (days)" className="border rounded-lg px-3 py-2 text-sm" />
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Building2 className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Active</p>
-              <p className="text-xl font-bold">
-                {clients.filter(c => c.status === 'active').length}
-              </p>
-            </div>
+          <div className="flex gap-2">
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <FileText className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Contracts</p>
-              <p className="text-xl font-bold">-</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Revenue</p>
-              <p className="text-xl font-bold">-</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </form>
+      )}
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search clients..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+      <form onSubmit={e => { e.preventDefault(); setLoading(true); fetchClients(); }} className="relative w-64">
+        <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..." className="border rounded-lg pl-9 pr-3 py-2 text-sm w-full" />
+      </form>
 
-      {/* Client List */}
       {loading ? (
-        <div className="flex justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : filteredClients.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-          <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="font-medium text-gray-700 mb-2">No clients yet</h3>
-          <p className="text-gray-500 text-sm">
-            Convert prospects to create clients
-          </p>
-        </div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+      ) : clients.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">No clients yet. Convert prospects or add directly.</div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border divide-y">
-          {filteredClients.map((client) => (
-            <div 
-              key={client.id} 
-              className="p-4 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="font-semibold text-blue-600">
-                    {client.name?.charAt(0).toUpperCase() || 'C'}
-                  </span>
+        <div className="bg-white rounded-xl border divide-y">
+          {clients.map(c => (
+            <Link key={c.id} href={`/app/clients/${c.id}`} className="flex items-center justify-between p-4 hover:bg-gray-50 transition">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">{client.name}</h3>
-                  {client.company_name && (
-                    <p className="text-sm text-gray-500">{client.company_name}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                    {client.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {client.email}
-                      </span>
-                    )}
-                    {client.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{c.company_name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[c.status]}`}>{c.status}</span>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {c.contact_name && <span>{c.contact_name}</span>}
+                    {c.deal_count > 0 && <span className="ml-3"><Handshake className="w-3 h-3 inline" /> {c.deal_count} deals</span>}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className={`px-2 py-1 text-xs rounded-full ${statusColors[client.status] || 'bg-gray-100'}`}>
-                  {client.status}
-                </span>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
+              <div className="flex items-center gap-3">
+                {parseFloat(c.total_deal_value) > 0 && (
+                  <span className="text-sm font-medium text-gray-700"><DollarSign className="w-3 h-3 inline" />{parseFloat(c.total_deal_value).toLocaleString()}</span>
+                )}
+                <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

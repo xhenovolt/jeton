@@ -1,60 +1,89 @@
-/**
- * GET /api/prospects/[id]
- * PUT /api/prospects/[id]
- * Individual prospect operations - OOP implementation
- */
+import { NextResponse } from 'next/server';
+import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
-import { getProspectById, updateProspect, getProspectActivities } from '@/lib/prospects.js';
-
+// GET /api/prospects/[id]
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
-    const prospect = await getProspectById(id);
-    if (!prospect) {
-      return Response.json(
-        { success: false, error: 'Prospect not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get prospect activities
-    const activities = await getProspectActivities(id);
-
-    return Response.json({
-      success: true,
-      data: {
-        prospect: prospect.toJSON(),
-        activities: activities.map(a => a.toJSON()),
-        activity_count: activities.length,
-      },
-    });
-  } catch (error) {
-    console.error('GET /api/prospects/[id] error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 500 }
+    const { id } = await params;
+    const result = await query(
+      `SELECT p.*, 
+        (SELECT json_agg(pc.*) FROM prospect_contacts pc WHERE pc.prospect_id = p.id) as contacts,
+        (SELECT json_agg(f.* ORDER BY f.scheduled_at DESC) FROM followups f WHERE f.prospect_id = p.id) as followups,
+        (SELECT c.id FROM clients c WHERE c.prospect_id = p.id) as client_id
+       FROM prospects p WHERE p.id = $1`, [id]
     );
+
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Prospect not found' }, { status: 404 });
+
+    return NextResponse.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('[Prospects] GET by id error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch prospect' }, { status: 500 });
   }
 }
 
+// PUT /api/prospects/[id]
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
+    const { id } = await params;
     const body = await request.json();
-
-    const prospect = await updateProspect(id, body);
-
-    return Response.json({
-      success: true,
-      message: 'Prospect updated successfully',
-      data: prospect.toJSON(),
+    const fields = ['company_name','contact_name','email','phone','website','industry','source','stage','priority','estimated_value','currency','notes','tags','next_followup_date','lost_reason'];
+    
+    const updates = [];
+    const values = [];
+    fields.forEach(f => {
+      if (body[f] !== undefined) {
+        values.push(body[f]);
+        updates.push(`${f} = $${values.length}`);
+      }
     });
+
+    if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
+
+    // If stage changed to 'won', set converted_at
+    if (body.stage === 'won') {
+      updates.push(`converted_at = NOW()`);
+    }
+
+    values.push(id);
+    const result = await query(`UPDATE prospects SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
+
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Prospect not found' }, { status: 404 });
+
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'UPDATE', 'prospect', id, JSON.stringify(body)]);
+
+    return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('PUT /api/prospects/[id] error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 400 }
-    );
+    console.error('[Prospects] PUT error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update prospect' }, { status: 500 });
+  }
+}
+
+// DELETE /api/prospects/[id]
+export async function DELETE(request, { params }) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
+    const { id } = await params;
+    const result = await query(`DELETE FROM prospects WHERE id = $1 RETURNING id, company_name`, [id]);
+
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Prospect not found' }, { status: 404 });
+
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'DELETE', 'prospect', id, JSON.stringify({ company_name: result.rows[0].company_name })]);
+
+    return NextResponse.json({ success: true, message: 'Prospect deleted' });
+  } catch (error) {
+    console.error('[Prospects] DELETE error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete prospect' }, { status: 500 });
   }
 }

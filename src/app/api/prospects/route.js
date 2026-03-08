@@ -1,152 +1,75 @@
-/**
- * GET /api/prospects
- * POST /api/prospects
- * 
- * Get all prospects or create a new prospect
- * OOP-based Prospect CRM implementation
- */
+import { NextResponse } from 'next/server';
+import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
-import {
-  createProspect,
-  getAllProspects,
-  getProspectSources,
-  getProspectIndustries,
-  getProspectStages,
-  resolveUserId,
-} from '@/lib/prospects.js';
-
+// GET /api/prospects - List all prospects
 export async function GET(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    
-    // Check if requesting reference data
-    const dataType = searchParams.get('data');
-    
-    if (dataType === 'sources') {
-      const sources = await getProspectSources();
-      return Response.json({ success: true, data: sources });
-    }
-    
-    if (dataType === 'industries') {
-      const industries = await getProspectIndustries();
-      return Response.json({ success: true, data: industries });
-    }
-    
-    if (dataType === 'stages') {
-      const stages = await getProspectStages();
-      return Response.json({ success: true, data: stages });
+    const stage = searchParams.get('stage');
+    const source = searchParams.get('source');
+    const search = searchParams.get('search');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    let sql = `SELECT p.*, 
+      (SELECT COUNT(*) FROM followups f WHERE f.prospect_id = p.id) as followup_count,
+      (SELECT COUNT(*) FROM prospect_contacts pc WHERE pc.prospect_id = p.id) as contact_count
+      FROM prospects p WHERE 1=1`;
+    const params = [];
+
+    if (stage) { params.push(stage); sql += ` AND p.stage = $${params.length}`; }
+    if (source) { params.push(source); sql += ` AND p.source = $${params.length}`; }
+    if (search) {
+      params.push(`%${search}%`);
+      sql += ` AND (p.company_name ILIKE $${params.length} OR p.contact_name ILIKE $${params.length} OR p.email ILIKE $${params.length})`;
     }
 
-    // Get prospects with filters
-    const filters = {
-      stage_id: searchParams.get('stage_id') ? parseInt(searchParams.get('stage_id')) : null,
-      assigned_to: searchParams.get('assigned_to'),
-      source_id: searchParams.get('source_id') ? parseInt(searchParams.get('source_id')) : null,
-      company_name: searchParams.get('company'),
-      search: searchParams.get('search'),
-    };
+    sql += ` ORDER BY p.created_at DESC`;
+    params.push(limit); sql += ` LIMIT $${params.length}`;
+    params.push(offset); sql += ` OFFSET $${params.length}`;
 
-    const prospects = await getAllProspects(filters);
+    const result = await query(sql, params);
+    const countResult = await query(`SELECT COUNT(*) FROM prospects`);
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      data: prospects.map(p => p.toJSON()),
-      count: prospects.length,
+      data: result.rows,
+      pagination: { total: parseInt(countResult.rows[0].count), limit, offset },
     });
   } catch (error) {
-    console.error('GET /api/prospects error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.error('[Prospects] GET error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch prospects' }, { status: 500 });
   }
 }
 
+// POST /api/prospects - Create new prospect
 export async function POST(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
     const body = await request.json();
-    const { prospect_name, email, phone_number, whatsapp_number, company_name, industry_id, source_id, assigned_sales_agent_id } = body;
+    const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, currency, notes, tags } = body;
 
-    // Defensive: log raw body and all values for debugging
-    console.log('POST /api/prospects - Raw Body:', JSON.stringify(body, null, 2));
-    console.log('POST /api/prospects - Parsed Fields:', {
-      prospect_name: prospect_name || 'undefined',
-      prospect_name_type: typeof prospect_name,
-      prospect_name_trimmed: prospect_name?.trim() || 'empty',
-      email: email || 'undefined',
-      email_type: typeof email,
-      email_trimmed: email?.trim() || 'empty',
-      phone_number: phone_number || 'undefined',
-      phone_number_type: typeof phone_number,
-      phone_number_trimmed: phone_number?.trim() || 'empty',
-      whatsapp_number: whatsapp_number || 'undefined',
-      whatsapp_number_type: typeof whatsapp_number,
-      whatsapp_number_trimmed: whatsapp_number?.trim() || 'empty',
-      source_id: source_id || 'undefined',
-      source_id_type: typeof source_id,
-    });
+    if (!company_name) return NextResponse.json({ success: false, error: 'company_name is required' }, { status: 400 });
 
-    // Get user ID from request headers or use fallback
-    const userIdFromHeader = request.headers.get('x-user-id');
-    let createdById;
-    try {
-      createdById = await resolveUserId(userIdFromHeader);
-      console.log(`Using user ID: ${createdById}`);
-    } catch (userError) {
-      console.error('User resolution failed:', userError);
-      throw new Error(`Cannot create prospect: ${userError.message}`);
-    }
-
-    const prospect = await createProspect(
-      {
-        prospect_name,
-        email,
-        phone_number,
-        whatsapp_number,
-        company_name,
-        industry_id,
-        source_id,
-        assigned_sales_agent_id,
-      },
-      createdById
+    const result = await query(
+      `INSERT INTO prospects (company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, currency, notes, tags, created_by, assigned_to)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING *`,
+      [company_name, contact_name||null, email||null, phone||null, website||null, industry||null,
+       source||null, stage||'new', priority||'medium', estimated_value||null, currency||'USD', notes||null, tags||'{}', auth.userId]
     );
 
-    return Response.json(
-      {
-        success: true,
-        message: 'Prospect created successfully',
-        data: prospect.toJSON(),
-      },
-      { status: 201 }
-    );
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'CREATE', 'prospect', result.rows[0].id, JSON.stringify({ company_name })]);
+
+    return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/prospects error:', error);
-    
-    // Defensive: more specific error messages and status codes
-    const errorMessage = error?.message || 'Failed to create prospect';
-    
-    // Determine appropriate status code based on error type
-    let statusCode = 500;
-    if (errorMessage.includes('required')) {
-      statusCode = 400; // Bad request - missing required field
-    } else if (errorMessage.includes('not found')) {
-      statusCode = 404; // Not found - referenced resource doesn't exist
-    } else if (errorMessage.includes('already exists')) {
-      statusCode = 409; // Conflict - duplicate
-    } else if (errorMessage.includes('Source error')) {
-      statusCode = 400; // Bad request - invalid source
-    }
-
-    return Response.json(
-      { 
-        success: false, 
-        error: errorMessage,
-        details: {
-          type: error?.constructor?.name,
-          statusCode,
-        },
-      },
-      { status: statusCode }
-    );
+    console.error('[Prospects] POST error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to create prospect' }, { status: 500 });
   }
 }

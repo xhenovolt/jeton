@@ -1,99 +1,47 @@
-/**
- * POST /api/prospects/[id]/convert
- * 1-click conversion: prospect -> deal (using database function)
- * This is the new Sales Intelligence System approach
- */
-
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
+// POST /api/prospects/[id]/convert - Convert prospect to client
 export async function POST(request, { params }) {
   try {
-    const { id } = params;
-    const body = await request.json().catch(() => ({}));
-    const userId = request.headers.get('x-user-id') || null;
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
-    const {
-      product_service,
-      deal_title,
-      value_estimate,
-    } = body;
-
-    // Validation
-    if (!product_service) {
-      return Response.json(
-        { success: false, error: 'product_service is required' },
-        { status: 400 }
-      );
-    }
-
-    // Get prospect details
-    const prospectResult = await query(
-      'SELECT prospect_name, email, estimated_budget, created_by FROM prospects WHERE id = $1 AND deleted_at IS NULL',
-      [id]
-    );
-
-    if (prospectResult.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Prospect not found' },
-        { status: 404 }
-      );
-    }
-
-    const prospect = prospectResult.rows[0];
-
+    const { id } = await params;
+    
+    // Get prospect
+    const prospect = await query(`SELECT * FROM prospects WHERE id = $1`, [id]);
+    if (!prospect.rows[0]) return NextResponse.json({ success: false, error: 'Prospect not found' }, { status: 404 });
+    
+    const p = prospect.rows[0];
+    
     // Check if already converted
-    const checkConverted = await query(
-      'SELECT converted_deal_id FROM prospects WHERE id = $1',
-      [id]
-    );
-
-    if (checkConverted.rows[0].converted_deal_id) {
-      return Response.json(
-        {
-          success: false,
-          error: 'Prospect already converted to a deal',
-          dealId: checkConverted.rows[0].converted_deal_id,
-        },
-        { status: 409 }
-      );
+    const existing = await query(`SELECT id FROM clients WHERE prospect_id = $1`, [id]);
+    if (existing.rows[0]) {
+      return NextResponse.json({ success: false, error: 'Prospect already converted', client_id: existing.rows[0].id }, { status: 409 });
     }
 
-    // Use the stored procedure to convert
-    const conversionResult = await query(
-      `
-      SELECT * FROM convert_prospect_to_deal($1, $2, $3, $4, $5)
-      `,
-      [
-        id,
-        product_service,
-        deal_title || `${prospect.prospect_name} - ${product_service}`,
-        value_estimate || prospect.estimated_budget || 0,
-        userId || prospect.created_by,
-      ]
+    // Create client from prospect data
+    const body = await request.json().catch(() => ({}));
+    const client = await query(
+      `INSERT INTO clients (prospect_id, company_name, contact_name, email, phone, website, industry, billing_address, tax_id, payment_terms, preferred_currency, notes, tags, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [id, p.company_name, p.contact_name, p.email, p.phone, p.website, p.industry,
+       body.billing_address||null, body.tax_id||null, body.payment_terms||30,
+       p.currency||'USD', p.notes, p.tags||'{}', auth.userId]
     );
 
-    const { deal_id, success, message } = conversionResult.rows[0];
+    // Update prospect stage to 'won'
+    await query(`UPDATE prospects SET stage = 'won', converted_at = NOW() WHERE id = $1`, [id]);
 
-    if (!success) {
-      return Response.json(
-        { success: false, error: message },
-        { status: 400 }
-      );
-    }
+    // Audit log
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'CONVERT', 'prospect', id, JSON.stringify({ client_id: client.rows[0].id, company_name: p.company_name })]);
 
-    return Response.json(
-      {
-        success: true,
-        message: 'Prospect successfully converted to deal',
-        dealId: deal_id,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: client.rows[0], message: 'Prospect converted to client' }, { status: 201 });
   } catch (error) {
-    console.error('Prospect conversion error:', error);
-    return Response.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.error('[Prospects] Convert error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to convert prospect' }, { status: 500 });
   }
 }

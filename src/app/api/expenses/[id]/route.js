@@ -1,164 +1,63 @@
-/**
- * GET /api/expenses/[id]
- * GET single expense details
- *
- * PUT /api/expenses/[id]
- * UPDATE expense
- *
- * DELETE /api/expenses/[id]
- * DELETE expense
- */
-
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
-
-    const result = await query(
-      `SELECT
-         e.*,
-         ec.name as category_name,
-         ec.is_system_defined,
-         a.allocation_type,
-         a.amount as allocation_amount,
-         p.amount_received as payment_amount,
-         c.client_id,
-         cl.name as client_name
-       FROM expenses e
-       JOIN expense_categories ec ON e.category_id = ec.id
-       LEFT JOIN allocations a ON e.linked_allocation_id = a.id
-       LEFT JOIN payments p ON a.payment_id = p.id
-       LEFT JOIN contracts c ON p.contract_id = c.id
-       LEFT JOIN clients cl ON c.client_id = cl.id
-       WHERE e.id = $1`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Expense not found' },
-        { status: 404 }
-      );
-    }
-
-    const expense = result.rows[0];
-
-    return Response.json({
-      success: true,
-      expense: {
-        ...expense,
-        amount: parseFloat(expense.amount),
-        allocation_amount: expense.allocation_amount ? parseFloat(expense.allocation_amount) : null,
-        payment_amount: expense.payment_amount ? parseFloat(expense.payment_amount) : null,
-      },
-    });
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const { id } = await params;
+    const result = await query(`SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE e.id = $1`, [id]);
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Expense not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Error fetching expense:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to fetch expense' }, { status: 500 });
   }
 }
 
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const { id } = await params;
     const body = await request.json();
-    const { category_id, amount, expense_date, description } = body;
-
-    // Fetch existing
-    const existing = await query('SELECT * FROM expenses WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Expense not found' },
-        { status: 404 }
-      );
-    }
-
+    const fields = ['category','subcategory','vendor','description','expense_date','receipt_url','is_recurring','recurrence_interval','status','budget_id','tags','notes'];
     const updates = [];
-    const values = [id];
-    let paramIdx = 2;
-
-    if (category_id) {
-      const categoryCheck = await query(
-        'SELECT id FROM expense_categories WHERE id = $1',
-        [category_id]
-      );
-      if (categoryCheck.rows.length === 0) {
-        return Response.json(
-          { success: false, error: 'Category not found' },
-          { status: 404 }
-        );
-      }
-      updates.push(`category_id = $${paramIdx++}`);
-      values.push(category_id);
-    }
-
-    if (amount !== undefined && amount > 0) {
-      updates.push(`amount = $${paramIdx++}`);
-      values.push(amount);
-    }
-
-    if (expense_date) {
-      updates.push(`expense_date = $${paramIdx++}`);
-      values.push(expense_date);
-    }
-
-    if (description !== undefined) {
-      updates.push(`description = $${paramIdx++}`);
-      values.push(description);
-    }
-
-    if (updates.length === 0) {
-      return Response.json(
-        { success: false, error: 'No valid fields to update' },
-        { status: 400 }
-      );
-    }
-
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-
-    const result = await query(
-      `UPDATE expenses SET ${updates.join(', ')} WHERE id = $1 RETURNING *`,
-      values
-    );
-
-    return Response.json({
-      success: true,
-      expense: {
-        ...result.rows[0],
-        amount: parseFloat(result.rows[0].amount),
-      },
-    });
+    const values = [];
+    fields.forEach(f => { if (body[f] !== undefined) { values.push(body[f]); updates.push(`${f} = $${values.length}`); } });
+    if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
+    values.push(id);
+    const result = await query(`UPDATE expenses SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
+    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Expense not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Error updating expense:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to update expense' }, { status: 500 });
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
-
-    const expenseCheck = await query(
-      'SELECT * FROM expenses WHERE id = $1',
-      [id]
-    );
-
-    if (expenseCheck.rows.length === 0) {
-      return Response.json(
-        { success: false, error: 'Expense not found' },
-        { status: 404 }
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const { id } = await params;
+    // Void the expense instead of deleting; create a reverse ledger entry
+    const expense = await query(`SELECT * FROM expenses WHERE id = $1`, [id]);
+    if (!expense.rows[0]) return NextResponse.json({ success: false, error: 'Expense not found' }, { status: 404 });
+    
+    await query(`UPDATE expenses SET status = 'void' WHERE id = $1`, [id]);
+    
+    // Create reverse ledger entry
+    if (expense.rows[0].ledger_entry_id) {
+      await query(
+        `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
+         VALUES ($1,$2,$3,'adjustment',$4,$5,$6,CURRENT_DATE,$7)`,
+        [expense.rows[0].account_id, Math.abs(expense.rows[0].amount), expense.rows[0].currency,
+         id, `VOID: ${expense.rows[0].description}`, expense.rows[0].category, auth.userId]
       );
     }
 
-    await query('DELETE FROM expenses WHERE id = $1', [id]);
-
-    return Response.json({
-      success: true,
-      message: 'Expense deleted successfully',
-    });
+    return NextResponse.json({ success: true, message: 'Expense voided' });
   } catch (error) {
-    console.error('Error deleting expense:', error.message);
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to void expense' }, { status: 500 });
   }
 }
