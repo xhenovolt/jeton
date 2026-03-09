@@ -45,9 +45,12 @@ function Tooltip({ children, label }) {
     >
       {children}
       {show && (
-        <div className="absolute left-full ml-3 px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg whitespace-nowrap pointer-events-none z-50 font-medium shadow-xl">
+        <div
+          className="absolute left-full ml-3 px-3 py-1.5 text-xs rounded-lg whitespace-nowrap pointer-events-none z-50 font-medium shadow-xl"
+          style={{ background: 'var(--theme-navbar, #0f172a)', color: 'var(--sidebar-text, #f1f5f9)' }}
+        >
           {label}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-100" />
+          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent" style={{ borderRightColor: 'var(--theme-navbar, #0f172a)' }} />
         </div>
       )}
     </div>
@@ -122,11 +125,11 @@ export default function Sidebar() {
     <motion.aside
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="hidden md:flex fixed left-0 top-0 h-screen flex-col shadow-xl overflow-hidden z-40 border-r border-white/[0.06]"
-      style={{ background: 'var(--theme-sidebar, #0f172a)' }}
+      className="hidden md:flex fixed left-0 top-0 h-screen flex-col shadow-xl overflow-hidden z-40"
+      style={{ background: 'var(--theme-sidebar, #0f172a)', borderRight: '1px solid var(--sidebar-border)' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between h-16 px-4" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
         {!isCollapsed && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -137,16 +140,16 @@ export default function Sidebar() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <span className="text-sm font-bold text-white">J</span>
             </div>
-            <span className="font-bold text-lg text-white">Jeton</span>
+            <span className="font-bold text-lg" style={{ color: 'var(--sidebar-text)' }}>Jeton</span>
           </motion.div>
         )}
         <button
           onClick={toggleCollapse}
-          className="p-1.5 hover:bg-white/[0.08] rounded-lg transition-colors ml-auto"
+          className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded-lg transition-colors ml-auto"
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }}>
-            <ChevronLeft size={20} className="text-gray-400" />
+            <ChevronLeft size={20} style={{ color: 'var(--sidebar-muted)' }} />
           </motion.div>
         </button>
       </div>
@@ -168,11 +171,16 @@ export default function Sidebar() {
                     href={item.href}
                     className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                       isItemActive
-                        ? 'bg-white/[0.1] text-white shadow-sm'
-                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                        ? 'shadow-sm'
+                        : ''
                     }`}
+                    style={isItemActive
+                      ? { background: 'var(--sidebar-active)', color: 'var(--sidebar-active-txt)' }
+                      : { color: 'var(--sidebar-muted)' }}
+                    onMouseEnter={e => { if (!isItemActive) { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-text)'; }}}
+                    onMouseLeave={e => { if (!isItemActive) { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--sidebar-muted)'; }}}
                   >
-                    <Icon size={20} className={isItemActive ? 'text-blue-400' : ''} />
+                    <Icon size={20} style={isItemActive ? { color: 'var(--theme-primary)' } : {}} />
                     {!isCollapsed && (
                       <motion.span
                         initial={{ opacity: 0 }}
@@ -202,11 +210,16 @@ export default function Sidebar() {
                       onClick={() => toggleSection(item.label)}
                       className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                         isParentItemActive
-                          ? 'bg-white/[0.06] text-white'
-                          : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                          ? ''
+                          : ''
                       }`}
+                      style={isParentItemActive
+                        ? { background: 'var(--sidebar-hover)', color: 'var(--sidebar-text)' }
+                        : { color: 'var(--sidebar-muted)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-text)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = isParentItemActive ? 'var(--sidebar-hover)' : ''; e.currentTarget.style.color = isParentItemActive ? 'var(--sidebar-text)' : 'var(--sidebar-muted)'; }}
                     >
-                      <Icon size={20} className={isParentItemActive ? 'text-purple-400' : ''} />
+                      <Icon size={20} style={isParentItemActive ? { color: 'var(--theme-primary)' } : {}} />
                       {!isCollapsed && (
                         <>
                           <motion.span
@@ -223,10 +236,9 @@ export default function Sidebar() {
                         </>
                       )}
                       {isParentItemActive && (
-                        <motion.div
-                          layoutId="activeSidebarParent"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-purple-500 rounded-r-full"
-                          transition={{ duration: 0.2 }}
+                        <div
+                          layoutId={undefined}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-purple-500"
                         />
                       )}
                     </button>
@@ -241,16 +253,17 @@ export default function Sidebar() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="ml-6 border-l border-white/[0.08] space-y-0.5 py-1">
+                        <div className="ml-6 space-y-0.5 py-1" style={{ borderLeft: '1px solid var(--sidebar-border)' }}>
                           {item.submenu.map((subitem) => (
                             <Link
                               key={subitem.href}
                               href={subitem.href}
-                              className={`relative block px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
-                                isActive(subitem.href)
-                                  ? 'text-blue-400 font-medium bg-white/[0.05]'
-                                  : 'text-gray-500 hover:text-white hover:bg-white/[0.04]'
-                              }`}
+                              className="relative block px-3 py-2 text-sm rounded-lg transition-all duration-200"
+                              style={isActive(subitem.href)
+                                ? { color: 'var(--theme-primary)', fontWeight: '500', background: 'var(--sidebar-hover)' }
+                                : { color: 'var(--sidebar-muted)' }}
+                              onMouseEnter={e => { if (!isActive(subitem.href)) { e.currentTarget.style.color = 'var(--sidebar-text)'; e.currentTarget.style.background = 'var(--sidebar-hover)'; }}}
+                              onMouseLeave={e => { if (!isActive(subitem.href)) { e.currentTarget.style.color = 'var(--sidebar-muted)'; e.currentTarget.style.background = ''; }}}
                             >
                               {subitem.label}
                             </Link>
@@ -267,7 +280,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Quick Add Button */}
-      <div className="p-2 border-t border-white/[0.06]">
+      <div className="p-2" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
         <Tooltip label="Create new item">
           <button className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-white font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
             style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
@@ -282,16 +295,16 @@ export default function Sidebar() {
         </Tooltip>
       </div>
 
-      {/* Footer */}
-      <div className="p-2 border-t border-white/[0.06] space-y-1">
+      <div className="p-2 space-y-1" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
         <Tooltip label="Settings">
           <Link
             href="/app/settings"
-            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-              isActive('/app/settings')
-                ? 'bg-white/[0.1] text-white'
-                : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
-            }`}
+            className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
+            style={isActive('/app/settings')
+              ? { background: 'var(--sidebar-active)', color: 'var(--sidebar-active-txt)' }
+              : { color: 'var(--sidebar-muted)' }}
+            onMouseEnter={e => { if (!isActive('/app/settings')) { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-text)'; }}}
+            onMouseLeave={e => { if (!isActive('/app/settings')) { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--sidebar-muted)'; }}}
           >
             <Settings size={20} />
             {!isCollapsed && (
@@ -305,7 +318,10 @@ export default function Sidebar() {
         <Tooltip label="Logout">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
+            style={{ color: 'var(--sidebar-muted)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--sidebar-muted)'; }}
           >
             <LogOut size={20} />
             {!isCollapsed && (

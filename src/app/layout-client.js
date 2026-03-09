@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { PageTitle } from '@/components/layout/PageTitle';
+import { useHeartbeat } from '@/lib/use-heartbeat';
 
 const mockUser = {
   name: 'Admin User',
@@ -14,6 +15,7 @@ const mockUser = {
 };
 
 export default function LayoutClient({ children }) {
+  useHeartbeat(); // Send heartbeat pings every 30s while tab is active
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
@@ -48,8 +50,8 @@ export default function LayoutClient({ children }) {
     : 'flex-1 min-h-screen';
   
   const footerClasses = showNavigation
-    ? `border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 py-8 text-center text-sm text-gray-600 dark:text-gray-400 transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`
-    : 'border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 py-8 text-center text-sm text-gray-600 dark:text-gray-400';
+    ? `py-8 text-center text-sm transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`
+    : 'py-8 text-center text-sm';
 
   return (
     <>
@@ -62,7 +64,7 @@ export default function LayoutClient({ children }) {
       </main>
 
       {/* Footer */}
-      <footer className={footerClasses}>
+      <footer className={footerClasses} style={{ background: 'var(--footer-bg)', color: 'var(--footer-text)', borderTop: '1px solid var(--sidebar-border)' }}>
         <p className="mb-1">
           © {new Date().getFullYear()} Jeton. Founder Operating System • v2.0
         </p>

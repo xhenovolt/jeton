@@ -156,6 +156,14 @@ function ModuleCard({ module }) {
             {module.routes && module.routes.length > 0 && (
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 {module.routes.slice(0, 2).map((route, i) => (
+                  route.includes('[') ? (
+                    <span
+                      key={i}
+                      className={`text-xs px-2 py-1 ${styles.bg} ${styles.text} rounded font-mono cursor-default`}
+                    >
+                      {route}
+                    </span>
+                  ) : (
                   <Link
                     key={i}
                     href={route}
@@ -164,6 +172,7 @@ function ModuleCard({ module }) {
                   >
                     {route}
                   </Link>
+                  )
                 ))}
                 {module.routes.length > 2 && (
                   <span className="text-xs text-gray-500">+{module.routes.length - 2} more</span>

@@ -238,6 +238,35 @@
    TYPOGRAPHY SYSTEM - CSS variable pass-throughs
    ============================================================================ */
 :root {
+  /* Sidebar / Navbar semantic tokens (overridden dynamically by ThemeProvider) */
+  --sidebar-text:       #111827;
+  --sidebar-muted:      #6b7280;
+  --sidebar-hover:      rgba(0,0,0,0.05);
+  --sidebar-active:     rgba(0,0,0,0.08);
+  --sidebar-active-txt: #111827;
+  --sidebar-border:     rgba(0,0,0,0.08);
+  --sidebar-icon-act:   #3b82f6;
+  --navbar-text:        #111827;
+  --navbar-muted:       #6b7280;
+  --navbar-border:      rgba(0,0,0,0.08);
+  --footer-bg:          #f8fafc;
+  --footer-text:        #6b7280;
+}
+.dark {
+  --sidebar-text:       #f1f5f9;
+  --sidebar-muted:      #94a3b8;
+  --sidebar-hover:      rgba(255,255,255,0.06);
+  --sidebar-active:     rgba(255,255,255,0.10);
+  --sidebar-active-txt: #ffffff;
+  --sidebar-border:     rgba(255,255,255,0.06);
+  --sidebar-icon-act:   #60a5fa;
+  --navbar-text:        #ffffff;
+  --navbar-muted:       #94a3b8;
+  --navbar-border:      rgba(255,255,255,0.06);
+  --footer-bg:          #0f172a;
+  --footer-text:        #94a3b8;
+}
+:root {
   --font-base:          var(--font-geist-sans), system-ui, sans-serif;
   --base-font-size:     1rem;
   --base-font-weight:   400;

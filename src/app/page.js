@@ -1,23 +1,56 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, PieChart, BarChart3, Zap, Shield, Users } from 'lucide-react';
+import { TrendingUp, PieChart, BarChart3, Zap, Shield, Users, LayoutDashboard, LogOut } from 'lucide-react';
 
 export default function Home() {
+  const [authUser, setAuthUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setAuthUser(data?.user || null); })
+      .catch(() => setAuthUser(null))
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    setAuthUser(null);
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-md border-b border-border z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="text-2xl font-bold text-primary">Jeton</div>
-          <div className="flex gap-4">
-            <Link href="/login" className="px-4 py-2 text-foreground hover:text-primary transition">
-              Sign In
-            </Link>
-            <Link href="/register" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition">
-              Get Started
-            </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/docs" className="px-4 py-2 text-foreground hover:text-primary transition text-sm">Docs</Link>
+            {authLoading ? (
+              <div className="w-24 h-9 bg-muted rounded-lg animate-pulse" />
+            ) : authUser ? (
+              <>
+                <span className="text-sm text-muted-foreground hidden sm:block">
+                  Hello, {authUser.name || authUser.full_name || authUser.email?.split('@')[0]}
+                </span>
+                <Link href="/app/dashboard" className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition text-sm font-medium">
+                  <LayoutDashboard size={16} />
+                  Dashboard
+                </Link>
+                <button onClick={handleLogout} className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition">
+                  <LogOut size={15} />
+                  <span className="hidden sm:block">Logout</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="px-4 py-2 text-foreground hover:text-primary transition text-sm">Sign In</Link>
+                <Link href="/register" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition text-sm font-medium">Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -257,12 +290,21 @@ export default function Home() {
             Join founders and financial decision-makers who use Jeton to manage billions in assets and pipeline value.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register" className="px-8 py-4 bg-primary-foreground text-primary rounded-lg font-bold hover:bg-surface-50 transition">
-              Create Free Account
-            </Link>
-            <Link href="/login" className="px-8 py-4 border-2 border-primary-foreground text-primary-foreground rounded-lg font-bold hover:bg-primary-foreground/10 transition">
-              Sign In
-            </Link>
+            {authUser ? (
+              <Link href="/app/dashboard" className="flex items-center justify-center gap-2 px-8 py-4 bg-primary-foreground text-primary rounded-lg font-bold hover:bg-surface-50 transition">
+                <LayoutDashboard size={20} />
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/register" className="px-8 py-4 bg-primary-foreground text-primary rounded-lg font-bold hover:bg-surface-50 transition">
+                  Create Free Account
+                </Link>
+                <Link href="/login" className="px-8 py-4 border-2 border-primary-foreground text-primary-foreground rounded-lg font-bold hover:bg-primary-foreground/10 transition">
+                  Sign In
+                </Link>
+              </>
+            )}
           </div>
         </motion.div>
       </section>

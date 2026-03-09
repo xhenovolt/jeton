@@ -111,8 +111,8 @@ export function Navbar() {
     <motion.nav
       animate={{ left: isCollapsed ? '5rem' : '16rem' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="hidden md:fixed md:top-0 md:right-0 md:h-16 md:z-30 md:px-6 md:flex md:items-center md:justify-between border-b border-white/[0.06]"
-      style={{ background: 'var(--theme-navbar, #0f172a)' }}
+      className="hidden md:fixed md:top-0 md:right-0 md:h-16 md:z-30 md:px-6 md:flex md:items-center md:justify-between"
+      style={{ background: 'var(--theme-navbar, #0f172a)', borderBottom: '1px solid var(--navbar-border)' }}
     >
       {/* Left side */}
       <div />
@@ -122,9 +122,11 @@ export function Navbar() {
         <div className="relative">
           <div
             onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-            className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] border border-white/[0.08] rounded-xl cursor-text hover:border-white/[0.15] transition-all"
-          >
-            <Search size={16} className="text-gray-500" />
+            className="flex items-center gap-2 px-4 py-2 rounded-xl cursor-text transition-all"
+            style={{ background: 'var(--sidebar-hover)', border: '1px solid var(--navbar-border)' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--theme-primary)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--navbar-border)'}>
+            <Search size={16} style={{ color: 'var(--navbar-muted)' }} />
             <input
               ref={searchInputRef}
               type="text"
@@ -132,26 +134,30 @@ export function Navbar() {
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               onFocus={() => setSearchOpen(true)}
-              className="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none text-sm"
+              className="flex-1 bg-transparent focus:outline-none text-sm"
+              style={{ color: 'var(--navbar-text)' }}
             />
             {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-gray-500 hover:text-white">
+              <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{ color: 'var(--navbar-muted)' }}>
                 <X size={14} />
               </button>
             )}
           </div>
 
           {searchOpen && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-white/[0.1] rounded-xl shadow-2xl z-50 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 overflow-hidden" style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
               <div className="max-h-80 overflow-y-auto">
                 {searchResults.map((result) => (
                   <button
                     key={result.id}
                     onClick={() => { window.location.href = result.path; setSearchOpen(false); setSearchQuery(''); }}
-                    className="w-full text-left px-4 py-3 hover:bg-white/[0.06] border-b border-white/[0.05] last:border-b-0 transition-colors"
+                    className="w-full text-left px-4 py-3 transition-colors"
+                    style={{ borderBottom: '1px solid var(--navbar-border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}
                   >
-                    <p className="font-medium text-white text-sm">{result.title}</p>
-                    <p className="text-xs text-gray-500">{result.category}</p>
+                    <p className="font-medium text-sm" style={{ color: 'var(--navbar-text)' }}>{result.title}</p>
+                    <p className="text-xs" style={{ color: 'var(--navbar-muted)' }}>{result.category}</p>
                   </button>
                 ))}
               </div>
@@ -159,8 +165,8 @@ export function Navbar() {
           )}
 
           {searchOpen && searchQuery && searchResults.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-white/[0.1] rounded-xl shadow-2xl z-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No results for &ldquo;{searchQuery}&rdquo;</p>
+            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 p-4 text-center" style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
+              <p className="text-sm" style={{ color: 'var(--navbar-muted)' }}>No results for &ldquo;{searchQuery}&rdquo;</p>
             </div>
           )}
         </div>
@@ -169,7 +175,7 @@ export function Navbar() {
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
         {/* Color-mode 3-way toggle */}
-        <div className="flex items-center rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.04]">
+        <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1px solid var(--navbar-border)', background: 'var(--sidebar-hover)' }}>
           {[
             { mode: 'system', icon: Monitor, label: 'System' },
             { mode: 'light',  icon: Sun,     label: 'Light'  },
@@ -179,9 +185,10 @@ export function Navbar() {
               key={mode}
               onClick={() => setColorMode(mode)}
               title={label}
-              className={`p-2 transition-colors ${colorMode === mode
-                ? 'bg-white/[0.15] text-white'
-                : 'text-gray-500 hover:text-gray-300'}`}
+              className="p-2 transition-colors"
+              style={colorMode === mode
+                ? { background: 'var(--theme-primary)', color: '#ffffff' }
+                : { color: 'var(--navbar-muted)' }}
             >
               <Icon size={15} />
             </button>
@@ -189,7 +196,12 @@ export function Navbar() {
         </div>
 
         {/* Notifications */}
-        <button className="relative p-2 rounded-xl hover:bg-white/[0.08] transition-colors text-gray-400 hover:text-white">
+        <button
+          className="relative p-2 rounded-xl transition-colors"
+          style={{ color: 'var(--navbar-muted)' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--navbar-text)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--navbar-muted)'}
+        >
           <Bell size={18} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full" />
         </button>
@@ -198,7 +210,9 @@ export function Navbar() {
         <div ref={profileRef} className="relative ml-2">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/[0.08] transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = ''}
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold text-white overflow-hidden"
               style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
@@ -206,19 +220,19 @@ export function Navbar() {
               {getAvatarText()}
             </div>
             <div className="hidden sm:flex flex-col items-start">
-              <p className="text-sm font-medium text-white leading-tight">
+              <p className="text-sm font-medium leading-tight" style={{ color: 'var(--navbar-text)' }}>
                 {loading ? '...' : user?.name || user?.full_name || 'User'}
               </p>
-              <p className="text-[10px] text-gray-500 leading-tight">
+              <p className="text-[10px] leading-tight" style={{ color: 'var(--navbar-muted)' }}>
                 {loading ? '' : user?.is_superadmin ? 'Superadmin' : user?.role || 'User'}
               </p>
             </div>
-            <ChevronDown size={14} className={`text-gray-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={14} className={`transition-transform ${profileOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--navbar-muted)' }} />
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-gray-900 border border-white/[0.1] rounded-xl shadow-2xl z-50 overflow-hidden">
-              <div className="p-4 border-b border-white/[0.06]">
+            <div className="absolute right-0 mt-2 w-64 rounded-xl shadow-2xl z-50 overflow-hidden" style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
+              <div className="p-4" style={{ borderBottom: '1px solid var(--navbar-border)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg text-sm font-bold text-white flex items-center justify-center"
                     style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
@@ -226,8 +240,8 @@ export function Navbar() {
                     {getAvatarText()}
                   </div>
                   <div>
-                    <p className="font-semibold text-white text-sm">{user?.name || user?.full_name || 'User'}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                    <p className="font-semibold text-sm" style={{ color: 'var(--navbar-text)' }}>{user?.name || user?.full_name || 'User'}</p>
+                    <p className="text-xs" style={{ color: 'var(--navbar-muted)' }}>{user?.email}</p>
                     <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--theme-primary, #3b82f6)' }}>
                       {user?.is_superadmin ? 'Superadmin' : user?.role || 'User'}
                     </p>
@@ -238,28 +252,37 @@ export function Navbar() {
               <div className="py-1">
                 <button
                   onClick={() => { window.location.href = '/app/settings'; setProfileOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                  style={{ color: 'var(--navbar-text)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
                 >
                   <Settings size={16} />
                   <span>Settings</span>
                 </button>
                 <button
                   onClick={() => { window.location.href = '/app/settings/appearance'; setProfileOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                  style={{ color: 'var(--navbar-text)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
                 >
                   <Palette size={16} />
                   <span>Appearance</span>
                 </button>
                 <button
                   onClick={() => { window.location.href = '/app/settings/typography'; setProfileOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                  style={{ color: 'var(--navbar-text)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
                 >
                   <Type size={16} />
                   <span>Typography</span>
                 </button>
               </div>
 
-              <div className="border-t border-white/[0.06] p-1">
+              <div className="p-1" style={{ borderTop: '1px solid var(--navbar-border)' }}>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"

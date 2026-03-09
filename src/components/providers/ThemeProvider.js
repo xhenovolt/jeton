@@ -154,8 +154,26 @@ export function ThemeProvider({ children }) {
     const pal = prefs.customAccent || ACCENT_PALETTES[prefs.accent] || ACCENT_PALETTES.blue;
     html.style.setProperty('--theme-primary', pal.primary);
     html.style.setProperty('--theme-accent',  pal.accent);
-    html.style.setProperty('--theme-sidebar', pal.sidebar);
-    html.style.setProperty('--theme-navbar',  pal.navbar);
+
+    // Sidebar & navbar background adapt to color mode
+    const sidebarBg = isDark ? pal.sidebar : '#ffffff';
+    const navbarBg  = isDark ? pal.navbar  : '#ffffff';
+    html.style.setProperty('--theme-sidebar', sidebarBg);
+    html.style.setProperty('--theme-navbar',  navbarBg);
+
+    // Semantic sidebar tokens (used by Sidebar.js and Navbar.js)
+    html.style.setProperty('--sidebar-text',       isDark ? '#f1f5f9'                   : '#111827');
+    html.style.setProperty('--sidebar-muted',      isDark ? '#94a3b8'                   : '#6b7280');
+    html.style.setProperty('--sidebar-hover',      isDark ? 'rgba(255,255,255,0.06)'    : 'rgba(0,0,0,0.05)');
+    html.style.setProperty('--sidebar-active',     isDark ? 'rgba(255,255,255,0.10)'    : 'rgba(0,0,0,0.08)');
+    html.style.setProperty('--sidebar-active-txt', isDark ? '#ffffff'                   : '#111827');
+    html.style.setProperty('--sidebar-border',     isDark ? 'rgba(255,255,255,0.06)'    : 'rgba(0,0,0,0.08)');
+    html.style.setProperty('--sidebar-icon-act',   isDark ? pal.primary                  : pal.primary);
+    html.style.setProperty('--navbar-text',        isDark ? '#ffffff'                   : '#111827');
+    html.style.setProperty('--navbar-muted',       isDark ? '#94a3b8'                   : '#6b7280');
+    html.style.setProperty('--navbar-border',      isDark ? 'rgba(255,255,255,0.06)'    : 'rgba(0,0,0,0.08)');
+    html.style.setProperty('--footer-bg',          isDark ? '#0f172a'                   : '#f8fafc');
+    html.style.setProperty('--footer-text',        isDark ? '#94a3b8'                   : '#6b7280');
 
     // ── 3. Background gradient ──
     const grad = GRADIENT_PRESETS[prefs.gradient] || GRADIENT_PRESETS.none;

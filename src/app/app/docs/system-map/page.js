@@ -165,15 +165,25 @@ export default function SystemMapPage() {
               <div key={i}>
                 <h3 className="font-semibold text-gray-900 mb-3 text-lg">{group.category}</h3>
                 <div className="grid md:grid-cols-2 gap-2">
-                  {group.routes.map((route, j) => (
-                    <Link
-                      key={j}
-                      href={route.replace('[id]', '1').replace('[userId]', '1')}
-                      className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition font-mono text-sm text-blue-800"
-                    >
-                      {route}
-                    </Link>
-                  ))}
+                  {group.routes.map((route, j) => {
+                    const isDynamic = route.includes('[');
+                    return isDynamic ? (
+                      <span
+                        key={j}
+                        className="p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-600 cursor-default"
+                      >
+                        {route}
+                      </span>
+                    ) : (
+                      <Link
+                        key={j}
+                        href={route}
+                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition font-mono text-sm text-blue-800"
+                      >
+                        {route}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             ))}

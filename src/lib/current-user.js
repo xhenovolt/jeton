@@ -45,6 +45,7 @@ export async function getCurrentUser() {
       role: user.role,
       status: user.status,
       fullName: user.full_name,
+      isSuperadmin: user.is_superadmin ?? false,
       createdAt: user.created_at,
     };
   } catch (error) {
