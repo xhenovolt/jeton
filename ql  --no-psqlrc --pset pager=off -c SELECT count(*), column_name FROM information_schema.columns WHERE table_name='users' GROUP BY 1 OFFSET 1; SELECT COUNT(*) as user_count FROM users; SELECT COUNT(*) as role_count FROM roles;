@@ -1,4 +1,0 @@
- id | school_id | person_id | username | password_hash | role | status | email | email_verified | two_factor_enabled | last_login | created_at | updated_at | onboarding_completed | onboarding_completed_at | phone | school_onboarded 
-----+-----------+-----------+----------+---------------+------+--------+-------+----------------+--------------------+------------+------------+------------+----------------------+-------------------------+-------+------------------
-(0 rows)
-
