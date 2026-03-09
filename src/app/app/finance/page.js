@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Wallet, ArrowRightLeft, Receipt, PiggyBank } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 function StatCard({ label, value, icon: Icon, color = 'blue', href }) {
@@ -32,7 +33,6 @@ export default function FinancePage() {
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
 
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -42,10 +42,10 @@ export default function FinancePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Balance" value={fmt(data?.total_balance)} icon={Wallet} color="blue" href="/app/finance/accounts" />
-        <StatCard label="Total Income" value={fmt(data?.total_income)} icon={TrendingUp} color="emerald" href="/app/finance/ledger" />
-        <StatCard label="Total Expenses" value={fmt(data?.total_expenses)} icon={TrendingDown} color="red" href="/app/finance/expenses" />
-        <StatCard label="Net Position" value={fmt((data?.total_income || 0) - Math.abs(data?.total_expenses || 0))} icon={DollarSign} color="purple" />
+        <StatCard label="Total Balance" value={formatCurrency(data?.total_balance)} icon={Wallet} color="blue" href="/app/finance/accounts" />
+        <StatCard label="Total Income" value={formatCurrency(data?.total_income)} icon={TrendingUp} color="emerald" href="/app/finance/ledger" />
+        <StatCard label="Total Expenses" value={formatCurrency(data?.total_expenses)} icon={TrendingDown} color="red" href="/app/finance/expenses" />
+        <StatCard label="Net Position" value={formatCurrency((data?.total_income || 0) - Math.abs(data?.total_expenses || 0))} icon={DollarSign} color="purple" />
       </div>
 
       {/* Quick Links */}
@@ -84,7 +84,7 @@ export default function FinancePage() {
                   <span className="text-sm text-gray-700">{a.name}</span>
                   <span className="text-xs text-gray-400 capitalize">{a.type}</span>
                 </div>
-                <span className={`text-sm font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(a.balance)}</span>
+                <span className={`text-sm font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(a.balance)}</span>
               </div>
             ))}
           </div>

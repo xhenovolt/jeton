@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 const CATEGORIES = ['office','software','marketing','travel','meals','equipment','professional_services','utilities','rent','insurance','taxes','payroll','other'];
 
@@ -42,14 +43,13 @@ export default function ExpensesPage() {
   };
 
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-sm text-gray-500 mt-1">{expenses.length} expenses &middot; {fmt(totalExpenses)} total</p>
+          <p className="text-sm text-gray-500 mt-1">{expenses.length} expenses &middot; {formatCurrency(totalExpenses)} total</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'Add Expense'}
@@ -118,7 +118,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-red-600">-{fmt(e.amount)}</span>
+                <span className="text-sm font-bold text-red-600">-{formatCurrency(e.amount)}</span>
                 <button onClick={() => deleteExpense(e.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" /></button>
               </div>
             </div>

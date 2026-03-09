@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Wallet, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 const TYPE_COLORS = { checking: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', credit: 'bg-purple-100 text-purple-700', investment: 'bg-cyan-100 text-cyan-700', other: 'bg-gray-100 text-gray-700' };
@@ -11,7 +12,7 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', type: 'checking', currency: 'USD', initial_balance: '' });
+  const [form, setForm] = useState({ name: '', type: 'checking', currency: 'UGX', initial_balance: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchAccounts(); }, []);
@@ -31,19 +32,18 @@ export default function AccountsPage() {
       if (body.initial_balance) body.initial_balance = parseFloat(body.initial_balance);
       else delete body.initial_balance;
       const res = await fetchWithAuth('/api/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setForm({ name: '', type: 'checking', currency: 'USD', initial_balance: '' }); fetchAccounts(); }
+      if ((await res.json()).success) { setShowForm(false); setForm({ name: '', type: 'checking', currency: 'UGX', initial_balance: '' }); fetchAccounts(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
   const totalBalance = accounts.reduce((s, a) => s + parseFloat(a.balance || 0), 0);
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
-          <p className="text-sm text-gray-500 mt-1">{accounts.length} accounts &middot; {fmt(totalBalance)} total balance</p>
+          <p className="text-sm text-gray-500 mt-1">{accounts.length} accounts &middot; {formatCurrency(totalBalance)} total balance</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'New Account'}
@@ -92,7 +92,7 @@ export default function AccountsPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TYPE_COLORS[a.type] || TYPE_COLORS.other}`}>{a.type}</span>
               </div>
-              <div className={`text-2xl font-bold ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(a.balance)}</div>
+              <div className={`text-2xl font-bold ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(a.balance)}</div>
               <div className="text-xs text-gray-400 mt-1">{a.currency} &middot; {a.transaction_count || 0} transactions</div>
             </Link>
           ))}

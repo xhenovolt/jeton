@@ -3,18 +3,19 @@
 /**
  * Animated Background for Auth Pages
  * Futuristic floating orbs + gradient waves with subtle motion
+ * Theme-aware: adapts to light and dark color modes
  */
 export default function AnimatedAuthBackground() {
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950">
-      {/* Gradient base */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.15),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.15),transparent_50%)]" />
+    <div className="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50 dark:from-gray-950 dark:via-slate-900 dark:to-gray-950">
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.10),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.10),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.15),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.15),transparent_50%)]" />
 
       {/* Animated grid */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+      <svg className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.03] text-gray-400 dark:text-white" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="0.5" />
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="0.5" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />

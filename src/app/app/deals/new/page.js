@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 export default function NewDealPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function NewDealPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Offering (optional)</label>
           <select value={form.offering_id} onChange={e => handleOfferingSelect(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
             <option value="">None</option>
-            {offerings.map(o => <option key={o.id} value={o.id}>{o.name} {o.default_price && `- $${parseFloat(o.default_price).toLocaleString()}`}</option>)}
+            {offerings.map(o => <option key={o.id} value={o.id}>{o.name} {o.default_price && `- ${formatCurrency(o.default_price)}`}</option>)}
           </select>
         </div>
 

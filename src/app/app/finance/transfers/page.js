@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRightLeft, Plus, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 export default function TransfersPage() {
   const [transfers, setTransfers] = useState([]);
@@ -33,7 +34,6 @@ export default function TransfersPage() {
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -55,7 +55,7 @@ export default function TransfersPage() {
               <label className="block text-sm text-gray-600 mb-1">From Account *</label>
               <select value={form.from_account_id} onChange={e => setForm(f => ({ ...f, from_account_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
                 <option value="">Select source...</option>
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance)})</option>)}
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({formatCurrency(a.balance)})</option>)}
               </select>
             </div>
             <div>
@@ -98,7 +98,7 @@ export default function TransfersPage() {
                   </div>
                 </div>
               </div>
-              <span className="text-sm font-bold text-blue-600">{fmt(t.amount)}</span>
+              <span className="text-sm font-bold text-blue-600">{formatCurrency(t.amount)}</span>
             </div>
           ))}
         </div>

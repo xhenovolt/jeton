@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Mail, Phone, Globe, Handshake, DollarSign, Plus } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, Globe, Handshake, Plus } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 export default function ClientDetailPage() {
@@ -47,11 +48,11 @@ export default function ClientDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border rounded-xl p-4">
           <div className="text-xs text-gray-500 mb-1">Total Deal Value</div>
-          <div className="text-xl font-bold text-gray-900">${parseFloat(client.total_deal_value || 0).toLocaleString()}</div>
+          <div className="text-xl font-bold text-gray-900">{formatCurrency(client.total_deal_value || 0)}</div>
         </div>
         <div className="bg-white border rounded-xl p-4">
           <div className="text-xs text-gray-500 mb-1">Total Paid</div>
-          <div className="text-xl font-bold text-emerald-600">${parseFloat(client.total_paid || 0).toLocaleString()}</div>
+          <div className="text-xl font-bold text-emerald-600">{formatCurrency(client.total_paid || 0)}</div>
         </div>
         <div className="bg-white border rounded-xl p-4">
           <div className="text-xs text-gray-500 mb-1">Deals</div>
@@ -90,7 +91,7 @@ export default function ClientDetailPage() {
                   <span className="text-sm font-medium">{d.title}</span>
                   <span className={`ml-2 text-xs px-2 py-0.5 rounded-full capitalize ${d.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{d.status}</span>
                 </div>
-                <span className="text-sm font-medium">${parseFloat(d.total_amount).toLocaleString()}</span>
+                <span className="text-sm font-medium">{formatCurrency(d.total_amount)}</span>
               </Link>
             ))}
           </div>

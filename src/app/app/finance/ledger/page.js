@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 export default function LedgerPage() {
   const [entries, setEntries] = useState([]);
@@ -32,7 +33,6 @@ export default function LedgerPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const fmt = (v) => `$${Math.abs(parseFloat(v || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -45,15 +45,15 @@ export default function LedgerPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border p-4">
             <div className="text-xs text-gray-400 mb-1">Credits (Income)</div>
-            <div className="text-xl font-bold text-emerald-600">{fmt(summary.total_credits)}</div>
+            <div className="text-xl font-bold text-emerald-600">{formatCurrency(summary.total_credits)}</div>
           </div>
           <div className="bg-white rounded-xl border p-4">
             <div className="text-xs text-gray-400 mb-1">Debits (Outflow)</div>
-            <div className="text-xl font-bold text-red-600">{fmt(summary.total_debits)}</div>
+            <div className="text-xl font-bold text-red-600">{formatCurrency(summary.total_debits)}</div>
           </div>
           <div className="bg-white rounded-xl border p-4">
             <div className="text-xs text-gray-400 mb-1">Net</div>
-            <div className={`text-xl font-bold ${parseFloat(summary.net) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(summary.net)}</div>
+            <div className={`text-xl font-bold ${parseFloat(summary.net) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(summary.net)}</div>
           </div>
         </div>
       )}
@@ -114,7 +114,7 @@ export default function LedgerPage() {
                     <td className={`px-4 py-3 text-right font-medium ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
                       <span className="inline-flex items-center gap-1">
                         {isCredit ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                        {fmt(amt)}
+                        {formatCurrency(amt)}
                       </span>
                     </td>
                   </tr>

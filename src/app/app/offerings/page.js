@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Package, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 const TYPES = ['product', 'service', 'subscription', 'package'];
 
@@ -10,7 +11,7 @@ export default function OfferingsPage() {
   const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', type: 'service', description: '', default_price: '', currency: 'USD' });
+  const [form, setForm] = useState({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -30,12 +31,12 @@ export default function OfferingsPage() {
       const url = editId ? `/api/offerings/${editId}` : '/api/offerings';
       const method = editId ? 'PUT' : 'POST';
       const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'USD' }); fetchOfferings(); }
+      if ((await res.json()).success) { setShowForm(false); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' }); fetchOfferings(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
   const startEdit = (o) => {
-    setForm({ name: o.name, type: o.type || 'service', description: o.description || '', default_price: o.default_price?.toString() || '', currency: o.currency || 'USD' });
+    setForm({ name: o.name, type: o.type || 'service', description: o.description || '', default_price: o.default_price?.toString() || '', currency: o.currency || 'UGX' });
     setEditId(o.id); setShowForm(true);
   };
 
@@ -49,7 +50,6 @@ export default function OfferingsPage() {
     } catch {}
   };
 
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString()}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -58,7 +58,7 @@ export default function OfferingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Offerings</h1>
           <p className="text-sm text-gray-500 mt-1">{offerings.length} products & services</p>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'USD' }); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' }); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'New Offering'}
         </button>
       </div>
@@ -117,7 +117,7 @@ export default function OfferingsPage() {
                 {o.deal_count > 0 && <span className="text-xs text-gray-400">{o.deal_count} deals</span>}
               </div>
               {o.description && <p className="text-sm text-gray-500 mb-2 line-clamp-2">{o.description}</p>}
-              {o.default_price && <div className="text-lg font-bold text-gray-900">{fmt(o.default_price)} <span className="text-xs font-normal text-gray-400">{o.currency}</span></div>}
+              {o.default_price && <div className="text-lg font-bold text-gray-900">{formatCurrency(o.default_price)} <span className="text-xs font-normal text-gray-400">{o.currency}</span></div>}
               {!o.is_active && <span className="text-xs text-red-500 mt-1">Inactive</span>}
             </div>
           ))}

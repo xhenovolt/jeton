@@ -3,22 +3,7 @@
  * Helper functions for formatting and displaying sales data
  */
 
-/**
- * Format currency amount
- * @param {number} amount - Amount to format
- * @returns {string} Formatted currency string
- */
-export function formatCurrency(amount) {
-  if (typeof amount !== 'number') {
-    amount = parseFloat(amount) || 0;
-  }
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+export { formatCurrency } from '@/lib/format-currency';
 
 /**
  * Get status color class

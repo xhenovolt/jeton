@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Building2, ChevronRight, Handshake, DollarSign } from 'lucide-react';
+import { Plus, Search, Building2, ChevronRight, Handshake } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 const STATUS_COLORS = {
@@ -100,7 +101,7 @@ export default function ClientsPage() {
               </div>
               <div className="flex items-center gap-3">
                 {parseFloat(c.total_deal_value) > 0 && (
-                  <span className="text-sm font-medium text-gray-700"><DollarSign className="w-3 h-3 inline" />{parseFloat(c.total_deal_value).toLocaleString()}</span>
+                  <span className="text-sm font-medium text-gray-700">{formatCurrency(c.total_deal_value)}</span>
                 )}
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>

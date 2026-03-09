@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, Globe, Calendar, Users, Building2, Edit3, Trash2, UserCheck } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 const STAGE_COLORS = {
@@ -102,7 +103,7 @@ export default function ProspectDetailPage() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <span className="text-gray-500">Source:</span><span className="capitalize">{prospect.source || 'N/A'}</span>
             <span className="text-gray-500">Priority:</span><span className="capitalize">{prospect.priority}</span>
-            <span className="text-gray-500">Est. Value:</span><span>{prospect.estimated_value ? `$${parseFloat(prospect.estimated_value).toLocaleString()}` : 'N/A'}</span>
+            <span className="text-gray-500">Est. Value:</span><span>{prospect.estimated_value ? formatCurrency(prospect.estimated_value) : 'N/A'}</span>
             <span className="text-gray-500">Next Follow-up:</span><span>{prospect.next_followup_date ? new Date(prospect.next_followup_date).toLocaleDateString() : 'None'}</span>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PiggyBank, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 const CATEGORIES = ['office','software','marketing','travel','meals','equipment','professional_services','utilities','rent','insurance','taxes','payroll','other'];
 
@@ -42,7 +43,6 @@ export default function BudgetsPage() {
     try { await fetchWithAuth(`/api/budgets/${id}`, { method: 'DELETE' }); fetchBudgets(); } catch {}
   };
 
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -115,8 +115,8 @@ export default function BudgetsPage() {
                 </div>
                 <div className="flex items-end justify-between mb-2">
                   <div>
-                    <span className={`text-lg font-bold ${overBudget ? 'text-red-600' : 'text-gray-900'}`}>{fmt(spent)}</span>
-                    <span className="text-sm text-gray-400"> / {fmt(limit)}</span>
+                    <span className={`text-lg font-bold ${overBudget ? 'text-red-600' : 'text-gray-900'}`}>{formatCurrency(spent)}</span>
+                    <span className="text-sm text-gray-400"> / {formatCurrency(limit)}</span>
                   </div>
                   <span className={`text-sm font-medium ${overBudget ? 'text-red-600' : pct > 80 ? 'text-orange-600' : 'text-emerald-600'}`}>{pct}%</span>
                 </div>

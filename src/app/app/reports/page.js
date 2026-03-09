@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign, Users, Briefcase } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 
 function StatCard({ label, value, icon: Icon, color = 'blue' }) {
   return (
@@ -29,7 +30,6 @@ export default function ReportsPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const fmt = (v) => `$${parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -58,10 +58,10 @@ export default function ReportsPage() {
       ) : reportType === 'overview' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Balance" value={fmt(data.total_balance)} icon={DollarSign} color="blue" />
-            <StatCard label="Total Income" value={fmt(data.total_income)} icon={TrendingUp} color="emerald" />
-            <StatCard label="Total Expenses" value={fmt(data.total_expenses)} icon={TrendingDown} color="red" />
-            <StatCard label="Net Position" value={fmt((data.total_income || 0) - Math.abs(data.total_expenses || 0))} icon={BarChart3} color="purple" />
+            <StatCard label="Total Balance" value={formatCurrency(data.total_balance)} icon={DollarSign} color="blue" />
+            <StatCard label="Total Income" value={formatCurrency(data.total_income)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Expenses" value={formatCurrency(data.total_expenses)} icon={TrendingDown} color="red" />
+            <StatCard label="Net Position" value={formatCurrency((data.total_income || 0) - Math.abs(data.total_expenses || 0))} icon={BarChart3} color="purple" />
           </div>
           {data.accounts?.length > 0 && (
             <div className="bg-white rounded-xl border p-5">
@@ -70,7 +70,7 @@ export default function ReportsPage() {
                 {data.accounts.map(a => (
                   <div key={a.id} className="flex justify-between py-2 text-sm">
                     <span className="text-gray-700">{a.name} <span className="text-gray-400 capitalize">({a.type})</span></span>
-                    <span className={`font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(a.balance)}</span>
+                    <span className={`font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(a.balance)}</span>
                   </div>
                 ))}
               </div>
@@ -80,9 +80,9 @@ export default function ReportsPage() {
       ) : reportType === 'revenue' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard label="Total Revenue" value={fmt(data.total_revenue)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Revenue" value={formatCurrency(data.total_revenue)} icon={TrendingUp} color="emerald" />
             <StatCard label="Total Payments" value={data.payment_count?.toString() || '0'} icon={DollarSign} color="blue" />
-            <StatCard label="Avg Payment" value={fmt(data.avg_payment)} icon={BarChart3} color="purple" />
+            <StatCard label="Avg Payment" value={formatCurrency(data.avg_payment)} icon={BarChart3} color="purple" />
           </div>
           {data.by_method?.length > 0 && (
             <div className="bg-white rounded-xl border p-5">
@@ -91,7 +91,7 @@ export default function ReportsPage() {
                 {data.by_method.map((m, i) => (
                   <div key={i} className="flex justify-between py-2 text-sm">
                     <span className="text-gray-700 capitalize">{m.method?.replace(/_/g, ' ') || 'Unknown'}</span>
-                    <span className="font-medium text-emerald-600">{fmt(m.total)} <span className="text-gray-400">({m.count})</span></span>
+                    <span className="font-medium text-emerald-600">{formatCurrency(m.total)} <span className="text-gray-400">({m.count})</span></span>
                   </div>
                 ))}
               </div>
@@ -101,9 +101,9 @@ export default function ReportsPage() {
       ) : reportType === 'expenses' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard label="Total Expenses" value={fmt(data.total_expenses)} icon={TrendingDown} color="red" />
+            <StatCard label="Total Expenses" value={formatCurrency(data.total_expenses)} icon={TrendingDown} color="red" />
             <StatCard label="Expense Count" value={data.expense_count?.toString() || '0'} icon={BarChart3} color="blue" />
-            <StatCard label="Avg Expense" value={fmt(data.avg_expense)} icon={DollarSign} color="orange" />
+            <StatCard label="Avg Expense" value={formatCurrency(data.avg_expense)} icon={DollarSign} color="orange" />
           </div>
           {data.by_category?.length > 0 && (
             <div className="bg-white rounded-xl border p-5">
@@ -117,7 +117,7 @@ export default function ReportsPage() {
                     <div key={i}>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="capitalize text-gray-700">{c.category?.replace(/_/g, ' ') || 'Uncategorized'}</span>
-                        <span className="font-medium text-red-600">{fmt(c.total)} <span className="text-gray-400">({pct}%)</span></span>
+                        <span className="font-medium text-red-600">{formatCurrency(c.total)} <span className="text-gray-400">({pct}%)</span></span>
                       </div>
                       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
@@ -133,8 +133,8 @@ export default function ReportsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard label="Total Deals" value={data.total_deals?.toString() || '0'} icon={Briefcase} color="blue" />
-            <StatCard label="Total Value" value={fmt(data.total_value)} icon={DollarSign} color="purple" />
-            <StatCard label="Total Collected" value={fmt(data.total_collected)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Value" value={formatCurrency(data.total_value)} icon={DollarSign} color="purple" />
+            <StatCard label="Total Collected" value={formatCurrency(data.total_collected)} icon={TrendingUp} color="emerald" />
             <StatCard label="Collection Rate" value={`${data.collection_rate || 0}%`} icon={BarChart3} color="cyan" />
           </div>
           {data.by_status?.length > 0 && (
@@ -144,7 +144,7 @@ export default function ReportsPage() {
                 {data.by_status.map((s, i) => (
                   <div key={i} className="flex justify-between py-2 text-sm">
                     <span className="text-gray-700 capitalize">{s.status?.replace(/_/g, ' ')}</span>
-                    <span className="font-medium">{s.count} deals &middot; <span className="text-blue-600">{fmt(s.total_value)}</span></span>
+                    <span className="font-medium">{s.count} deals &middot; <span className="text-blue-600">{formatCurrency(s.total_value)}</span></span>
                   </div>
                 ))}
               </div>

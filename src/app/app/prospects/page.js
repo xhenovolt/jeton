@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Search, Filter, ChevronRight, Mail, Phone, MapPin } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 const STAGES = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'dormant'];
@@ -132,7 +133,7 @@ export default function ProspectsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                {p.estimated_value && <span className="text-sm font-medium text-gray-700">${parseFloat(p.estimated_value).toLocaleString()}</span>}
+                {p.estimated_value && <span className="text-sm font-medium text-gray-700">{formatCurrency(p.estimated_value)}</span>}
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </Link>
