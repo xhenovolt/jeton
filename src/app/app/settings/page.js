@@ -64,11 +64,11 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Name</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
           </div>
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Email</label>
-            <input value={form.email} disabled className="w-full px-3 py-2 border rounded-lg bg-muted text-muted-foreground" />
+            <input value={form.email} disabled className="w-full px-3 py-2 border border-border rounded-lg bg-muted text-muted-foreground" />
           </div>
         </div>
         {user && (
@@ -95,16 +95,16 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Current Password</label>
-            <input type="password" value={passwordForm.current} onChange={e => setPasswordForm(f => ({ ...f, current: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+            <input type="password" value={passwordForm.current} onChange={e => setPasswordForm(f => ({ ...f, current: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-1">New Password</label>
-              <input type="password" value={passwordForm.newPass} onChange={e => setPasswordForm(f => ({ ...f, newPass: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="password" value={passwordForm.newPass} onChange={e => setPasswordForm(f => ({ ...f, newPass: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Confirm Password</label>
-              <input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm(f => ({ ...f, confirm: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+              <input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm(f => ({ ...f, confirm: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
           </div>
         </div>

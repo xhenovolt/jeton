@@ -17,7 +17,7 @@ export default function FollowupsPage() {
   const [filter, setFilter] = useState('upcoming');
   const [showForm, setShowForm] = useState(false);
   const [prospects, setProspects] = useState([]);
-  const [form, setForm] = useState({ prospect_id: '', type: 'call', scheduled_at: '', summary: '', next_action: '' });
+  const [form, setForm] = useState({ prospect_id: '', type: 'call', scheduled_date: '', scheduled_time: '', summary: '', next_action: '' });
 
   useEffect(() => { fetchFollowups(); fetchProspects(); }, [filter]);
 
@@ -45,10 +45,18 @@ export default function FollowupsPage() {
     try {
       const res = await fetchWithAuth('/api/followups', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+        ...form,
+        // Combine date + optional time into a single ISO datetime
+        scheduled_at: form.scheduled_date
+          ? form.scheduled_time
+            ? `${form.scheduled_date}T${form.scheduled_time}`
+            : `${form.scheduled_date}T09:00:00`
+          : null,
+      }),
       });
       const json = await res.json();
-      if (json.success) { setShowForm(false); setForm({ prospect_id: '', type: 'call', scheduled_at: '', summary: '', next_action: '' }); fetchFollowups(); }
+      if (json.success) { setShowForm(false); setForm({ prospect_id: '', type: 'call', scheduled_date: '', scheduled_time: '', summary: '', next_action: '' }); fetchFollowups(); }
     } catch (err) { console.error(err); }
   };
 
@@ -75,29 +83,35 @@ export default function FollowupsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={createFollowup} className="bg-card border rounded-xl p-5 space-y-4">
+        <form onSubmit={createFollowup} className="bg-card border border-border rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-foreground">New Follow-up</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <select required value={form.prospect_id} onChange={e => setForm({...form, prospect_id: e.target.value})} className="border rounded-lg px-3 py-2 text-sm">
+            <select required value={form.prospect_id} onChange={e => setForm({...form, prospect_id: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground [&>option]:bg-background">
               <option value="">Select Prospect *</option>
               {prospects.map(p => <option key={p.id} value={p.id}>{p.company_name}</option>)}
             </select>
-            <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="border rounded-lg px-3 py-2 text-sm">
+            <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground [&>option]:bg-background">
               {['call','email','meeting','demo','proposal','site_visit','social','other'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
             </select>
-            <input required type="datetime-local" value={form.scheduled_at} onChange={e => setForm({...form, scheduled_at: e.target.value})} className="border rounded-lg px-3 py-2 text-sm" />
-            <input value={form.summary} onChange={e => setForm({...form, summary: e.target.value})} placeholder="Summary" className="border rounded-lg px-3 py-2 text-sm" />
+            {/* Date — required */}
+            <input required type="date" value={form.scheduled_date} onChange={e => setForm({...form, scheduled_date: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" title="Follow-up date" />
+            {/* Time — optional */}
+            <div>
+              <input type="time" value={form.scheduled_time} onChange={e => setForm({...form, scheduled_time: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground w-full" />
+              <p className="text-xs text-muted-foreground mt-1">Time is optional — defaults to 9:00 AM</p>
+            </div>
+            <input value={form.summary} onChange={e => setForm({...form, summary: e.target.value})} placeholder="Summary (optional)" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted">Cancel</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted transition">Cancel</button>
           </div>
         </form>
       )}
 
       <div className="flex gap-2">
         {['upcoming','scheduled','completed','all'].map(f => (
-          <button key={f} onClick={() => { setFilter(f); setLoading(true); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-gray-200'}`}>{f}</button>
+          <button key={f} onClick={() => { setFilter(f); setLoading(true); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${filter === f ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>{f}</button>
         ))}
       </div>
 
@@ -106,7 +120,7 @@ export default function FollowupsPage() {
       ) : followups.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No follow-ups found</div>
       ) : (
-        <div className="bg-card rounded-xl border divide-y">
+        <div className="bg-card rounded-xl border border-border divide-y divide-border">
           {followups.map(f => {
             const Icon = TYPE_ICONS[f.type] || Calendar;
             return (

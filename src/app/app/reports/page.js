@@ -45,7 +45,7 @@ export default function ReportsPage() {
           { key: 'expenses', label: 'Expenses', icon: TrendingDown },
           { key: 'deals', label: 'Deals', icon: Briefcase },
         ].map(tab => (
-          <button key={tab.key} onClick={() => setReportType(tab.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${reportType === tab.key ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-gray-200'}`}>
+          <button key={tab.key} onClick={() => setReportType(tab.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${reportType === tab.key ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
             <tab.icon className="w-4 h-4" /> {tab.label}
           </button>
         ))}

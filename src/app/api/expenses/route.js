@@ -44,7 +44,7 @@ export async function POST(request) {
     const expResult = await query(
       `INSERT INTO expenses (account_id, amount, currency, category, subcategory, vendor, description, expense_date, receipt_url, is_recurring, recurrence_interval, status, budget_id, tags, notes, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'recorded',$12,$13,$14,$15) RETURNING *`,
-      [account_id, amount, currency||'USD', category, subcategory||null, vendor||null, description,
+      [account_id, amount, currency||'UGX', category, subcategory||null, vendor||null, description,
        expense_date||new Date().toISOString().split('T')[0], receipt_url||null,
        is_recurring||false, recurrence_interval||null, budget_id||null, tags||'{}', notes||null, auth.userId]
     );
@@ -55,7 +55,7 @@ export async function POST(request) {
     const ledgerResult = await query(
       `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
        VALUES ($1,$2,$3,'expense',$4,$5,$6,$7,$8) RETURNING id`,
-      [account_id, -Math.abs(amount), currency||'USD', expense.id,
+      [account_id, -Math.abs(amount), currency||'UGX', expense.id,
        `${category}: ${description}${vendor ? ' (' + vendor + ')' : ''}`,
        category, expense_date||new Date().toISOString().split('T')[0], auth.userId]
     );

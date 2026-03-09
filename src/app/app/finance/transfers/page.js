@@ -53,26 +53,26 @@ export default function TransfersPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-1">From Account *</label>
-              <select value={form.from_account_id} onChange={e => setForm(f => ({ ...f, from_account_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
+              <select value={form.from_account_id} onChange={e => setForm(f => ({ ...f, from_account_id: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 <option value="">Select source...</option>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({formatCurrency(a.balance)})</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">To Account *</label>
-              <select value={form.to_account_id} onChange={e => setForm(f => ({ ...f, to_account_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
+              <select value={form.to_account_id} onChange={e => setForm(f => ({ ...f, to_account_id: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 <option value="">Select destination...</option>
                 {accounts.filter(a => a.id !== form.from_account_id).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Amount *</label>
-              <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
+              <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="0.00" />
             </div>
           </div>
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Description</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" placeholder="Reason for transfer..." />
+            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="Reason for transfer..." />
           </div>
           <button type="submit" disabled={saving} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{saving ? 'Transferring...' : 'Execute Transfer'}</button>
         </form>

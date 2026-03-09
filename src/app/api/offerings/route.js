@@ -33,7 +33,7 @@ export async function POST(request) {
     const result = await query(
       `INSERT INTO offerings (name, type, description, default_price, currency, unit, metadata)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [name, type, description||null, default_price||null, currency||'USD', unit||null, metadata ? JSON.stringify(metadata) : '{}']
+      [name, type, description||null, default_price||null, currency||'UGX', unit||null, metadata ? JSON.stringify(metadata) : '{}']
     );
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {

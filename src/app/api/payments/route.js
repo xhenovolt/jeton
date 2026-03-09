@@ -53,7 +53,7 @@ export async function POST(request) {
     const payResult = await query(
       `INSERT INTO payments (deal_id, account_id, amount, currency, method, reference, status, payment_date, notes, received_at, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [deal_id, account_id, amount, currency||'USD', method||null, reference||null,
+      [deal_id, account_id, amount, currency||'UGX', method||null, reference||null,
        paymentStatus, payment_date||new Date().toISOString().split('T')[0],
        notes||null, paymentStatus === 'completed' ? new Date() : null, auth.userId]
     );
@@ -65,7 +65,7 @@ export async function POST(request) {
       const ledgerResult = await query(
         `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
          VALUES ($1,$2,$3,'payment',$4,$5,'revenue',$6,$7) RETURNING id`,
-        [account_id, amount, currency||'USD', payment.id,
+        [account_id, amount, currency||'UGX', payment.id,
          `Payment from ${deal.rows[0].company_name} - ${deal.rows[0].title}`,
          payment_date||new Date().toISOString().split('T')[0], auth.userId]
       );

@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [id, p.company_name, p.contact_name, p.email, p.phone, p.website, p.industry,
        body.billing_address||null, body.tax_id||null, body.payment_terms||30,
-       p.currency||'USD', p.notes, p.tags||'{}', auth.userId]
+       p.currency||'UGX', p.notes, p.tags||'{}', auth.userId]
     );
 
     // Update prospect stage to 'won'

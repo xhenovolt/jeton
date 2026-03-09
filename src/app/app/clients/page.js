@@ -57,12 +57,12 @@ export default function ClientsPage() {
         <form onSubmit={createClient} className="bg-card border rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-foreground">New Client</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} placeholder="Company Name *" className="border rounded-lg px-3 py-2 text-sm" />
-            <input value={form.contact_name} onChange={e => setForm({...form, contact_name: e.target.value})} placeholder="Contact Name" className="border rounded-lg px-3 py-2 text-sm" />
-            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email" className="border rounded-lg px-3 py-2 text-sm" />
-            <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Phone" className="border rounded-lg px-3 py-2 text-sm" />
-            <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} placeholder="Industry" className="border rounded-lg px-3 py-2 text-sm" />
-            <input type="number" value={form.payment_terms} onChange={e => setForm({...form, payment_terms: parseInt(e.target.value)})} placeholder="Payment Terms (days)" className="border rounded-lg px-3 py-2 text-sm" />
+            <input required value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} placeholder="Company Name *" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+            <input value={form.contact_name} onChange={e => setForm({...form, contact_name: e.target.value})} placeholder="Contact Name" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+            <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Phone" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+            <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} placeholder="Industry" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+            <input type="number" value={form.payment_terms} onChange={e => setForm({...form, payment_terms: parseInt(e.target.value)})} placeholder="Payment Terms (days)" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
@@ -73,7 +73,7 @@ export default function ClientsPage() {
 
       <form onSubmit={e => { e.preventDefault(); setLoading(true); fetchClients(); }} className="relative w-64">
         <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..." className="border rounded-lg pl-9 pr-3 py-2 text-sm w-full" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..." className="border border-border rounded-lg pl-9 pr-3 py-2 text-sm w-full bg-background text-foreground" />
       </form>
 
       {loading ? (

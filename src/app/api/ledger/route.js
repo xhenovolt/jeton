@@ -68,7 +68,7 @@ export async function POST(request) {
     const result = await query(
       `INSERT INTO ledger (account_id, amount, currency, source_type, description, category, entry_date, created_by)
        VALUES ($1,$2,$3,'adjustment',$4,$5,$6,$7) RETURNING *`,
-      [account_id, amount, currency||'USD', description, category||'adjustment', entry_date||new Date().toISOString().split('T')[0], auth.userId]
+      [account_id, amount, currency||'UGX', description, category||'adjustment', entry_date||new Date().toISOString().split('T')[0], auth.userId]
     );
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,

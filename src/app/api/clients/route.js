@@ -47,7 +47,7 @@ export async function POST(request) {
       `INSERT INTO clients (company_name, contact_name, email, phone, website, industry, billing_address, tax_id, payment_terms, preferred_currency, notes, tags, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [company_name, contact_name||null, email||null, phone||null, website||null, industry||null,
-       billing_address||null, tax_id||null, payment_terms||30, preferred_currency||'USD', notes||null, tags||'{}', auth.userId]
+       billing_address||null, tax_id||null, payment_terms||30, preferred_currency||'UGX', notes||null, tags||'{}', auth.userId]
     );
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,

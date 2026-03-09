@@ -45,7 +45,7 @@ export async function POST(request) {
     const transferResult = await query(
       `INSERT INTO transfers (from_account_id, to_account_id, amount, currency, to_amount, to_currency, exchange_rate, description, reference, transfer_date, status, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'completed',$11) RETURNING *`,
-      [from_account_id, to_account_id, amount, currency||'USD', to_amount||null, to_currency||null,
+      [from_account_id, to_account_id, amount, currency||'UGX', to_amount||null, to_currency||null,
        exchange_rate||null, description||null, reference||null, txDate, auth.userId]
     );
 
@@ -57,13 +57,13 @@ export async function POST(request) {
     const debitResult = await query(
       `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
        VALUES ($1,$2,$3,'transfer_out',$4,$5,'transfer',$6,$7) RETURNING id`,
-      [from_account_id, -Math.abs(amount), currency||'USD', transfer.id,
+      [from_account_id, -Math.abs(amount), currency||'UGX', transfer.id,
        `Transfer to ${toName}${description ? ': ' + description : ''}`, txDate, auth.userId]
     );
 
     // Create CREDIT ledger entry (money into to_account)
     const creditAmount = to_amount || amount;
-    const creditCurrency = to_currency || currency || 'USD';
+    const creditCurrency = to_currency || currency || 'UGX';
     const creditResult = await query(
       `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
        VALUES ($1,$2,$3,'transfer_in',$4,$5,'transfer',$6,$7) RETURNING id`,

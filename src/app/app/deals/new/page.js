@@ -52,7 +52,7 @@ export default function NewDealPage() {
       <form onSubmit={submit} className="bg-card rounded-xl border p-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Client *</label>
-          <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
+          <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
             <option value="">Select a client...</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -60,7 +60,7 @@ export default function NewDealPage() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Offering (optional)</label>
-          <select value={form.offering_id} onChange={e => handleOfferingSelect(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+          <select value={form.offering_id} onChange={e => handleOfferingSelect(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
             <option value="">None</option>
             {offerings.map(o => <option key={o.id} value={o.id}>{o.name} {o.default_price && `- ${formatCurrency(o.default_price)}`}</option>)}
           </select>
@@ -68,22 +68,22 @@ export default function NewDealPage() {
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Title *</label>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="e.g. Website Redesign for Acme" />
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="e.g. Website Redesign for Acme" />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border rounded-lg" placeholder="Deal details..." />
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="Deal details..." />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Total Amount *</label>
-            <input type="number" step="0.01" value={form.total_amount} onChange={e => setForm(f => ({ ...f, total_amount: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
+            <input type="number" step="0.01" value={form.total_amount} onChange={e => setForm(f => ({ ...f, total_amount: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="0.00" />
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
+            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
               {['draft','sent','accepted','in_progress'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
             </select>
           </div>
@@ -92,11 +92,11 @@ export default function NewDealPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Start Date</label>
-            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">End Date</label>
-            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
           </div>
         </div>
 

@@ -62,25 +62,25 @@ export default function LedgerPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div>
           <label className="block text-xs text-muted-foreground mb-1">Account</label>
-          <select value={filters.account_id} onChange={e => setFilters(f => ({ ...f, account_id: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
+          <select value={filters.account_id} onChange={e => setFilters(f => ({ ...f, account_id: e.target.value }))} className="px-3 py-1.5 border border-border rounded-lg text-sm bg-background text-foreground">
             <option value="">All accounts</option>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">Type</label>
-          <select value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
+          <select value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))} className="px-3 py-1.5 border border-border rounded-lg text-sm bg-background text-foreground">
             <option value="">All types</option>
             {['payment','expense','transfer','adjustment','initial_balance'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">From</label>
-          <input type="date" value={filters.start_date} onChange={e => setFilters(f => ({ ...f, start_date: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm" />
+          <input type="date" value={filters.start_date} onChange={e => setFilters(f => ({ ...f, start_date: e.target.value }))} className="px-3 py-1.5 border border-border rounded-lg text-sm bg-background text-foreground" />
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">To</label>
-          <input type="date" value={filters.end_date} onChange={e => setFilters(f => ({ ...f, end_date: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm" />
+          <input type="date" value={filters.end_date} onChange={e => setFilters(f => ({ ...f, end_date: e.target.value }))} className="px-3 py-1.5 border border-border rounded-lg text-sm bg-background text-foreground" />
         </div>
         <button onClick={fetchLedger} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Apply</button>
       </div>

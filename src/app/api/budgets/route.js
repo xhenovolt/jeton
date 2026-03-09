@@ -27,7 +27,7 @@ export async function POST(request) {
     const result = await query(
       `INSERT INTO budgets (name, category, amount, currency, period, start_date, end_date, alert_threshold, notes, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [name, category, amount, currency||'USD', period, start_date, end_date, alert_threshold||80, notes||null, auth.userId]
+      [name, category, amount, currency||'UGX', period, start_date, end_date, alert_threshold||80, notes||null, auth.userId]
     );
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {

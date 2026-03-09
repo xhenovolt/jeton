@@ -51,7 +51,7 @@ export async function POST(request) {
       `INSERT INTO deals (client_id, prospect_id, offering_id, title, description, total_amount, currency, status, start_date, end_date, due_date, invoice_number, terms, notes, tags, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [client_id, prospect_id||null, offering_id||null, title, description||null, total_amount,
-       currency||'USD', status||'draft', start_date||null, end_date||null, due_date||null,
+       currency||'UGX', status||'draft', start_date||null, end_date||null, due_date||null,
        invoice_number||null, terms||null, notes||null, tags||'{}', auth.userId]
     );
 

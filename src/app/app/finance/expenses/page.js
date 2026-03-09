@@ -62,32 +62,32 @@ export default function ExpensesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Account *</label>
-              <select value={form.account_id} onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
+              <select value={form.account_id} onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 <option value="">Select account...</option>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Amount *</label>
-              <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
+              <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="0.00" />
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Category</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Vendor</label>
-              <input value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g. AWS, Figma" />
+              <input value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="e.g. AWS, Figma" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-muted-foreground mb-1">Description *</label>
-              <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="What was this expense for?" />
+              <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" placeholder="What was this expense for?" />
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Budget (optional)</label>
-              <select value={form.budget_id} onChange={e => setForm(f => ({ ...f, budget_id: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
+              <select value={form.budget_id} onChange={e => setForm(f => ({ ...f, budget_id: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 <option value="">None</option>
                 {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>

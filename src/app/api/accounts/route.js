@@ -30,7 +30,7 @@ export async function POST(request) {
     const result = await query(
       `INSERT INTO accounts (name, type, currency, description, institution, account_number)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [name, type, currency||'USD', description||null, institution||null, account_number||null]
+      [name, type, currency||'UGX', description||null, institution||null, account_number||null]
     );
 
     // If initial balance provided, create a ledger entry
@@ -38,7 +38,7 @@ export async function POST(request) {
       await query(
         `INSERT INTO ledger (account_id, amount, currency, source_type, description, category, entry_date, created_by)
          VALUES ($1,$2,$3,'initial_balance',$4,'initial_balance',CURRENT_DATE,$5)`,
-        [result.rows[0].id, parseFloat(initial_balance), currency||'USD',
+        [result.rows[0].id, parseFloat(initial_balance), currency||'UGX',
          `Initial balance for ${name}`, auth.userId]
       );
     }
