@@ -26,6 +26,8 @@ import {
   Settings,
   Shield,
   FileText,
+  Palette,
+  Type,
 } from 'lucide-react';
 
 /**
@@ -120,6 +122,18 @@ export const menuItems = [
       { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles' },
       { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail' },
+    ],
+  },
+
+  // === SETTINGS ===
+  {
+    label: 'Settings',
+    icon: Settings,
+    category: 'sections',
+    submenu: [
+      { label: 'General', href: '/app/settings', description: 'Account & preferences' },
+      { label: 'Appearance', href: '/app/settings/appearance', icon: Palette, description: 'Colors, gradients, glass' },
+      { label: 'Typography', href: '/app/settings/typography', icon: Type, description: 'Font family, size & weight' },
     ],
   },
 ];

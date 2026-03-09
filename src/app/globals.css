@@ -233,3 +233,54 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 100, 100, 0.5);
 }
+
+/* ============================================================================
+   TYPOGRAPHY SYSTEM - CSS variable pass-throughs
+   ============================================================================ */
+:root {
+  --font-base:          var(--font-geist-sans), system-ui, sans-serif;
+  --base-font-size:     1rem;
+  --base-font-weight:   400;
+  --base-line-height:   1.6;
+}
+
+body {
+  font-family:  var(--font-base);
+  font-size:    var(--base-font-size);
+  font-weight:  var(--base-font-weight);
+  line-height:  var(--base-line-height);
+}
+
+/* ============================================================================
+   GLASSMORPHISM SYSTEM
+   ============================================================================ */
+
+/* Enabled when <html class="glass-mode"> */
+.glass-mode .glass-card,
+.glass-mode [data-glass="true"] {
+  background:           rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter:      blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border:               1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow:           0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Light-mode glass adjustments */
+:root:not(.dark) .glass-mode .glass-card,
+:root:not(.dark) .glass-mode [data-glass="true"] {
+  background:           rgba(255, 255, 255, 0.55) !important;
+  border:               1px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow:           0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Utility class for one-off glass elements */
+.glass {
+  background:           rgba(255, 255, 255, 0.06);
+  backdrop-filter:      blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border:               1px solid rgba(255, 255, 255, 0.1);
+}
+:root:not(.dark) .glass {
+  background:           rgba(255, 255, 255, 0.5);
+  border:               1px solid rgba(255, 255, 255, 0.6);
+}

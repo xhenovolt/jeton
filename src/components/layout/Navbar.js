@@ -1,21 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Search, X, LogOut, Settings, HelpCircle, ChevronDown, Bell, Sun, Moon } from 'lucide-react';
+import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 /**
  * Top Navigation Bar - Futuristic Design
  * Global search, notifications, theme toggle, and user profile
  */
 export function Navbar() {
+  const { colorMode, setColorMode, isDark } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const searchInputRef = useRef(null);
   const profileRef = useRef(null);
 
@@ -55,23 +56,6 @@ export function Navbar() {
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
-    }
-  };
-
-  // Dark mode toggle
-  useEffect(() => {
-    const dm = localStorage.getItem('jeton-dark-mode');
-    setIsDark(dm !== 'false');
-  }, []);
-
-  const toggleDarkMode = () => {
-    const next = !isDark;
-    setIsDark(next);
-    localStorage.setItem('jeton-dark-mode', String(next));
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
     }
   };
 
@@ -184,14 +168,25 @@ export function Navbar() {
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
-        {/* Theme toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="p-2 rounded-xl hover:bg-white/[0.08] transition-colors text-gray-400 hover:text-white"
-          aria-label="Toggle dark mode"
-        >
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        {/* Color-mode 3-way toggle */}
+        <div className="flex items-center rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.04]">
+          {[
+            { mode: 'system', icon: Monitor, label: 'System' },
+            { mode: 'light',  icon: Sun,     label: 'Light'  },
+            { mode: 'dark',   icon: Moon,    label: 'Dark'   },
+          ].map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setColorMode(mode)}
+              title={label}
+              className={`p-2 transition-colors ${colorMode === mode
+                ? 'bg-white/[0.15] text-white'
+                : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              <Icon size={15} />
+            </button>
+          ))}
+        </div>
 
         {/* Notifications */}
         <button className="relative p-2 rounded-xl hover:bg-white/[0.08] transition-colors text-gray-400 hover:text-white">
@@ -249,11 +244,18 @@ export function Navbar() {
                   <span>Settings</span>
                 </button>
                 <button
-                  onClick={() => { window.location.href = '/app/settings/theme'; setProfileOpen(false); }}
+                  onClick={() => { window.location.href = '/app/settings/appearance'; setProfileOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors"
                 >
-                  <Sun size={16} />
-                  <span>Theme</span>
+                  <Palette size={16} />
+                  <span>Appearance</span>
+                </button>
+                <button
+                  onClick={() => { window.location.href = '/app/settings/typography'; setProfileOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors"
+                >
+                  <Type size={16} />
+                  <span>Typography</span>
                 </button>
               </div>
 
