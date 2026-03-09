@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { Events } from '@/lib/events.js';
 
 // GET /api/systems
 export async function GET(request) {
@@ -50,6 +51,7 @@ export async function POST(request) {
       [name, description || null, version || null, status || 'active']
     );
 
+    await Events.systemCreated(result.rows[0].id, result.rows[0].name, auth.userId);
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[Systems] POST error:', error);

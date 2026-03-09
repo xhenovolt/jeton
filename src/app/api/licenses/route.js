@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { logEvent } from '@/lib/events.js';
 
 // GET /api/licenses
 export async function GET(request) {
@@ -49,6 +50,7 @@ export async function POST(request) {
       [system_id || null, deal_id || null, client_name, license_type || 'lifetime',
        start_date || null, end_date || null, status || 'active', notes || null]
     );
+    await logEvent({ event_type: 'license_issued', entity_type: 'license', entity_id: result.rows[0].id, description: `License issued to ${client_name}`, metadata: { system_id, license_type: license_type || 'lifetime' }, created_by: auth.userId });
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[Licenses] POST error:', error);

@@ -21,6 +21,7 @@ import {
   Monitor,
   Building2,
   Users,
+  Activity,
 } from 'lucide-react';
 
 /**
@@ -33,6 +34,12 @@ export const menuItems = [
     label: 'Dashboard',
     href: '/app/dashboard',
     icon: Home,
+    category: 'primary',
+  },
+  {
+    label: 'Activity',
+    href: '/app/activity',
+    icon: Activity,
     category: 'primary',
   },
 

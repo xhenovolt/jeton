@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -58,8 +58,21 @@ export default function SystemDetailPage() {
   const [issueForm, setIssueForm] = useState({ title: '', description: '', status: 'open' });
   const [changeForm, setChangeForm] = useState({ title: '', description: '', status: 'planned' });
   const [editForm, setEditForm] = useState({});
+  const [timelineEvents, setTimelineEvents] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => { if (id) fetchSystem(); }, [id]);
+
+  useEffect(() => {
+    if (tab === 'timeline' && id && timelineEvents.length === 0) {
+      setTimelineLoading(true);
+      fetchWithAuth(`/api/events?entity_id=${id}&limit=100`)
+        .then(r => r.json())
+        .then(j => { setTimelineEvents(j.data || []); })
+        .catch(console.error)
+        .finally(() => setTimelineLoading(false));
+    }
+  }, [tab, id]);
 
   const fetchSystem = async () => {
     try {
@@ -234,6 +247,7 @@ export default function SystemDetailPage() {
         <TabButton label={`Licenses (${(data.licenses || []).length})`} active={tab === 'licenses'} onClick={() => setTab('licenses')} />
         <TabButton label={`Issues (${(data.issues || []).length})`} active={tab === 'issues'} onClick={() => setTab('issues')} />
         <TabButton label={`Changes (${(data.changes || []).length})`} active={tab === 'changes'} onClick={() => setTab('changes')} />
+        <TabButton label="Timeline" active={tab === 'timeline'} onClick={() => setTab('timeline')} />
       </div>
 
       {/* ── DEALS TAB ── */}
@@ -409,6 +423,61 @@ export default function SystemDetailPage() {
                   </select>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TIMELINE TAB ── */}
+      {tab === 'timeline' && (
+        <div className="space-y-2">
+          <h2 className="font-semibold text-foreground mb-4">System Timeline</h2>
+          {timelineLoading ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-start gap-3 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0" />
+                  <div className="flex-1 pt-1 space-y-2"><div className="h-3 bg-muted rounded w-3/4" /><div className="h-2 bg-muted rounded w-1/3" /></div>
+                </div>
+              ))}
+            </div>
+          ) : timelineEvents.length === 0 ? (
+            <div className="text-center py-10">
+              <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-40" />
+              <p className="text-muted-foreground text-sm">No timeline events yet for this system.</p>
+              <p className="text-xs text-muted-foreground mt-1">Events are recorded when you create deals, report issues, and more.</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+              <div className="space-y-1">
+                {timelineEvents.map((event, i) => {
+                  const icons = {
+                    system_created: { icon: Monitor, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+                    deal_created:   { icon: Briefcase, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+                    deal_closed:    { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+                    payment_received: { icon: DollarSign, color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/30' },
+                    issue_reported: { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30' },
+                    issue_fixed:    { icon: CheckCircle, color: 'text-teal-500', bg: 'bg-teal-100 dark:bg-teal-900/30' },
+                    license_issued: { icon: Key, color: 'text-indigo-500', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
+                  };
+                  const cfg = icons[event.event_type] || { icon: Activity, color: 'text-muted-foreground', bg: 'bg-muted' };
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={event.id} className="flex items-start gap-3 pl-0 py-2">
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${cfg.bg}`}>
+                        <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                      </div>
+                      <div className="flex-1 pb-2">
+                        <p className="text-sm text-foreground">{event.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(event.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

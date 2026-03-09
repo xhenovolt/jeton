@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { Events } from '@/lib/events.js';
 
 // GET /api/deals/[id]
 export async function GET(request, { params }) {
@@ -44,6 +45,9 @@ export async function PUT(request, { params }) {
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'UPDATE', 'deal', id, JSON.stringify(body)]);
+    if (body.status === 'closed_won' || body.status === 'completed') {
+      await Events.dealClosed(id, result.rows[0].title, result.rows[0].total_amount, result.rows[0].currency, auth.userId);
+    }
     return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to update deal' }, { status: 500 });

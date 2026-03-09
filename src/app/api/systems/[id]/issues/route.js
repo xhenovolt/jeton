@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { Events } from '@/lib/events.js';
 
 // GET /api/systems/[id]/issues
 export async function GET(request, { params }) {
@@ -36,6 +37,7 @@ export async function POST(request, { params }) {
       `INSERT INTO system_issues (system_id, title, description, status) VALUES ($1,$2,$3,$4) RETURNING *`,
       [id, title, description || null, status || 'open']
     );
+    await Events.issueReported(result.rows[0].id, result.rows[0].title, id, auth.userId);
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[Issues] POST error:', error);
@@ -58,6 +60,9 @@ export async function PATCH(request, { params }) {
       `UPDATE system_issues SET status=$1, resolved_at=$2 WHERE id=$3 RETURNING *`,
       [status, resolved_at || (status === 'fixed' || status === 'closed' ? new Date().toISOString() : null), issue_id]
     );
+    if (result.rows[0] && (status === 'fixed' || status === 'closed')) {
+      await Events.issueFixed(issue_id, result.rows[0].title, result.rows[0].system_id, auth.userId);
+    }
     return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('[Issues] PATCH error:', error);

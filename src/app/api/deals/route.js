@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { Events } from '@/lib/events.js';
 
 // GET /api/deals
 export async function GET(request) {
@@ -65,6 +66,7 @@ export async function POST(request) {
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'deal', result.rows[0].id, JSON.stringify({ title, total_amount })]);
+    await Events.dealCreated(result.rows[0].id, title, auth.userId);
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
