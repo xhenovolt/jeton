@@ -141,18 +141,18 @@ function ModuleCard({ module }) {
   const styles = colorStyles[module.color] || colorStyles.blue;
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${styles.border} overflow-hidden`}>
+    <div className={`bg-card rounded-lg shadow-sm border ${styles.border} overflow-hidden`}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-start justify-between p-6 hover:bg-gray-50 transition text-left"
+        className="w-full flex items-start justify-between p-6 hover:bg-muted transition text-left"
       >
         <div className="flex items-start gap-4 flex-1">
           <div className={`w-12 h-12 ${styles.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
             <Icon className={`w-6 h-6 ${styles.icon}`} />
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">{module.title}</h3>
-            <p className="text-sm text-gray-600">{module.description}</p>
+            <h3 className="text-xl font-bold text-foreground mb-2">{module.title}</h3>
+            <p className="text-sm text-muted-foreground">{module.description}</p>
             {module.routes && module.routes.length > 0 && (
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 {module.routes.slice(0, 2).map((route, i) => (
@@ -175,7 +175,7 @@ function ModuleCard({ module }) {
                   )
                 ))}
                 {module.routes.length > 2 && (
-                  <span className="text-xs text-gray-500">+{module.routes.length - 2} more</span>
+                  <span className="text-xs text-muted-foreground">+{module.routes.length - 2} more</span>
                 )}
               </div>
             )}
@@ -187,11 +187,11 @@ function ModuleCard({ module }) {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 space-y-4 border-t border-gray-100">
+        <div className="px-6 pb-6 space-y-4 border-t border-border">
           {module.workflow && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm">Typical Workflow</h4>
-              <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+              <h4 className="font-semibold text-foreground mb-2 text-sm">Typical Workflow</h4>
+              <div className="text-sm text-foreground bg-muted p-3 rounded">
                 {module.workflow}
               </div>
             </div>
@@ -199,10 +199,10 @@ function ModuleCard({ module }) {
 
           {module.tables && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm">Database Tables</h4>
+              <h4 className="font-semibold text-foreground mb-2 text-sm">Database Tables</h4>
               <div className="flex flex-wrap gap-1">
                 {module.tables.map((table, i) => (
-                  <span key={i} className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded font-mono">
+                  <span key={i} className="text-xs px-2 py-1 bg-gray-200 text-foreground rounded font-mono">
                     {table}
                   </span>
                 ))}
@@ -212,7 +212,7 @@ function ModuleCard({ module }) {
 
           {module.views && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm">Database Views</h4>
+              <h4 className="font-semibold text-foreground mb-2 text-sm">Database Views</h4>
               <div className="flex flex-wrap gap-1">
                 {module.views.map((view, i) => (
                   <span key={i} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono">
@@ -225,12 +225,12 @@ function ModuleCard({ module }) {
 
           {module.rules && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
+              <h4 className="font-semibold text-foreground mb-2 text-sm flex items-center gap-2">
                 <span className="text-green-600">✓</span> Business Rules
               </h4>
               <ul className="space-y-1">
                 {module.rules.map((rule, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li key={i} className="text-sm text-foreground flex items-start gap-2">
                     <span className="text-green-600 font-bold flex-shrink-0">•</span>
                     <span>{rule}</span>
                   </li>
@@ -251,7 +251,7 @@ function ModuleCard({ module }) {
 
           {module.routes && module.routes.length > 0 && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm">All Routes</h4>
+              <h4 className="font-semibold text-foreground mb-2 text-sm">All Routes</h4>
               <div className="flex flex-wrap gap-2">
                 {module.routes.map((route, i) => (
                   <Link
@@ -273,7 +273,7 @@ function ModuleCard({ module }) {
 
 export default function ModulesPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Back Button */}
         <Link
@@ -293,10 +293,10 @@ export default function ModulesPage() {
         </div>
 
         {/* Dependency Map */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Module Dependency Map</h2>
-          <div className="bg-gray-50 p-6 rounded-lg font-mono text-sm overflow-x-auto">
-            <pre className="text-gray-700">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Module Dependency Map</h2>
+          <div className="bg-muted p-6 rounded-lg font-mono text-sm overflow-x-auto">
+            <pre className="text-foreground">
 {`Authentication
     ↓
 Dashboard ← (reads from all modules)
@@ -313,11 +313,11 @@ Prospects → Clients
         </div>
 
         {/* Quick Reference Table */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8 overflow-x-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Reference</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8 overflow-x-auto">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Quick Reference</h2>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-muted">
                 <th className="text-left p-3 font-semibold">Module</th>
                 <th className="text-left p-3 font-semibold">Primary Route</th>
                 <th className="text-left p-3 font-semibold">Create Action</th>
@@ -336,11 +336,11 @@ Prospects → Clients
                 { module: 'Admin', route: '/app/admin/users', action: 'New User' },
               ].map((row, i) => (
                 <tr key={i} className="border-b">
-                  <td className="p-3 font-semibold text-gray-900">{row.module}</td>
+                  <td className="p-3 font-semibold text-foreground">{row.module}</td>
                   <td className="p-3">
                     <Link href={row.route} className="text-blue-600 hover:underline">{row.route}</Link>
                   </td>
-                  <td className="p-3 text-gray-600">{row.action}</td>
+                  <td className="p-3 text-muted-foreground">{row.action}</td>
                 </tr>
               ))}
             </tbody>
@@ -349,15 +349,15 @@ Prospects → Clients
 
         {/* Modules */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">All Modules</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-4">All Modules</h2>
           {modules.map((module) => (
             <ModuleCard key={module.id} module={module} />
           ))}
         </div>
 
         {/* Footer Note */}
-        <div className="bg-gray-100 rounded-lg p-6 mt-8">
-          <p className="text-sm text-gray-600 text-center">
+        <div className="bg-muted rounded-lg p-6 mt-8">
+          <p className="text-sm text-muted-foreground text-center">
             <strong>Document Version:</strong> 1.0 | <strong>Last Updated:</strong> January 2026 | For detailed API documentation, see <Link href="/app/docs/developer" className="text-blue-600 hover:underline">Developer Docs</Link>
           </p>
         </div>

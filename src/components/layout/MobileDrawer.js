@@ -119,24 +119,24 @@ export function MobileDrawer({ isOpen, onClose, user }) {
         animate={{ x: 0 }}
         exit={{ x: '-100%' }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="md:hidden fixed left-0 top-0 bottom-0 w-64 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-r border-gray-200 dark:border-gray-800 z-50 overflow-y-auto flex flex-col"
+        className="md:hidden fixed left-0 top-0 bottom-0 w-64 bg-background border-r border-border z-50 overflow-y-auto flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-label="Navigation drawer"
       >
         {/* Header with Close Button */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 z-10">
+        <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background z-10">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Jeton
           </h1>
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted dark:hover:bg-muted rounded-lg transition-colors"
             aria-label="Close navigation drawer"
             data-drawer-trigger
           >
-            <X size={24} className="text-gray-600 dark:text-gray-400" />
+            <X size={24} className="text-muted-foreground" />
           </button>
         </div>
 
@@ -145,17 +145,17 @@ export function MobileDrawer({ isOpen, onClose, user }) {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="p-6 border-b border-gray-200 dark:border-gray-800"
+          className="p-6 border-b border-border"
         >
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600/20 text-lg font-semibold">
               {user.avatar}
             </div>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-white text-sm">
+              <p className="font-semibold text-foreground text-sm">
                 {user.name}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {user.email}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
@@ -191,7 +191,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         isItemActive
                           ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 font-medium'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          : 'text-foreground hover:bg-muted dark:hover:bg-muted'
                       }`}
                     >
                       <Icon size={20} />
@@ -221,7 +221,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         isParentItemActive
                           ? 'bg-purple-600/10 text-purple-600 dark:text-purple-400 font-medium'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          : 'text-foreground hover:bg-muted dark:hover:bg-muted'
                       }`}
                     >
                       <Icon size={20} />
@@ -250,7 +250,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <div className="ml-8 border-l border-gray-200 dark:border-gray-700 space-y-1 py-2">
+                          <div className="ml-8 border-l border-border space-y-1 py-2">
                             {item.submenu.map((subitem, subindex) => (
                               <motion.div
                                 key={subitem.href}
@@ -264,7 +264,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
                                   className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
                                     isActive(subitem.href)
                                       ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-600/5'
-                                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                      : 'text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-muted dark:hover:bg-muted'
                                   }`}
                                 >
                                   {subitem.label}
@@ -287,7 +287,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="p-4 border-t border-gray-200 dark:border-gray-800 mt-auto"
+          className="p-4 border-t border-border mt-auto"
         >
           <button
             onClick={async () => {

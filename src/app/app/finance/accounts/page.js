@@ -6,7 +6,7 @@ import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
-const TYPE_COLORS = { checking: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', credit: 'bg-purple-100 text-purple-700', investment: 'bg-cyan-100 text-cyan-700', other: 'bg-gray-100 text-gray-700' };
+const TYPE_COLORS = { checking: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', credit: 'bg-purple-100 text-purple-700', investment: 'bg-cyan-100 text-cyan-700', other: 'bg-muted text-foreground' };
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
@@ -42,8 +42,8 @@ export default function AccountsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
-          <p className="text-sm text-gray-500 mt-1">{accounts.length} accounts &middot; {formatCurrency(totalBalance)} total balance</p>
+          <h1 className="text-2xl font-bold text-foreground">Accounts</h1>
+          <p className="text-sm text-muted-foreground mt-1">{accounts.length} accounts &middot; {formatCurrency(totalBalance)} total balance</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'New Account'}
@@ -51,25 +51,25 @@ export default function AccountsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={submit} className="bg-white rounded-xl border p-5 space-y-4">
+        <form onSubmit={submit} className="bg-card rounded-xl border p-5 space-y-4">
           <h2 className="font-semibold">Create Account</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Name *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Name *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="e.g. Business Checking" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Type</label>
+              <label className="block text-sm text-muted-foreground mb-1">Type</label>
               <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                 {['checking','savings','cash','credit','investment','other'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Currency</label>
+              <label className="block text-sm text-muted-foreground mb-1">Currency</label>
               <input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Initial Balance</label>
+              <label className="block text-sm text-muted-foreground mb-1">Initial Balance</label>
               <input type="number" step="0.01" value={form.initial_balance} onChange={e => setForm(f => ({ ...f, initial_balance: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
             </div>
           </div>
@@ -80,20 +80,20 @@ export default function AccountsPage() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : accounts.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No accounts yet. Create your first account to start tracking finances.</div>
+        <div className="text-center py-16 text-muted-foreground">No accounts yet. Create your first account to start tracking finances.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map(a => (
-            <Link key={a.id} href={`/app/finance/accounts`} className="bg-white rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition">
+            <Link key={a.id} href={`/app/finance/accounts`} className="bg-card rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-gray-400" />
-                  <span className="font-medium text-gray-900">{a.name}</span>
+                  <Wallet className="w-5 h-5 text-muted-foreground" />
+                  <span className="font-medium text-foreground">{a.name}</span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TYPE_COLORS[a.type] || TYPE_COLORS.other}`}>{a.type}</span>
               </div>
               <div className={`text-2xl font-bold ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(a.balance)}</div>
-              <div className="text-xs text-gray-400 mt-1">{a.currency} &middot; {a.transaction_count || 0} transactions</div>
+              <div className="text-xs text-muted-foreground mt-1">{a.currency} &middot; {a.transaction_count || 0} transactions</div>
             </Link>
           ))}
         </div>

@@ -46,13 +46,13 @@ export default function LoginForm() {
     }
   }
 
-  const inputClasses = 'w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50';
+  const inputClasses = 'w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground dark:bg-white/[0.06] dark:border-white/[0.1] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 w-full">
       {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-2">
           Email Address
         </label>
         <input
@@ -69,7 +69,7 @@ export default function LoginForm() {
 
       {/* Password */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="password" className="block text-sm font-medium text-muted-foreground mb-2">
           Password
         </label>
         <div className="relative">
@@ -87,7 +87,7 @@ export default function LoginForm() {
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             disabled={isLoading}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -97,7 +97,7 @@ export default function LoginForm() {
 
       {/* Error */}
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-300">
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
@@ -119,9 +119,9 @@ export default function LoginForm() {
       </button>
 
       {/* Register link */}
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
-        <a href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+        <a href="/register" className="text-primary hover:text-primary/80 font:medium transition-colors">
           Create one
         </a>
       </p>

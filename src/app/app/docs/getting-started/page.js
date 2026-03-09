@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function GettingStartedPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Back Button */}
         <Link
@@ -17,19 +17,19 @@ export default function GettingStartedPage() {
         </Link>
 
         {/* Header */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-4">
             Getting Started with Jeton
           </h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-muted-foreground">
             Welcome to Jeton, your Founder-First Business Operating System. This guide will help you understand the basics and get you operational in minutes.
           </p>
         </div>
 
         {/* What is Jeton */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">What is Jeton?</h2>
-          <p className="text-gray-700 mb-4">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">What is Jeton?</h2>
+          <p className="text-foreground mb-4">
             Jeton is a complete business operating system designed specifically for founders. It manages your entire revenue cycle:
           </p>
           <div className="grid md:grid-cols-2 gap-4 mt-6">
@@ -45,7 +45,7 @@ export default function GettingStartedPage() {
             ].map((feature) => (
               <div key={feature} className="flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-gray-700">{feature}</span>
+                <span className="text-foreground">{feature}</span>
               </div>
             ))}
           </div>
@@ -53,7 +53,7 @@ export default function GettingStartedPage() {
 
         {/* The Core Workflow */}
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-8 shadow-sm mb-8 border border-blue-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">The Core Workflow</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">The Core Workflow</h2>
           <div className="space-y-4">
             {[
               { step: '1. Prospect', desc: 'Add a lead to your system', route: '/app/prospecting/new' },
@@ -65,13 +65,13 @@ export default function GettingStartedPage() {
               { step: '7. Allocate', desc: 'Distribute funds (vault, operating, expense)', route: '/app/payments' },
               { step: '8. Dashboard', desc: 'View profit, revenue, metrics', route: '/app/finance' },
             ].map((item, index) => (
-              <div key={index} className="flex items-start gap-4 bg-white rounded-lg p-4">
+              <div key={index} className="flex items-start gap-4 bg-card rounded-lg p-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
                   {index + 1}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900">{item.step}</div>
-                  <div className="text-gray-600 text-sm">{item.desc}</div>
+                  <div className="font-semibold text-foreground">{item.step}</div>
+                  <div className="text-muted-foreground text-sm">{item.desc}</div>
                 </div>
                 <Link
                   href={item.route}
@@ -85,16 +85,16 @@ export default function GettingStartedPage() {
         </div>
 
         {/* First Steps */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Your First Steps</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-6">Your First Steps</h2>
           
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
                 <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">1</span>
                 Add Your First System/Product
               </h3>
-              <p className="text-gray-700 ml-8 mb-2">
+              <p className="text-foreground ml-8 mb-2">
                 Before creating deals, you must define what you're selling.
               </p>
               <Link
@@ -106,11 +106,11 @@ export default function GettingStartedPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
                 <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">2</span>
                 Add Your First Prospect
               </h3>
-              <p className="text-gray-700 ml-8 mb-2">
+              <p className="text-foreground ml-8 mb-2">
                 Add a potential customer to start tracking your sales pipeline.
               </p>
               <Link
@@ -122,11 +122,11 @@ export default function GettingStartedPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
                 <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">3</span>
                 Read the Founder Manual
               </h3>
-              <p className="text-gray-700 ml-8 mb-2">
+              <p className="text-foreground ml-8 mb-2">
                 Learn your daily routine and key metrics to track.
               </p>
               <Link
@@ -140,35 +140,35 @@ export default function GettingStartedPage() {
         </div>
 
         {/* Key Concepts */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Key Concepts</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-6">Key Concepts</h2>
           
           <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">Prospect vs. Client</h4>
-              <p className="text-gray-700 text-sm">
+            <div className="p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold text-foreground mb-2">Prospect vs. Client</h4>
+              <p className="text-foreground text-sm">
                 <strong>Prospect:</strong> A potential customer you're nurturing. <br />
                 <strong>Client:</strong> A converted prospect who's ready to buy. You cannot create contracts with prospects, only clients.
               </p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">System (Product)</h4>
-              <p className="text-gray-700 text-sm">
+            <div className="p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold text-foreground mb-2">System (Product)</h4>
+              <p className="text-foreground text-sm">
                 A system is what you sell (software, service, product). Every deal and contract must reference a system. This ensures revenue attribution.
               </p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">Deal → Contract → Payment</h4>
-              <p className="text-gray-700 text-sm">
+            <div className="p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold text-foreground mb-2">Deal → Contract → Payment</h4>
+              <p className="text-foreground text-sm">
                 A <strong>Deal</strong> represents a sales opportunity. When won, it auto-creates a <strong>Contract</strong>. When money arrives, you record a <strong>Payment</strong> linked to that contract.
               </p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">Allocation</h4>
-              <p className="text-gray-700 text-sm">
+            <div className="p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold text-foreground mb-2">Allocation</h4>
+              <p className="text-foreground text-sm">
                 When you receive a payment, you allocate it to categories: Vault (savings), Operating (working capital), Expense (specific costs), Investment (growth).
               </p>
             </div>
@@ -179,9 +179,9 @@ export default function GettingStartedPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-start gap-3 mb-4">
             <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0" />
-            <h2 className="text-2xl font-bold text-gray-900">Important Business Rules</h2>
+            <h2 className="text-2xl font-bold text-foreground">Important Business Rules</h2>
           </div>
-          <ul className="space-y-2 text-gray-700">
+          <ul className="space-y-2 text-foreground">
             <li className="flex items-start gap-2">
               <span className="text-yellow-600 font-bold">•</span>
               <span>Every deal <strong>must</strong> have a system_id (which product you're selling)</span>
@@ -206,8 +206,8 @@ export default function GettingStartedPage() {
         </div>
 
         {/* Next Steps */}
-        <div className="bg-white rounded-xl p-8 shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Next Steps</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Next Steps</h2>
           <div className="space-y-3">
             <Link
               href="/app/docs/founder"

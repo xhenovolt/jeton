@@ -130,7 +130,7 @@ export default function UserDetailPage({ params }) {
           {!editMode && (
             <button
               onClick={() => setEditMode(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-foreground rounded hover:bg-blue-700"
             >
               Edit
             </button>
@@ -138,7 +138,7 @@ export default function UserDetailPage({ params }) {
           {!user.is_superadmin && (
             <button
               onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="px-4 py-2 bg-red-600 text-foreground rounded hover:bg-red-700"
             >
               Delete User
             </button>
@@ -157,7 +157,7 @@ export default function UserDetailPage({ params }) {
         {/* Left: User Profile */}
         <div className="col-span-2 space-y-6">
           {/* Profile Section */}
-          <div className="bg-white rounded-lg p-6 shadow">
+          <div className="bg-card rounded-lg p-6 shadow">
             <h2 className="text-xl font-bold mb-4">Profile Information</h2>
 
             <div className="space-y-4">
@@ -169,7 +169,7 @@ export default function UserDetailPage({ params }) {
                     className="w-20 h-20 rounded-full"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-blue-600 text-white text-2xl font-semibold flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full bg-blue-600 text-foreground text-2xl font-semibold flex items-center justify-center">
                     {getAvatarText()}
                   </div>
                 )}
@@ -270,7 +270,7 @@ export default function UserDetailPage({ params }) {
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                      className="flex-1 px-4 py-2 bg-green-600 text-foreground rounded hover:bg-green-700 disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -288,29 +288,29 @@ export default function UserDetailPage({ params }) {
               ) : (
                 <>
                   <div>
-                    <span className="text-sm text-gray-600">Email</span>
+                    <span className="text-sm text-muted-foreground">Email</span>
                     <div className="font-medium">{user.email}</div>
                   </div>
 
                   <div>
-                    <span className="text-sm text-gray-600">Username</span>
+                    <span className="text-sm text-muted-foreground">Username</span>
                     <div className="font-medium">{user.username || 'Not set'}</div>
                   </div>
 
                   <div>
-                    <span className="text-sm text-gray-600">Department</span>
+                    <span className="text-sm text-muted-foreground">Department</span>
                     <div className="font-medium">
                       {user.department || 'Not assigned'}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-sm text-gray-600">Status</span>
+                    <span className="text-sm text-muted-foreground">Status</span>
                     <div className="font-medium capitalize">{user.status}</div>
                   </div>
 
                   <div>
-                    <span className="text-sm text-gray-600">Created</span>
+                    <span className="text-sm text-muted-foreground">Created</span>
                     <div className="font-medium">
                       {new Date(user.created_at).toLocaleDateString()}
                     </div>
@@ -322,7 +322,7 @@ export default function UserDetailPage({ params }) {
 
           {/* Sessions Section */}
           {user.sessions && user.sessions.length > 0 && (
-            <div className="bg-white rounded-lg p-6 shadow">
+            <div className="bg-card rounded-lg p-6 shadow">
               <h2 className="text-xl font-bold mb-4">Active Sessions</h2>
 
               <div className="space-y-3">
@@ -335,10 +335,10 @@ export default function UserDetailPage({ params }) {
                       <div className="font-medium">
                         {session.device_name} - {session.browser}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {session.country}, {session.city} • {session.ip_address}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         Last active:{' '}
                         {new Date(session.last_activity).toLocaleString()}
                       </div>
@@ -357,7 +357,7 @@ export default function UserDetailPage({ params }) {
                             setError(err.message);
                           }
                         }}
-                        className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                        className="px-3 py-1 bg-red-600 text-foreground rounded text-sm hover:bg-red-700"
                       >
                         Kill Session
                       </button>
@@ -372,7 +372,7 @@ export default function UserDetailPage({ params }) {
         {/* Right: Roles & Permissions */}
         <div className="space-y-6">
           {/* Roles Card */}
-          <div className="bg-white rounded-lg p-6 shadow">
+          <div className="bg-card rounded-lg p-6 shadow">
             <h2 className="text-xl font-bold mb-4">Roles</h2>
 
             {user.is_superadmin ? (
@@ -382,7 +382,7 @@ export default function UserDetailPage({ params }) {
             ) : (
               <div className="space-y-2">
                 {roles.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No roles assigned</p>
+                  <p className="text-muted-foreground text-sm">No roles assigned</p>
                 ) : (
                   roles.map((role) => (
                     <div
@@ -390,7 +390,7 @@ export default function UserDetailPage({ params }) {
                       className="p-2 bg-blue-50 border border-blue-200 rounded text-sm"
                     >
                       <div className="font-medium">{role.name}</div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-muted-foreground">
                         {role.description}
                       </div>
                     </div>
@@ -401,17 +401,17 @@ export default function UserDetailPage({ params }) {
           </div>
 
           {/* Status Card */}
-          <div className="bg-white rounded-lg p-6 shadow">
+          <div className="bg-card rounded-lg p-6 shadow">
             <h2 className="text-xl font-bold mb-4">Account Status</h2>
 
             <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-600">Current Status</span>
+                <span className="text-sm text-muted-foreground">Current Status</span>
                 <div className="text-lg font-bold capitalize">{user.status}</div>
               </div>
 
               <div>
-                <span className="text-sm text-gray-600">Last Seen</span>
+                <span className="text-sm text-muted-foreground">Last Seen</span>
                 <div className="font-medium">
                   {user.last_seen
                     ? new Date(user.last_seen).toLocaleString()
@@ -422,24 +422,24 @@ export default function UserDetailPage({ params }) {
           </div>
 
           {/* Quick Stats */}
-          <div className="bg-white rounded-lg p-6 shadow">
+          <div className="bg-card rounded-lg p-6 shadow">
             <h2 className="text-xl font-bold mb-4">Summary</h2>
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Active Sessions</span>
+                <span className="text-muted-foreground">Active Sessions</span>
                 <span className="font-medium">
                   {user.sessions?.filter((s) => s.is_active).length || 0}
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-600">Roles Assigned</span>
+                <span className="text-muted-foreground">Roles Assigned</span>
                 <span className="font-medium">{roles.length}</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-600">Permissions</span>
+                <span className="text-muted-foreground">Permissions</span>
                 <span className="font-medium">{permissions.length}</span>
               </div>
             </div>

@@ -292,11 +292,11 @@ export default function SalesPage() {
 
   // Metric cards
   const MetricCard = ({ label, value, icon: Icon, color }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+    <div className="bg-card rounded-lg p-4 border border-border">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
         </div>
         <Icon className={`w-8 h-8 ${color}`} />
       </div>
@@ -304,12 +304,12 @@ export default function SalesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-muted pb-20">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sales Management</h1>
+            <h1 className="text-3xl font-bold text-foreground">Sales Management</h1>
             <button
               onClick={() => {
                 setEditingId(null);
@@ -375,19 +375,19 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-card rounded-lg p-4 border border-border">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input
               type="text"
               placeholder="Search customer or product..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
@@ -398,13 +398,13 @@ export default function SalesPage() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -412,37 +412,37 @@ export default function SalesPage() {
 
       {/* Sales Table */}
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading...</div>
+            <div className="p-8 text-center text-muted-foreground">Loading...</div>
           ) : sales.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No sales found</div>
+            <div className="p-8 text-center text-muted-foreground">No sales found</div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <thead className="bg-muted border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Customer</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Product</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Qty</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Total</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Payment</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Customer</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Product</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Qty</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Total</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Payment</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-border dark:divide-gray-700">
                     {sales.map((sale) => {
                       // some records may originate from a deal that hasn't been converted yet
                       const recordKey = sale.id || sale.sale_id || sale.deal_id || Math.random();
                       const isConverted = !!(sale.id || sale.sale_id);
                       return (
-                        <tr key={recordKey} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{sale.customer_name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{sale.product_service}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{sale.quantity}</td>
-                        <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                        <tr key={recordKey} className="hover:bg-muted dark:hover:bg-muted transition-colors">
+                        <td className="px-6 py-4 text-sm text-foreground">{sale.customer_name}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{sale.product_service}</td>
+                        <td className="px-6 py-4 text-sm text-foreground">{sale.quantity}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-foreground">
                           {formatCurrency(sale.total_amount)}
                         </td>
                         <td className="px-6 py-4">
@@ -453,14 +453,14 @@ export default function SalesPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1">
-                              <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
                                 <div
                                   className="bg-blue-600 h-2 rounded-full"
                                   style={{ width: `${calculatePaymentProgress(sale.total_amount, sale.total_paid)}%` }}
                                 />
                               </div>
                             </div>
-                            <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
                               {Math.round(calculatePaymentProgress(sale.total_amount, sale.total_paid))}%
                             </span>
                           </div>
@@ -470,7 +470,7 @@ export default function SalesPage() {
                             <button
                               onClick={() => isConverted && handleViewDetails(sale.id || sale.sale_id)}
                               disabled={!isConverted}
-                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted dark:hover:bg-muted'}`}
                               title={isConverted ? 'View details' : 'Convert deal to sale to view'}
                             >
                               <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -478,7 +478,7 @@ export default function SalesPage() {
                             <button
                               onClick={() => isConverted && handleEditSale(sale)}
                               disabled={!isConverted}
-                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted dark:hover:bg-muted'}`}
                               title={isConverted ? 'Edit' : 'Cannot edit unrecorded sale'}
                             >
                               <Edit2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -486,7 +486,7 @@ export default function SalesPage() {
                             <button
                               onClick={() => isConverted && handleDeleteSale(sale.id || sale.sale_id)}
                               disabled={!isConverted}
-                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              className={`p-2 rounded transition-colors ${!isConverted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted dark:hover:bg-muted'}`}
                               title={isConverted ? 'Delete' : 'Cannot delete until sale is recorded'}
                             >
                               <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
@@ -501,22 +501,22 @@ export default function SalesPage() {
               </div>
 
               {/* Pagination */}
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="px-6 py-4 border-t border-border flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">
                   Page {currentPage} of {totalPages}
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 border border-border rounded-lg disabled:opacity-50 hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 border border-border rounded-lg disabled:opacity-50 hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
                     Next
                   </button>
@@ -530,9 +530,9 @@ export default function SalesPage() {
       {/* Add/Edit Sale Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          <div className="bg-card rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-card px-6 py-4 border-b border-border flex justify-between items-center">
+              <h2 className="text-xl font-bold text-foreground">
                 {editingId ? 'Edit Sale' : 'Add New Sale'}
               </h2>
               <button
@@ -540,7 +540,7 @@ export default function SalesPage() {
                   setShowAddModal(false);
                   setEditingId(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-foreground dark:hover:text-gray-200"
               >
                 ✕
               </button>
@@ -548,43 +548,43 @@ export default function SalesPage() {
 
             <form onSubmit={editingId ? handleUpdateSale : handleAddSale} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name *</label>
+                <label className="block text-sm font-medium text-foreground">Customer Name *</label>
                 <input
                   type="text"
                   name="customer_name"
                   value={formData.customer_name}
                   onChange={handleFormChange}
                   required
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                <label className="block text-sm font-medium text-foreground">Email</label>
                 <input
                   type="email"
                   name="customer_email"
                   value={formData.customer_email}
                   onChange={handleFormChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product/Service *</label>
+                <label className="block text-sm font-medium text-foreground">Product/Service *</label>
                 <input
                   type="text"
                   name="product_service"
                   value={formData.product_service}
                   onChange={handleFormChange}
                   required
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity *</label>
+                  <label className="block text-sm font-medium text-foreground">Quantity *</label>
                   <input
                     type="number"
                     name="quantity"
@@ -592,11 +592,11 @@ export default function SalesPage() {
                     onChange={handleFormChange}
                     required
                     min="1"
-                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Unit Price *</label>
+                  <label className="block text-sm font-medium text-foreground">Unit Price *</label>
                   <input
                     type="number"
                     name="unit_price"
@@ -605,7 +605,7 @@ export default function SalesPage() {
                     required
                     step="0.01"
                     min="0"
-                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -619,23 +619,23 @@ export default function SalesPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sale Date</label>
+                <label className="block text-sm font-medium text-foreground">Sale Date</label>
                 <input
                   type="date"
                   name="sale_date"
                   value={formData.sale_date}
                   onChange={handleFormChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                <label className="block text-sm font-medium text-foreground">Notes</label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleFormChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="3"
                 />
               </div>
@@ -653,7 +653,7 @@ export default function SalesPage() {
                     setShowAddModal(false);
                     setEditingId(null);
                   }}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 border border-border text-foreground px-4 py-2 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -666,12 +666,12 @@ export default function SalesPage() {
       {/* Sale Details Modal */}
       {showDetailsModal && selectedSale && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Sale Details</h2>
+          <div className="bg-card rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-card px-6 py-4 border-b border-border flex justify-between items-center">
+              <h2 className="text-xl font-bold text-foreground">Sale Details</h2>
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-foreground dark:hover:text-gray-200"
               >
                 ✕
               </button>
@@ -681,45 +681,45 @@ export default function SalesPage() {
               {/* Sale Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Customer</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedSale.customer_name}</p>
+                  <p className="text-sm text-muted-foreground">Customer</p>
+                  <p className="text-lg font-semibold text-foreground">{selectedSale.customer_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedSale.customer_email || '-'}</p>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="text-lg font-semibold text-foreground">{selectedSale.customer_email || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Product/Service</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedSale.product_service}</p>
+                  <p className="text-sm text-muted-foreground">Product/Service</p>
+                  <p className="text-lg font-semibold text-foreground">{selectedSale.product_service}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                  <p className="text-sm text-muted-foreground">Status</p>
                   <span className={`inline-block mt-1 px-3 py-1 text-xs font-semibold rounded-full ${getStatusBgColor(selectedSale.status)} ${getStatusColor(selectedSale.status)}`}>
                     {selectedSale.status}
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Quantity</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedSale.quantity}</p>
+                  <p className="text-sm text-muted-foreground">Quantity</p>
+                  <p className="text-lg font-semibold text-foreground">{selectedSale.quantity}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Unit Price</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatCurrency(selectedSale.unit_price)}</p>
+                  <p className="text-sm text-muted-foreground">Unit Price</p>
+                  <p className="text-lg font-semibold text-foreground">{formatCurrency(selectedSale.unit_price)}</p>
                 </div>
               </div>
 
               {/* Amount Summary */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+              <div className="bg-muted rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Total Amount:</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(selectedSale.total_amount)}</span>
+                  <span className="text-muted-foreground">Total Amount:</span>
+                  <span className="font-semibold text-foreground">{formatCurrency(selectedSale.total_amount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Total Paid:</span>
+                  <span className="text-muted-foreground">Total Paid:</span>
                   <span className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(selectedSale.total_paid)}</span>
                 </div>
-                <div className="border-t border-gray-300 dark:border-gray-600 pt-2 flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Remaining Balance:</span>
+                <div className="border-t border-border pt-2 flex justify-between">
+                  <span className="text-muted-foreground">Remaining Balance:</span>
                   <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(selectedSale.remaining_balance)}</span>
                 </div>
               </div>
@@ -727,12 +727,12 @@ export default function SalesPage() {
               {/* Payment Progress */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment Progress</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-foreground">Payment Progress</span>
+                  <span className="text-sm font-semibold text-foreground">
                     {Math.round(calculatePaymentProgress(selectedSale.total_amount, selectedSale.total_paid))}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="bg-blue-600 h-3 rounded-full"
                     style={{ width: `${calculatePaymentProgress(selectedSale.total_amount, selectedSale.total_paid)}%` }}
@@ -743,16 +743,16 @@ export default function SalesPage() {
               {/* Payments History */}
               {selectedSale.payments && selectedSale.payments.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Payment History</h3>
+                  <h3 className="font-semibold text-foreground mb-4">Payment History</h3>
                   <div className="space-y-2">
                     {selectedSale.payments.map((payment) => (
                       <div
                         key={payment.id}
-                        className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                        className="flex justify-between items-center p-3 bg-muted rounded-lg"
                       >
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{formatCurrency(payment.amount)}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="font-medium text-foreground">{formatCurrency(payment.amount)}</p>
+                          <p className="text-sm text-muted-foreground">
                             {payment.payment_method} • {new Date(payment.payment_date).toLocaleDateString()}
                           </p>
                         </div>
@@ -777,7 +777,7 @@ export default function SalesPage() {
 
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="w-full border border-border text-foreground px-4 py-2 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
               >
                 Close
               </button>
@@ -789,12 +789,12 @@ export default function SalesPage() {
       {/* Payment Modal */}
       {showPaymentModal && selectedSale && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Payment</h2>
+          <div className="bg-card rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center">
+              <h2 className="text-xl font-bold text-foreground">Add Payment</h2>
               <button
                 onClick={() => setShowPaymentModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-foreground dark:hover:text-gray-200"
               >
                 ✕
               </button>
@@ -802,17 +802,17 @@ export default function SalesPage() {
 
             <form onSubmit={handleAddPayment} className="p-6 space-y-4">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Sale Amount</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(selectedSale.total_amount)}</p>
+                <p className="text-sm text-muted-foreground">Sale Amount</p>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(selectedSale.total_amount)}</p>
               </div>
 
-              <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Remaining Balance</p>
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">Remaining Balance</p>
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(selectedSale.remaining_balance)}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Payment Amount *</label>
+                <label className="block text-sm font-medium text-foreground">Payment Amount *</label>
                 <input
                   type="number"
                   name="amount"
@@ -822,17 +822,17 @@ export default function SalesPage() {
                   step="0.01"
                   min="0"
                   max={selectedSale.remaining_balance}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Payment Method</label>
+                <label className="block text-sm font-medium text-foreground">Payment Method</label>
                 <select
                   name="payment_method"
                   value={paymentData.payment_method}
                   onChange={handlePaymentChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Cash">Cash</option>
                   <option value="Bank Transfer">Bank Transfer</option>
@@ -842,23 +842,23 @@ export default function SalesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Payment Date</label>
+                <label className="block text-sm font-medium text-foreground">Payment Date</label>
                 <input
                   type="date"
                   name="payment_date"
                   value={paymentData.payment_date}
                   onChange={handlePaymentChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                <label className="block text-sm font-medium text-foreground">Notes</label>
                 <textarea
                   name="notes"
                   value={paymentData.notes}
                   onChange={handlePaymentChange}
-                  className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="2"
                 />
               </div>
@@ -873,7 +873,7 @@ export default function SalesPage() {
                 <button
                   type="button"
                   onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 border border-border text-foreground px-4 py-2 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>

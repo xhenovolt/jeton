@@ -5,7 +5,7 @@ import { ArrowLeft, Code, Database, FileCode, GitBranch, Shield, Zap } from 'luc
 
 export default function DeveloperPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Back Button */}
         <Link
@@ -25,10 +25,10 @@ export default function DeveloperPage() {
         </div>
 
         {/* Project Structure */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <FileCode className="w-6 h-6 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Project Structure</h2>
+            <h2 className="text-2xl font-bold text-foreground">Project Structure</h2>
           </div>
           <div className="bg-gray-900 p-6 rounded-lg font-mono text-sm text-green-400 overflow-x-auto">
             <pre>{`jeton/
@@ -61,16 +61,16 @@ export default function DeveloperPage() {
         </div>
 
         {/* Tech Stack */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Zap className="w-6 h-6 text-yellow-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Technology Stack</h2>
+            <h2 className="text-2xl font-bold text-foreground">Technology Stack</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Frontend</h3>
-                <ul className="space-y-2 text-sm text-gray-700">
+                <h3 className="font-semibold text-foreground mb-2">Frontend</h3>
+                <ul className="space-y-2 text-sm text-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
                     <span><strong>Next.js 16.1.1</strong> - App Router, Server Components</span>
@@ -96,8 +96,8 @@ export default function DeveloperPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Backend</h3>
-                <ul className="space-y-2 text-sm text-gray-700">
+                <h3 className="font-semibold text-foreground mb-2">Backend</h3>
+                <ul className="space-y-2 text-sm text-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
                     <span><strong>PostgreSQL</strong> - Neon Cloud database</span>
@@ -121,15 +121,15 @@ export default function DeveloperPage() {
         </div>
 
         {/* API Patterns */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Code className="w-6 h-6 text-blue-600" />
-            <h2 className="text-2xl font-bold text-gray-900">API Patterns</h2>
+            <h2 className="text-2xl font-bold text-foreground">API Patterns</h2>
           </div>
 
           <div className="space-y-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Standard CRUD Endpoints</h3>
+              <h3 className="font-semibold text-foreground mb-3">Standard CRUD Endpoints</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`GET    /api/resource          # List all
 POST   /api/resource          # Create new
@@ -140,7 +140,7 @@ DELETE /api/resource/[id]     # Delete`}</pre>
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Example API Route</h3>
+              <h3 className="font-semibold text-foreground mb-3">Example API Route</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400 overflow-x-auto">
                 <pre>{`// src/app/api/prospects/route.js
 import { NextResponse } from 'next/server';
@@ -185,7 +185,7 @@ export async function POST(request) {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Validation with Zod</h3>
+              <h3 className="font-semibold text-foreground mb-3">Validation with Zod</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`// src/lib/validation.js
 import { z } from 'zod';
@@ -209,15 +209,15 @@ export function validateProspect(data) {
         </div>
 
         {/* Database Architecture */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Database className="w-6 h-6 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Database Architecture</h2>
+            <h2 className="text-2xl font-bold text-foreground">Database Architecture</h2>
           </div>
 
           <div className="space-y-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Connection Pool</h3>
+              <h3 className="font-semibold text-foreground mb-3">Connection Pool</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`// src/lib/db.js
 import pg from 'pg';
@@ -233,8 +233,8 @@ export default pool;`}</pre>
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Key Tables & Relationships</h3>
-              <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700">
+              <h3 className="font-semibold text-foreground mb-3">Key Tables & Relationships</h3>
+              <div className="bg-muted p-4 rounded-lg text-sm text-foreground">
                 <ul className="space-y-2">
                   <li><strong>prospects</strong> → converts to → <strong>clients</strong></li>
                   <li><strong>deals</strong> → links to → <strong>clients</strong> + <strong>intellectual_property</strong> (systems)</li>
@@ -246,8 +246,8 @@ export default pool;`}</pre>
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Database Triggers</h3>
-              <p className="text-sm text-gray-700 mb-2">
+              <h3 className="font-semibold text-foreground mb-3">Database Triggers</h3>
+              <p className="text-sm text-foreground mb-2">
                 Critical business logic enforced at database level:
               </p>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-sm">
@@ -262,15 +262,15 @@ export default pool;`}</pre>
         </div>
 
         {/* Authentication */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Shield className="w-6 h-6 text-red-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Authentication & Authorization</h2>
+            <h2 className="text-2xl font-bold text-foreground">Authentication & Authorization</h2>
           </div>
 
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Middleware Protection</h3>
+              <h3 className="font-semibold text-foreground mb-3">Middleware Protection</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400 overflow-x-auto">
                 <pre>{`// middleware.ts
 import { NextResponse } from 'next/server';
@@ -292,8 +292,8 @@ export const config = {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Role-Based Access Control</h3>
-              <div className="bg-gray-50 p-4 rounded-lg text-sm">
+              <h3 className="font-semibold text-foreground mb-3">Role-Based Access Control</h3>
+              <div className="bg-muted p-4 rounded-lg text-sm">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-200">
@@ -304,19 +304,19 @@ export const config = {
                   <tbody>
                     <tr className="border-b">
                       <td className="p-2 font-semibold">User</td>
-                      <td className="p-2 text-gray-700">Basic read/write access</td>
+                      <td className="p-2 text-foreground">Basic read/write access</td>
                     </tr>
                     <tr className="border-b">
                       <td className="p-2 font-semibold">Manager</td>
-                      <td className="p-2 text-gray-700">Team oversight, reports</td>
+                      <td className="p-2 text-foreground">Team oversight, reports</td>
                     </tr>
                     <tr className="border-b">
                       <td className="p-2 font-semibold">Admin</td>
-                      <td className="p-2 text-gray-700">User management, audit logs</td>
+                      <td className="p-2 text-foreground">User management, audit logs</td>
                     </tr>
                     <tr>
                       <td className="p-2 font-semibold">Super Admin</td>
-                      <td className="p-2 text-gray-700">Full system access</td>
+                      <td className="p-2 text-foreground">Full system access</td>
                     </tr>
                   </tbody>
                 </table>
@@ -326,15 +326,15 @@ export const config = {
         </div>
 
         {/* Adding New Features */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <GitBranch className="w-6 h-6 text-green-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Adding New Features</h2>
+            <h2 className="text-2xl font-bold text-foreground">Adding New Features</h2>
           </div>
 
           <div className="space-y-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Step 1: Database Migration</h3>
+              <h3 className="font-semibold text-foreground mb-3">Step 1: Database Migration</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`-- migrations/114_add_new_feature.sql
 CREATE TABLE new_feature (
@@ -349,7 +349,7 @@ CREATE TABLE new_feature (
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Step 2: API Route</h3>
+              <h3 className="font-semibold text-foreground mb-3">Step 2: API Route</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`// src/app/api/new-feature/route.js
 import { NextResponse } from 'next/server';
@@ -372,7 +372,7 @@ export async function POST(request) {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Step 3: UI Page</h3>
+              <h3 className="font-semibold text-foreground mb-3">Step 3: UI Page</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400 overflow-x-auto">
                 <pre>{`// src/app/app/new-feature/page.js
 'use client';
@@ -400,7 +400,7 @@ export default function NewFeaturePage() {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Step 4: Add to Navigation</h3>
+              <h3 className="font-semibold text-foreground mb-3">Step 4: Add to Navigation</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400 overflow-x-auto">
                 <pre>{`// src/lib/navigation-config.js
 export const navigationConfig = {
@@ -419,12 +419,12 @@ export const navigationConfig = {
         </div>
 
         {/* Testing */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Testing</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Testing</h2>
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Manual Testing Checklist</h3>
-              <ul className="space-y-2 text-sm text-gray-700 ml-4">
+              <h3 className="font-semibold text-foreground mb-2">Manual Testing Checklist</h3>
+              <ul className="space-y-2 text-sm text-foreground ml-4">
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 font-bold">•</span>
                   <span>Test all CRUD operations via UI</span>
@@ -449,7 +449,7 @@ export const navigationConfig = {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Build Test</h3>
+              <h3 className="font-semibold text-foreground mb-2">Build Test</h3>
               <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400">
                 <pre>{`npm run build
 
@@ -485,8 +485,8 @@ npm start
         </div>
 
         {/* Links */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Related Documentation</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Related Documentation</h2>
           <div className="grid md:grid-cols-3 gap-4">
             <Link
               href="/app/docs/modules"

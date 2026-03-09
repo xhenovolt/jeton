@@ -7,11 +7,11 @@ import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 
 const STATUS_COLORS = {
-  draft: 'bg-gray-100 text-gray-700', sent: 'bg-blue-100 text-blue-700', accepted: 'bg-cyan-100 text-cyan-700',
+  draft: 'bg-muted text-foreground', sent: 'bg-blue-100 text-blue-700', accepted: 'bg-cyan-100 text-cyan-700',
   in_progress: 'bg-purple-100 text-purple-700', completed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-700', disputed: 'bg-orange-100 text-orange-700',
 };
-const PAY_STATUS = { pending: 'bg-yellow-100 text-yellow-700', completed: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700', refunded: 'bg-gray-100 text-gray-700' };
+const PAY_STATUS = { pending: 'bg-yellow-100 text-yellow-700', completed: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700', refunded: 'bg-muted text-foreground' };
 
 export default function DealDetailPage() {
   const { id } = useParams();
@@ -55,7 +55,7 @@ export default function DealDetailPage() {
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
-  if (!deal) return <div className="p-6 text-center text-gray-500">Deal not found</div>;
+  if (!deal) return <div className="p-6 text-center text-muted-foreground">Deal not found</div>;
 
   const paid = parseFloat(deal.paid_amount || 0);
   const total = parseFloat(deal.total_amount || 0);
@@ -65,10 +65,10 @@ export default function DealDetailPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push('/app/deals')} className="p-1.5 rounded-lg hover:bg-gray-100"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={() => router.push('/app/deals')} className="p-1.5 rounded-lg hover:bg-muted"><ArrowLeft className="w-5 h-5" /></button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{deal.title}</h1>
-          <p className="text-sm text-gray-500">{deal.client_name}</p>
+          <h1 className="text-2xl font-bold text-foreground">{deal.title}</h1>
+          <p className="text-sm text-muted-foreground">{deal.client_name}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${STATUS_COLORS[deal.status]}`}>{deal.status.replace(/_/g,' ')}</span>
       </div>
@@ -81,16 +81,16 @@ export default function DealDetailPage() {
           { label: 'Remaining', value: `$${remaining.toLocaleString()}`, icon: Clock, color: remaining > 0 ? 'orange' : 'emerald' },
           { label: 'Progress', value: `${pct}%`, icon: DollarSign, color: 'purple' },
         ].map(c => (
-          <div key={c.label} className="bg-white rounded-xl border p-4">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><c.icon className="w-3.5 h-3.5" />{c.label}</div>
+          <div key={c.label} className="bg-card rounded-xl border p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><c.icon className="w-3.5 h-3.5" />{c.label}</div>
             <div className={`text-xl font-bold text-${c.color}-600`}>{c.value}</div>
           </div>
         ))}
       </div>
 
       {/* Progress bar */}
-      <div className="bg-white rounded-xl border p-4">
-        <div className="flex justify-between text-sm mb-2"><span className="text-gray-500">Payment Progress</span><span className="font-medium">{pct}%</span></div>
+      <div className="bg-card rounded-xl border p-4">
+        <div className="flex justify-between text-sm mb-2"><span className="text-muted-foreground">Payment Progress</span><span className="font-medium">{pct}%</span></div>
         <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
         </div>
@@ -98,18 +98,18 @@ export default function DealDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Deal Details */}
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h2 className="font-semibold text-gray-900">Details</h2>
-          {deal.description && <p className="text-sm text-gray-600">{deal.description}</p>}
+        <div className="bg-card rounded-xl border p-5 space-y-3">
+          <h2 className="font-semibold text-foreground">Details</h2>
+          {deal.description && <p className="text-sm text-muted-foreground">{deal.description}</p>}
           <div className="text-sm space-y-2">
-            {deal.offering_name && <div className="flex justify-between"><span className="text-gray-400">Offering</span><span>{deal.offering_name}</span></div>}
-            <div className="flex justify-between"><span className="text-gray-400">Created</span><span>{new Date(deal.created_at).toLocaleDateString()}</span></div>
-            {deal.start_date && <div className="flex justify-between"><span className="text-gray-400">Start</span><span>{new Date(deal.start_date).toLocaleDateString()}</span></div>}
-            {deal.end_date && <div className="flex justify-between"><span className="text-gray-400">End</span><span>{new Date(deal.end_date).toLocaleDateString()}</span></div>}
-            {deal.closed_at && <div className="flex justify-between"><span className="text-gray-400">Closed</span><span>{new Date(deal.closed_at).toLocaleDateString()}</span></div>}
+            {deal.offering_name && <div className="flex justify-between"><span className="text-muted-foreground">Offering</span><span>{deal.offering_name}</span></div>}
+            <div className="flex justify-between"><span className="text-muted-foreground">Created</span><span>{new Date(deal.created_at).toLocaleDateString()}</span></div>
+            {deal.start_date && <div className="flex justify-between"><span className="text-muted-foreground">Start</span><span>{new Date(deal.start_date).toLocaleDateString()}</span></div>}
+            {deal.end_date && <div className="flex justify-between"><span className="text-muted-foreground">End</span><span>{new Date(deal.end_date).toLocaleDateString()}</span></div>}
+            {deal.closed_at && <div className="flex justify-between"><span className="text-muted-foreground">Closed</span><span>{new Date(deal.closed_at).toLocaleDateString()}</span></div>}
           </div>
           <div className="pt-3 border-t">
-            <label className="text-xs text-gray-400">Update Status</label>
+            <label className="text-xs text-muted-foreground">Update Status</label>
             <div className="flex gap-2 mt-1">
               <select value={statusEdit} onChange={e => setStatusEdit(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm">
                 {['draft','sent','accepted','in_progress','completed','cancelled','disputed'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
@@ -120,9 +120,9 @@ export default function DealDetailPage() {
         </div>
 
         {/* Payments */}
-        <div className="lg:col-span-2 bg-white rounded-xl border p-5">
+        <div className="lg:col-span-2 bg-card rounded-xl border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Payments ({deal.payments?.length || 0})</h2>
+            <h2 className="font-semibold text-foreground">Payments ({deal.payments?.length || 0})</h2>
             {remaining > 0 && (
               <button onClick={() => { setPayForm(f => ({ ...f, amount: remaining.toString() })); setShowPayForm(true); }} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium">
                 <Plus className="w-4 h-4" /> Record Payment
@@ -131,7 +131,7 @@ export default function DealDetailPage() {
           </div>
 
           {showPayForm && (
-            <form onSubmit={submitPayment} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
+            <form onSubmit={submitPayment} className="mb-4 p-4 bg-muted rounded-lg space-y-3">
               <div className="flex justify-between items-center"><span className="text-sm font-medium">Record Payment</span><button type="button" onClick={() => setShowPayForm(false)}><X className="w-4 h-4" /></button></div>
               <div className="grid grid-cols-2 gap-3">
                 <input type="number" step="0.01" placeholder="Amount" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))} required className="px-3 py-2 border rounded-lg text-sm" />
@@ -149,18 +149,18 @@ export default function DealDetailPage() {
           )}
 
           {(!deal.payments || deal.payments.length === 0) ? (
-            <p className="text-sm text-gray-400 text-center py-8">No payments recorded yet</p>
+            <p className="text-sm text-muted-foreground text-center py-8">No payments recorded yet</p>
           ) : (
             <div className="divide-y">
               {deal.payments.map(p => (
                 <div key={p.id} className="flex items-center justify-between py-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-gray-400" />
+                      <CreditCard className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium">${parseFloat(p.amount).toLocaleString()}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs ${PAY_STATUS[p.status]}`}>{p.status}</span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5 ml-6">
+                    <div className="text-xs text-muted-foreground mt-0.5 ml-6">
                       {p.method?.replace(/_/g, ' ')} {p.reference && `· ${p.reference}`} · {new Date(p.created_at).toLocaleDateString()}
                     </div>
                   </div>

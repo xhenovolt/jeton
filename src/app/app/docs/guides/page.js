@@ -246,18 +246,18 @@ function GuideCard({ guide }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition text-left"
+        className="w-full flex items-center justify-between p-5 hover:bg-muted transition text-left"
       >
         <div className="flex items-start gap-4 flex-1">
           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
             <BookOpen className="w-5 h-5 text-blue-600" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{guide.title}</h3>
-            <p className="text-sm text-gray-600">{guide.description}</p>
+            <h3 className="text-lg font-semibold text-foreground mb-1">{guide.title}</h3>
+            <p className="text-sm text-muted-foreground">{guide.description}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-4">
@@ -271,7 +271,7 @@ function GuideCard({ guide }) {
             </Link>
           )}
           <ChevronDown
-            className={`w-5 h-5 text-gray-400 transition-transform ${
+            className={`w-5 h-5 text-muted-foreground transition-transform ${
               isOpen ? 'rotate-180' : ''
             }`}
           />
@@ -279,14 +279,14 @@ function GuideCard({ guide }) {
       </button>
 
       {isOpen && (
-        <div className="p-5 pt-0 border-t border-gray-100 space-y-6">
+        <div className="p-5 pt-0 border-t border-border space-y-6">
           {guide.prerequisites && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                 <Check className="w-4 h-4 text-green-600" />
                 Prerequisites
               </h4>
-              <ul className="space-y-1 ml-6 text-sm text-gray-700">
+              <ul className="space-y-1 ml-6 text-sm text-foreground">
                 {guide.prerequisites.map((prereq, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">✓</span>
@@ -298,10 +298,10 @@ function GuideCard({ guide }) {
           )}
 
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3">Steps</h4>
+            <h4 className="font-semibold text-foreground mb-3">Steps</h4>
             <ol className="space-y-2">
               {guide.steps.map((step, i) => (
-                <li key={i} className="flex gap-3 text-sm text-gray-700">
+                <li key={i} className="flex gap-3 text-sm text-foreground">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                     {i + 1}
                   </span>
@@ -320,8 +320,8 @@ function GuideCard({ guide }) {
 
           {guide.tips && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Tips</h4>
-              <ul className="space-y-1 text-sm text-gray-700">
+              <h4 className="font-semibold text-foreground mb-2">Tips</h4>
+              <ul className="space-y-1 text-sm text-foreground">
                 {guide.tips.map((tip, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
@@ -348,12 +348,12 @@ function GuideCard({ guide }) {
 
           {guide.metrics && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-3">Metrics Explained</h4>
+              <h4 className="font-semibold text-foreground mb-3">Metrics Explained</h4>
               <div className="space-y-2">
                 {guide.metrics.map((m, i) => (
-                  <div key={i} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="font-semibold text-gray-900 text-sm">{m.metric}</div>
-                    <div className="text-xs text-gray-600 mt-1">{m.meaning}</div>
+                  <div key={i} className="p-3 bg-muted rounded-lg">
+                    <div className="font-semibold text-foreground text-sm">{m.metric}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{m.meaning}</div>
                     {m.goal && <div className="text-xs text-blue-600 mt-1 font-medium">Goal: {m.goal}</div>}
                   </div>
                 ))}
@@ -368,7 +368,7 @@ function GuideCard({ guide }) {
 
 export default function UserGuidesPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Back Button */}
         <Link
@@ -388,8 +388,8 @@ export default function UserGuidesPage() {
         </div>
 
         {/* Workflow Overview */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">The Complete Workflow</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">The Complete Workflow</h2>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {[
               'ADD PROSPECT',
@@ -405,7 +405,7 @@ export default function UserGuidesPage() {
                 <span className="px-3 py-1 bg-blue-100 text-blue-800 font-semibold rounded">
                   {i + 1}. {step}
                 </span>
-                {i < arr.length - 1 && <span className="text-gray-400">→</span>}
+                {i < arr.length - 1 && <span className="text-muted-foreground">→</span>}
               </div>
             ))}
           </div>
@@ -419,8 +419,8 @@ export default function UserGuidesPage() {
         </div>
 
         {/* FAQ Section */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Common Questions</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-6">Common Questions</h2>
           <div className="space-y-4">
             {[
               {
@@ -444,9 +444,9 @@ export default function UserGuidesPage() {
                 a: 'Every deal must know what you\'re selling. This ensures accurate revenue tracking per product.',
               },
             ].map((item, i) => (
-              <div key={i} className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-semibold text-gray-900 mb-2">Q: {item.q}</div>
-                <div className="text-sm text-gray-700">A: {item.a}</div>
+              <div key={i} className="p-4 bg-muted rounded-lg">
+                <div className="font-semibold text-foreground mb-2">Q: {item.q}</div>
+                <div className="text-sm text-foreground">A: {item.a}</div>
               </div>
             ))}
           </div>

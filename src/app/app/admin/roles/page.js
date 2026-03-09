@@ -129,15 +129,15 @@ export default function AdminRolesPage() {
         const allSelected = selectedCount === moduleIds.length;
 
         return (
-          <div key={module} className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+          <div key={module} className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl overflow-hidden">
             <button
               onClick={() => !isSystem && toggleModule(perms, permList, setPerm)}
               disabled={isSystem}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 dark:bg-white/[0.04] transition-colors disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-white capitalize">{module}</span>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] text-gray-400">
+                <span className="text-sm font-medium text-foreground capitalize">{module}</span>
+                <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted dark:bg-white/[0.06] text-muted-foreground">
                   {selectedCount}/{moduleIds.length}
                 </span>
               </div>
@@ -146,12 +146,12 @@ export default function AdminRolesPage() {
                   allSelected
                     ? 'border-transparent'
                     : selectedCount > 0
-                      ? 'border-white/20 bg-white/[0.1]'
-                      : 'border-white/10'
+                      ? 'border-border dark:border-white/20 bg-muted dark:bg-white/[0.10]'
+                      : 'border-border dark:border-white/10'
                 }`}
                 style={allSelected ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
               >
-                {allSelected && <Check size={10} className="text-white" />}
+                {allSelected && <Check size={10} className="text-foreground" />}
                 {!allSelected && selectedCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white/50" />}
               </div>
             </button>
@@ -162,16 +162,16 @@ export default function AdminRolesPage() {
                   onClick={() => !isSystem && togglePermission(p.id, permList, setPerm)}
                   disabled={isSystem}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-xs disabled:cursor-not-allowed ${
-                    permList.includes(p.id) ? 'bg-white/[0.06] text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+                    permList.includes(p.id) ? 'bg-muted dark:bg-white/[0.06] text-foreground' : 'text-muted-foreground hover:text-muted-foreground hover:bg-muted/50 dark:bg-white/[0.04]'
                   }`}
                 >
                   <div
                     className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                      permList.includes(p.id) ? 'border-transparent' : 'border-white/10'
+                      permList.includes(p.id) ? 'border-transparent' : 'border-border dark:border-white/10'
                     }`}
                     style={permList.includes(p.id) ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
                   >
-                    {permList.includes(p.id) && <Check size={8} className="text-white" />}
+                    {permList.includes(p.id) && <Check size={8} className="text-foreground" />}
                   </div>
                   <span className="truncate">{p.action.replace(/_/g, ' ')}</span>
                 </button>
@@ -196,12 +196,12 @@ export default function AdminRolesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Roles & Permissions</h1>
-          <p className="text-sm text-gray-500 mt-1">{roles.length} roles configured</p>
+          <h1 className="text-2xl font-bold text-foreground">Roles & Permissions</h1>
+          <p className="text-sm text-muted-foreground mt-1">{roles.length} roles configured</p>
         </div>
         <button
           onClick={() => { setShowCreate(true); setSelectedRole(null); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-foreground transition-opacity"
           style={{ background: 'var(--theme-primary, #3b82f6)' }}
         >
           <Plus size={16} />
@@ -218,8 +218,8 @@ export default function AdminRolesPage() {
               onClick={() => selectRole(role)}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left ${
                 selectedRole?.id === role.id
-                  ? 'bg-white/[0.08] border-white/[0.12]'
-                  : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.05]'
+                  ? 'bg-muted dark:bg-white/[0.06] border-border dark:border-white/[0.10]'
+                  : 'bg-muted/50 dark:bg-white/[0.04] border-border dark:border-white/[0.10] hover:bg-muted/50 dark:bg-white/[0.04]'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -231,23 +231,23 @@ export default function AdminRolesPage() {
                       : 'linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))',
                   }}
                 >
-                  {role.is_system ? <Lock size={14} className="text-white" /> : <Shield size={14} className="text-white" />}
+                  {role.is_system ? <Lock size={14} className="text-foreground" /> : <Shield size={14} className="text-foreground" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white capitalize truncate">{role.name.replace(/_/g, ' ')}</p>
-                  <p className="text-[11px] text-gray-500">{role.permission_count || 0} permissions &middot; {role.user_count || 0} users</p>
+                  <p className="text-sm font-medium text-foreground capitalize truncate">{role.name.replace(/_/g, ' ')}</p>
+                  <p className="text-[11px] text-muted-foreground">{role.permission_count || 0} permissions &middot; {role.user_count || 0} users</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {!role.is_system && (
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteRole(role.id); }}
-                    className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={13} />
                   </button>
                 )}
-                <ChevronRight size={14} className="text-gray-600" />
+                <ChevronRight size={14} className="text-muted-foreground" />
               </div>
             </button>
           ))}
@@ -256,32 +256,32 @@ export default function AdminRolesPage() {
         {/* Permission Editor */}
         <div>
           {showCreate && (
-            <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 space-y-5">
+            <div className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-6 space-y-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Create New Role</h2>
-                <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-white/[0.08] rounded-lg">
-                  <X size={18} className="text-gray-400" />
+                <h2 className="text-lg font-semibold text-foreground">Create New Role</h2>
+                <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-muted dark:bg-white/[0.06] rounded-lg">
+                  <X size={18} className="text-muted-foreground" />
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Role Name</label>
+                  <label className="block text-sm text-muted-foreground mb-1">Role Name</label>
                   <input
                     type="text"
                     value={newRoleName}
                     onChange={(e) => setNewRoleName(e.target.value)}
                     placeholder="e.g. manager"
-                    className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-white/[0.2] text-sm"
+                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border dark:border-white/[0.10] text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Description</label>
+                  <label className="block text-sm text-muted-foreground mb-1">Description</label>
                   <input
                     type="text"
                     value={newRoleDescription}
                     onChange={(e) => setNewRoleDescription(e.target.value)}
                     placeholder="Optional description"
-                    className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-white/[0.2] text-sm"
+                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border dark:border-white/[0.10] text-sm"
                   />
                 </div>
               </div>
@@ -289,7 +289,7 @@ export default function AdminRolesPage() {
               <button
                 onClick={createRole}
                 disabled={saving || !newRoleName.trim()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
                 style={{ background: 'var(--theme-primary, #3b82f6)' }}
               >
                 <Check size={14} />
@@ -299,11 +299,11 @@ export default function AdminRolesPage() {
           )}
 
           {selectedRole && !showCreate && (
-            <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 space-y-5">
+            <div className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-white capitalize">{selectedRole.name.replace(/_/g, ' ')}</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{selectedRole.description || 'No description'}</p>
+                  <h2 className="text-lg font-semibold text-foreground capitalize">{selectedRole.name.replace(/_/g, ' ')}</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">{selectedRole.description || 'No description'}</p>
                   {selectedRole.is_system && (
                     <p className="text-[11px] text-amber-400 mt-1 flex items-center gap-1">
                       <Lock size={10} /> System role — permissions are read-only
@@ -314,7 +314,7 @@ export default function AdminRolesPage() {
                   <button
                     onClick={savePermissions}
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
                     style={{ background: 'var(--theme-primary, #3b82f6)' }}
                   >
                     <Check size={14} />
@@ -332,9 +332,9 @@ export default function AdminRolesPage() {
 
           {!selectedRole && !showCreate && (
             <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-              <Shield size={48} className="text-gray-700 mb-4" />
-              <p className="text-gray-400 text-sm">Select a role to view and edit its permissions</p>
-              <p className="text-gray-600 text-xs mt-1">Or create a new custom role</p>
+              <Shield size={48} className="text-foreground mb-4" />
+              <p className="text-muted-foreground text-sm">Select a role to view and edit its permissions</p>
+              <p className="text-muted-foreground text-xs mt-1">Or create a new custom role</p>
             </div>
           )}
         </div>

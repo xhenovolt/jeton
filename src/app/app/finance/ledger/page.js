@@ -37,22 +37,22 @@ export default function LedgerPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Ledger</h1>
-        <p className="text-sm text-gray-500 mt-1">Immutable transaction history — the single source of truth</p>
+        <h1 className="text-2xl font-bold text-foreground">Ledger</h1>
+        <p className="text-sm text-muted-foreground mt-1">Immutable transaction history — the single source of truth</p>
       </div>
 
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border p-4">
-            <div className="text-xs text-gray-400 mb-1">Credits (Income)</div>
+          <div className="bg-card rounded-xl border p-4">
+            <div className="text-xs text-muted-foreground mb-1">Credits (Income)</div>
             <div className="text-xl font-bold text-emerald-600">{formatCurrency(summary.total_credits)}</div>
           </div>
-          <div className="bg-white rounded-xl border p-4">
-            <div className="text-xs text-gray-400 mb-1">Debits (Outflow)</div>
+          <div className="bg-card rounded-xl border p-4">
+            <div className="text-xs text-muted-foreground mb-1">Debits (Outflow)</div>
             <div className="text-xl font-bold text-red-600">{formatCurrency(summary.total_debits)}</div>
           </div>
-          <div className="bg-white rounded-xl border p-4">
-            <div className="text-xs text-gray-400 mb-1">Net</div>
+          <div className="bg-card rounded-xl border p-4">
+            <div className="text-xs text-muted-foreground mb-1">Net</div>
             <div className={`text-xl font-bold ${parseFloat(summary.net) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(summary.net)}</div>
           </div>
         </div>
@@ -61,25 +61,25 @@ export default function LedgerPage() {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap items-end">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Account</label>
+          <label className="block text-xs text-muted-foreground mb-1">Account</label>
           <select value={filters.account_id} onChange={e => setFilters(f => ({ ...f, account_id: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
             <option value="">All accounts</option>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Type</label>
+          <label className="block text-xs text-muted-foreground mb-1">Type</label>
           <select value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm">
             <option value="">All types</option>
             {['payment','expense','transfer','adjustment','initial_balance'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">From</label>
+          <label className="block text-xs text-muted-foreground mb-1">From</label>
           <input type="date" value={filters.start_date} onChange={e => setFilters(f => ({ ...f, start_date: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">To</label>
+          <label className="block text-xs text-muted-foreground mb-1">To</label>
           <input type="date" value={filters.end_date} onChange={e => setFilters(f => ({ ...f, end_date: e.target.value }))} className="px-3 py-1.5 border rounded-lg text-sm" />
         </div>
         <button onClick={fetchLedger} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Apply</button>
@@ -88,17 +88,17 @@ export default function LedgerPage() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : entries.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No ledger entries found</div>
+        <div className="text-center py-16 text-muted-foreground">No ledger entries found</div>
       ) : (
-        <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="bg-card rounded-xl border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Description</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Account</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Amount</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Account</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -106,11 +106,11 @@ export default function LedgerPage() {
                 const amt = parseFloat(e.amount);
                 const isCredit = amt > 0;
                 return (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-500">{new Date(e.created_at).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-gray-900">{e.description || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{e.account_name || '—'}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 capitalize">{e.type?.replace(/_/g,' ')}</span></td>
+                  <tr key={e.id} className="hover:bg-muted">
+                    <td className="px-4 py-3 text-muted-foreground">{new Date(e.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-foreground">{e.description || '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{e.account_name || '—'}</td>
+                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground capitalize">{e.type?.replace(/_/g,' ')}</span></td>
                     <td className={`px-4 py-3 text-right font-medium ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
                       <span className="inline-flex items-center gap-1">
                         {isCredit ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}

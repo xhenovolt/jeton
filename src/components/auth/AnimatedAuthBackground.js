@@ -12,7 +12,7 @@ export default function AnimatedAuthBackground() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.10),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.10),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.15),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.15),transparent_50%)]" />
 
       {/* Animated grid */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.03] text-gray-400 dark:text-white" xmlns="http://www.w3.org/2000/svg">
+      <svg className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.03] text-muted-foreground dark:text-white" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
             <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="0.5" />

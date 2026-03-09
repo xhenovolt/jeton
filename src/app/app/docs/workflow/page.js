@@ -125,7 +125,7 @@ export default function WorkflowPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Back Button */}
         <Link
@@ -145,8 +145,8 @@ export default function WorkflowPage() {
         </div>
 
         {/* Visual Flow */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">At a Glance</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-6">At a Glance</h2>
           <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-semibold">
             {stages.map((stage, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function WorkflowPage() {
                   {stage.number}. {stage.title}
                 </div>
                 {i < stages.length - 1 && (
-                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                  <ArrowRight className="w-5 h-5 text-muted-foreground" />
                 )}
               </div>
             ))}
@@ -166,7 +166,7 @@ export default function WorkflowPage() {
           {stages.map((stage, index) => (
             <div
               key={index}
-              className="bg-white rounded-xl shadow-sm overflow-hidden border-l-4 border-blue-600"
+              className="bg-card rounded-xl shadow-sm overflow-hidden border-l-4 border-blue-600"
             >
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -175,8 +175,8 @@ export default function WorkflowPage() {
                       {stage.number}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1">{stage.title}</h3>
-                      <p className="text-gray-600 mb-3">{stage.description}</p>
+                      <h3 className="text-2xl font-bold text-foreground mb-1">{stage.title}</h3>
+                      <p className="text-muted-foreground mb-3">{stage.description}</p>
                       <Link
                         href={stage.route}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
@@ -189,13 +189,13 @@ export default function WorkflowPage() {
 
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-600" />
                       What Happens
                     </h4>
                     <ul className="space-y-2">
                       {stage.details.map((detail, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
                           <span className="text-blue-600 font-bold flex-shrink-0 mt-0.5">•</span>
                           <span>{detail}</span>
                         </li>
@@ -204,13 +204,13 @@ export default function WorkflowPage() {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-orange-600" />
                       System Validates
                     </h4>
                     <ul className="space-y-2">
                       {stage.validates.map((validation, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
                           <span className="text-green-600 font-bold flex-shrink-0 mt-0.5">✓</span>
                           <span>{validation}</span>
                         </li>
@@ -221,8 +221,8 @@ export default function WorkflowPage() {
               </div>
 
               {index < stages.length - 1 && (
-                <div className="flex justify-center py-3 bg-gray-50">
-                  <ArrowRight className="w-6 h-6 text-gray-400" />
+                <div className="flex justify-center py-3 bg-muted">
+                  <ArrowRight className="w-6 h-6 text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -231,7 +231,7 @@ export default function WorkflowPage() {
 
         {/* Critical Business Rules */}
         <div className="bg-red-50 border border-red-200 rounded-xl p-8 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-3">
             <AlertCircle className="w-7 h-7 text-red-600" />
             Critical Business Rules
           </h2>
@@ -244,17 +244,17 @@ export default function WorkflowPage() {
               { rule: 'Total allocations cannot exceed payment amount', why: 'Financial integrity - no phantom money' },
               { rule: 'Winning a deal auto-creates contract', why: 'Enforces revenue recognition consistency' },
             ].map((item, i) => (
-              <div key={i} className="p-4 bg-white rounded-lg border border-red-200">
-                <div className="font-semibold text-gray-900 mb-1">{item.rule}</div>
-                <div className="text-sm text-gray-600 italic">Why: {item.why}</div>
+              <div key={i} className="p-4 bg-card rounded-lg border border-red-200">
+                <div className="font-semibold text-foreground mb-1">{item.rule}</div>
+                <div className="text-sm text-muted-foreground italic">Why: {item.why}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Workflow Variations */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Workflow Variations</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Workflow Variations</h2>
           
           <div className="space-y-6">
             <div className="p-6 bg-blue-50 rounded-lg border border-blue-200">
@@ -262,7 +262,7 @@ export default function WorkflowPage() {
               <p className="text-sm text-blue-800 mb-3">
                 When a lead is already qualified and ready to buy:
               </p>
-              <div className="text-sm text-blue-900 font-mono bg-white p-3 rounded">
+              <div className="text-sm text-blue-900 font-mono bg-card p-3 rounded">
                 Add Prospect → Convert Immediately → Create Deal (with System) → Win Deal → Record Payment
               </div>
             </div>
@@ -272,7 +272,7 @@ export default function WorkflowPage() {
               <p className="text-sm text-green-800 mb-3">
                 When selling to large clients requires multiple touchpoints:
               </p>
-              <div className="text-sm text-green-900 font-mono bg-white p-3 rounded">
+              <div className="text-sm text-green-900 font-mono bg-card p-3 rounded">
                 Add Prospect → Log 10-20 Follow-Ups → Demo/Proposal → Convert → Create Deal → Negotiate → Win → Record Payment
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function WorkflowPage() {
               <p className="text-sm text-purple-800 mb-3">
                 When client pays monthly/quarterly:
               </p>
-              <div className="text-sm text-purple-900 font-mono bg-white p-3 rounded">
+              <div className="text-sm text-purple-900 font-mono bg-card p-3 rounded">
                 Win Deal → Contract (with Recurring Enabled) → Record Payment Monthly → Allocate Each Time
               </div>
             </div>
@@ -323,8 +323,8 @@ export default function WorkflowPage() {
         </div>
 
         {/* Next Steps */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Master the Workflow</h2>
+        <div className="bg-card rounded-xl p-8 shadow-sm mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Master the Workflow</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <Link
               href="/app/docs/founder"

@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 const STATUS_COLORS = {
-  active: 'bg-emerald-100 text-emerald-700', inactive: 'bg-gray-100 text-gray-500',
+  active: 'bg-emerald-100 text-emerald-700', inactive: 'bg-muted text-muted-foreground',
   suspended: 'bg-orange-100 text-orange-700', churned: 'bg-red-100 text-red-700',
 };
 
@@ -45,8 +45,8 @@ export default function ClientsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm text-gray-500 mt-1">{clients.length} clients</p>
+          <h1 className="text-2xl font-bold text-foreground">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-1">{clients.length} clients</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Client
@@ -54,8 +54,8 @@ export default function ClientsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={createClient} className="bg-white border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-gray-900">New Client</h3>
+        <form onSubmit={createClient} className="bg-card border rounded-xl p-5 space-y-4">
+          <h3 className="font-semibold text-foreground">New Client</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input required value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} placeholder="Company Name *" className="border rounded-lg px-3 py-2 text-sm" />
             <input value={form.contact_name} onChange={e => setForm({...form, contact_name: e.target.value})} placeholder="Contact Name" className="border rounded-lg px-3 py-2 text-sm" />
@@ -66,34 +66,34 @@ export default function ClientsPage() {
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted">Cancel</button>
           </div>
         </form>
       )}
 
       <form onSubmit={e => { e.preventDefault(); setLoading(true); fetchClients(); }} className="relative w-64">
-        <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+        <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..." className="border rounded-lg pl-9 pr-3 py-2 text-sm w-full" />
       </form>
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : clients.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No clients yet. Convert prospects or add directly.</div>
+        <div className="text-center py-16 text-muted-foreground">No clients yet. Convert prospects or add directly.</div>
       ) : (
-        <div className="bg-white rounded-xl border divide-y">
+        <div className="bg-card rounded-xl border divide-y">
           {clients.map(c => (
-            <Link key={c.id} href={`/app/clients/${c.id}`} className="flex items-center justify-between p-4 hover:bg-gray-50 transition">
+            <Link key={c.id} href={`/app/clients/${c.id}`} className="flex items-center justify-between p-4 hover:bg-muted transition">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{c.company_name}</span>
+                    <span className="font-medium text-foreground">{c.company_name}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[c.status]}`}>{c.status}</span>
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5">
                     {c.contact_name && <span>{c.contact_name}</span>}
                     {c.deal_count > 0 && <span className="ml-3"><Handshake className="w-3 h-3 inline" /> {c.deal_count} deals</span>}
                   </div>
@@ -101,9 +101,9 @@ export default function ClientsPage() {
               </div>
               <div className="flex items-center gap-3">
                 {parseFloat(c.total_deal_value) > 0 && (
-                  <span className="text-sm font-medium text-gray-700">{formatCurrency(c.total_deal_value)}</span>
+                  <span className="text-sm font-medium text-foreground">{formatCurrency(c.total_deal_value)}</span>
                 )}
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </div>
             </Link>
           ))}

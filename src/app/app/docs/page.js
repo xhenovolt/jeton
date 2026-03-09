@@ -59,8 +59,8 @@ export default function DocsHomePage() {
       href: '/app/docs/developer',
       icon: Code,
       description: 'Technical documentation for extending Jeton.',
-      color: 'bg-gray-50 border-gray-200 hover:bg-gray-100',
-      iconColor: 'text-gray-600',
+      color: 'bg-muted border-border hover:bg-muted',
+      iconColor: 'text-muted-foreground',
     },
   ];
 
@@ -72,10 +72,10 @@ export default function DocsHomePage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-foreground mb-4">
             Jeton Documentation
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Complete guide to understanding, using, and extending Jeton - your Founder-First Business Operating System
           </p>
         </div>
@@ -93,7 +93,7 @@ export default function DocsHomePage() {
               </p>
               <Link
                 href="/app/docs/founder"
-                className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                className="inline-flex items-center px-6 py-3 bg-card text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
               >
                 Read Founder Manual →
               </Link>
@@ -121,10 +121,10 @@ export default function DocsHomePage() {
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${section.iconColor} bg-white/50`}>
                   <Icon className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-foreground mb-2">
                   {section.title}
                 </h3>
-                <p className="text-gray-700">
+                <p className="text-foreground">
                   {section.description}
                 </p>
                 {section.featured && (
@@ -138,11 +138,11 @@ export default function DocsHomePage() {
         </div>
 
         {/* Quick Links */}
-        <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Links</h2>
+        <div className="bg-card rounded-xl p-8 border border-border shadow-sm mb-12">
+          <h2 className="text-2xl font-bold text-foreground mb-6">Quick Links</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Common Tasks</h3>
+              <h3 className="font-semibold text-foreground mb-3">Common Tasks</h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="/app/docs/guides#add-prospect" className="text-blue-600 hover:underline">
@@ -167,7 +167,7 @@ export default function DocsHomePage() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">System Reference</h3>
+              <h3 className="font-semibold text-foreground mb-3">System Reference</h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="/app/docs/system-map#routes" className="text-blue-600 hover:underline">
@@ -195,7 +195,7 @@ export default function DocsHomePage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center text-gray-600 text-sm">
+        <div className="text-center text-muted-foreground text-sm">
           <p>
             Documentation version 1.0 • Last updated March 8, 2026
           </p>

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:contrast": "node --input-type=module < scripts/check-contrast.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -34,7 +34,7 @@ export function getStatusBgColor(status) {
     'Credit': 'bg-orange-100 dark:bg-orange-900/30',
     'Overdue': 'bg-red-100 dark:bg-red-900/30',
   };
-  return bgColors[status] || 'bg-gray-100 dark:bg-gray-900/30';
+  return bgColors[status] || 'bg-gray-100';
 }
 
 /**

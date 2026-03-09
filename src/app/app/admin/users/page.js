@@ -8,15 +8,15 @@ const STATUS_STYLES = {
   active: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
   pending: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
   suspended: 'bg-red-500/15 text-red-400 border border-red-500/20',
-  disabled: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
-  inactive: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+  disabled: 'bg-gray-500/15 text-muted-foreground border border-gray-500/20',
+  inactive: 'bg-gray-500/15 text-muted-foreground border border-gray-500/20',
 };
 
 const ROLE_STYLES = {
   superadmin: 'bg-red-500/15 text-red-400 border border-red-500/20',
   admin: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
   user: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
-  viewer: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+  viewer: 'bg-gray-500/15 text-muted-foreground border border-gray-500/20',
 };
 
 export default function AdminUsersPage() {
@@ -72,8 +72,8 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">User Management</h1>
-          <p className="text-sm text-gray-500 mt-1">{users.length} registered users</p>
+          <h1 className="text-2xl font-bold text-foreground">User Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">{users.length} registered users</p>
         </div>
       </div>
 
@@ -85,8 +85,8 @@ export default function AdminUsersPage() {
           { label: 'Pending', value: counts.pending, color: '#f59e0b' },
           { label: 'Suspended', value: counts.suspended, color: '#ef4444' },
         ].map((s) => (
-          <div key={s.label} className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">{s.label}</p>
+          <div key={s.label} className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">{s.label}</p>
             <p className="text-2xl font-bold mt-1" style={{ color: s.color }}>{s.value}</p>
           </div>
         ))}
@@ -94,13 +94,13 @@ export default function AdminUsersPage() {
 
       {/* Filter Tabs + Search */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex gap-1 bg-white/[0.04] border border-white/[0.06] rounded-xl p-1">
+        <div className="flex gap-1 bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-1">
           {['all', 'active', 'pending', 'suspended'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
-                filter === f ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                filter === f ? 'text-foreground' : 'text-muted-foreground hover:text-muted-foreground'
               }`}
               style={filter === f ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
             >
@@ -110,13 +110,13 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex-1 max-w-xs">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search users..."
-              className="w-full pl-9 pr-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/[0.2]"
+              className="w-full pl-9 pr-3 py-2 bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border dark:border-white/[0.10]"
             />
           </div>
         </div>
@@ -124,20 +124,20 @@ export default function AdminUsersPage() {
 
       {/* Edit Panel */}
       {editUser && (
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-5 space-y-4">
+        <div className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-white">Editing: {editUser.name || editUser.email}</h2>
-            <button onClick={() => setEditUser(null)} className="p-1 hover:bg-white/[0.08] rounded-lg">
-              <X className="w-5 h-5 text-gray-400" />
+            <h2 className="font-semibold text-foreground">Editing: {editUser.name || editUser.email}</h2>
+            <button onClick={() => setEditUser(null)} className="p-1 hover:bg-muted dark:bg-white/[0.06] rounded-lg">
+              <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Role</label>
+              <label className="block text-sm text-muted-foreground mb-1">Role</label>
               <select
                 value={editForm.role}
                 onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
-                className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white focus:outline-none focus:border-white/[0.2] [&>option]:bg-gray-900"
+                className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground focus:outline-none focus:border-border dark:border-white/[0.10] [&>option]:bg-background [&>option]:text-foreground"
               >
                 {['user', 'admin', 'superadmin'].map((r) => (
                   <option key={r} value={r}>{r}</option>
@@ -145,11 +145,11 @@ export default function AdminUsersPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Status</label>
+              <label className="block text-sm text-muted-foreground mb-1">Status</label>
               <select
                 value={editForm.status}
                 onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
-                className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white focus:outline-none focus:border-white/[0.2] [&>option]:bg-gray-900"
+                className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground focus:outline-none focus:border-border dark:border-white/[0.10] [&>option]:bg-background [&>option]:text-foreground"
               >
                 {['active', 'pending', 'suspended', 'disabled'].map((s) => (
                   <option key={s} value={s}>{s}</option>
@@ -161,13 +161,13 @@ export default function AdminUsersPage() {
             <button
               onClick={saveEdit}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white transition-opacity disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-foreground transition-opacity disabled:opacity-50"
               style={{ background: 'var(--theme-primary, #3b82f6)' }}
             >
               <Check size={14} />
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            <button onClick={() => setEditUser(null)} className="px-5 py-2 rounded-xl text-sm font-medium text-gray-400 bg-white/[0.06] hover:bg-white/[0.1]">
+            <button onClick={() => setEditUser(null)} className="px-5 py-2 rounded-xl text-sm font-medium text-muted-foreground bg-muted dark:bg-white/[0.06] hover:bg-muted dark:bg-white/[0.10]">
               Cancel
             </button>
           </div>
@@ -181,13 +181,13 @@ export default function AdminUsersPage() {
         </div>
       ) : filteredUsers.length === 0 ? (
         <div className="text-center py-16">
-          <Users size={40} className="mx-auto text-gray-600 mb-3" />
-          <p className="text-gray-400">No users match your filters</p>
+          <Users size={40} className="mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground">No users match your filters</p>
         </div>
       ) : (
-        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl overflow-hidden">
           {/* Table Header */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_120px_100px_140px_60px] px-5 py-3 bg-white/[0.03] border-b border-white/[0.06] text-xs text-gray-500 uppercase tracking-wider">
+          <div className="hidden sm:grid sm:grid-cols-[1fr_120px_100px_140px_60px] px-5 py-3 bg-muted/50 dark:bg-white/[0.04] border-b border-border dark:border-white/[0.10] text-xs text-muted-foreground uppercase tracking-wider">
             <span>User</span>
             <span>Role</span>
             <span>Status</span>
@@ -199,19 +199,19 @@ export default function AdminUsersPage() {
           {filteredUsers.map((u) => (
             <div
               key={u.id}
-              className="grid grid-cols-1 sm:grid-cols-[1fr_120px_100px_140px_60px] items-center px-5 py-4 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.03] transition-colors"
+              className="grid grid-cols-1 sm:grid-cols-[1fr_120px_100px_140px_60px] items-center px-5 py-4 border-b border-border dark:border-white/[0.10] last:border-b-0 hover:bg-muted/50 dark:bg-white/[0.04] transition-colors"
             >
               {/* User info */}
               <div className="flex items-center gap-3">
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-foreground shrink-0"
                   style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
                 >
                   {(u.name || u.email).split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-white text-sm truncate">{u.name || 'No name'}</p>
-                  <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                  <p className="font-medium text-foreground text-sm truncate">{u.name || 'No name'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
               </div>
 
@@ -230,7 +230,7 @@ export default function AdminUsersPage() {
               </div>
 
               {/* Joined */}
-              <p className="text-xs text-gray-500 mt-1 sm:mt-0">
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-0">
                 {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
 
@@ -238,7 +238,7 @@ export default function AdminUsersPage() {
               <div className="mt-2 sm:mt-0 flex justify-end">
                 <button
                   onClick={() => startEdit(u)}
-                  className="p-2 rounded-lg hover:bg-white/[0.08] text-gray-500 hover:text-white transition-colors"
+                  className="p-2 rounded-lg hover:bg-muted dark:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Edit size={14} />
                 </button>

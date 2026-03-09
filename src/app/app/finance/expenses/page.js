@@ -48,8 +48,8 @@ export default function ExpensesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-sm text-gray-500 mt-1">{expenses.length} expenses &middot; {formatCurrency(totalExpenses)} total</p>
+          <h1 className="text-2xl font-bold text-foreground">Expenses</h1>
+          <p className="text-sm text-muted-foreground mt-1">{expenses.length} expenses &middot; {formatCurrency(totalExpenses)} total</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'Add Expense'}
@@ -57,36 +57,36 @@ export default function ExpensesPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={submit} className="bg-white rounded-xl border p-5 space-y-4">
+        <form onSubmit={submit} className="bg-card rounded-xl border p-5 space-y-4">
           <h2 className="font-semibold">Record Expense</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Account *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Account *</label>
               <select value={form.account_id} onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg">
                 <option value="">Select account...</option>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Amount *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Amount *</label>
               <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Category</label>
+              <label className="block text-sm text-muted-foreground mb-1">Category</label>
               <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Vendor</label>
+              <label className="block text-sm text-muted-foreground mb-1">Vendor</label>
               <input value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g. AWS, Figma" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm text-gray-600 mb-1">Description *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Description *</label>
               <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="What was this expense for?" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Budget (optional)</label>
+              <label className="block text-sm text-muted-foreground mb-1">Budget (optional)</label>
               <select value={form.budget_id} onChange={e => setForm(f => ({ ...f, budget_id: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                 <option value="">None</option>
                 {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -100,16 +100,16 @@ export default function ExpensesPage() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : expenses.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No expenses recorded yet</div>
+        <div className="text-center py-16 text-muted-foreground">No expenses recorded yet</div>
       ) : (
-        <div className="bg-white rounded-xl border divide-y">
+        <div className="bg-card rounded-xl border divide-y">
           {expenses.map(e => (
-            <div key={e.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition">
+            <div key={e.id} className="flex items-center justify-between p-4 hover:bg-muted transition">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-50 rounded-lg"><Receipt className="w-4 h-4 text-red-600" /></div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{e.description}</div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                  <div className="text-sm font-medium text-foreground">{e.description}</div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                     <span className="capitalize">{e.category?.replace(/_/g, ' ')}</span>
                     {e.vendor && <span>{e.vendor}</span>}
                     {e.account_name && <span>{e.account_name}</span>}
@@ -119,7 +119,7 @@ export default function ExpensesPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-red-600">-{formatCurrency(e.amount)}</span>
-                <button onClick={() => deleteExpense(e.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" /></button>
+                <button onClick={() => deleteExpense(e.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
               </div>
             </div>
           ))}

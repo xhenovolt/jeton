@@ -79,10 +79,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Founder Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Real-time business overview</p>
+          <h1 className="text-2xl font-bold text-foreground">Founder Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Real-time business overview</p>
         </div>
-        <div className="text-xs text-gray-400">Auto-refreshes every 30s</div>
+        <div className="text-xs text-muted-foreground">Auto-refreshes every 30s</div>
       </div>
 
       {/* KPI Cards */}
@@ -96,13 +96,13 @@ export default function DashboardPage() {
       {/* Middle Row: Pipeline + Accounts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Prospect Pipeline */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Prospect Pipeline</h2>
+            <h2 className="text-lg font-semibold text-foreground">Prospect Pipeline</h2>
             <Link href="/app/prospects" className="text-sm text-blue-600 hover:underline">View all →</Link>
           </div>
           {(d.pipeline || []).length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">No active prospects yet</p>
+            <p className="text-muted-foreground text-sm py-8 text-center">No active prospects yet</p>
           ) : (
             <div className="space-y-3">
               {(d.pipeline || []).map((stage) => (
@@ -112,7 +112,7 @@ export default function DashboardPage() {
                     <span className="text-sm font-medium capitalize">{stage.stage}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-500">{stage.count} prospects</span>
+                    <span className="text-sm text-muted-foreground">{stage.count} prospects</span>
                     <span className="text-sm font-medium">{fmt(stage.total_value)}</span>
                   </div>
                 </div>
@@ -122,15 +122,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Account Balances */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Account Balances</h2>
+            <h2 className="text-lg font-semibold text-foreground">Account Balances</h2>
             <Link href="/app/finance/accounts" className="text-sm text-blue-600 hover:underline">Manage →</Link>
           </div>
           {(d.accounts || []).length === 0 ? (
             <div className="text-center py-8">
-              <Wallet className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-400 text-sm">No accounts set up</p>
+              <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No accounts set up</p>
               <Link href="/app/finance/accounts" className="text-sm text-blue-600 hover:underline mt-1 inline-block">Add account →</Link>
             </div>
           ) : (
@@ -139,7 +139,7 @@ export default function DashboardPage() {
                 <div key={acct.account_id} className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium">{acct.name}</div>
-                    <div className="text-xs text-gray-400 capitalize">{acct.type}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{acct.type}</div>
                   </div>
                   <span className={`text-sm font-bold ${parseFloat(acct.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {fmt(acct.balance)}
@@ -154,22 +154,22 @@ export default function DashboardPage() {
       {/* Bottom Row: Upcoming Follow-ups + Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Follow-ups */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Upcoming Follow-ups</h2>
+            <h2 className="text-lg font-semibold text-foreground">Upcoming Follow-ups</h2>
             <Link href="/app/followups" className="text-sm text-blue-600 hover:underline">View all →</Link>
           </div>
           {(d.upcomingFollowups || []).length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">No upcoming follow-ups</p>
+            <p className="text-muted-foreground text-sm py-8 text-center">No upcoming follow-ups</p>
           ) : (
             <div className="space-y-3">
               {(d.upcomingFollowups || []).slice(0, 5).map((f) => (
                 <div key={f.id} className="flex items-center justify-between py-1">
                   <div>
                     <div className="text-sm font-medium">{f.prospect_name}</div>
-                    <div className="text-xs text-gray-400 capitalize">{f.type}{f.summary ? ` - ${f.summary}` : ''}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{f.type}{f.summary ? ` - ${f.summary}` : ''}</div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     <Calendar className="w-3 h-3 inline mr-1" />
                     {new Date(f.scheduled_at).toLocaleDateString()}
                   </div>
@@ -180,19 +180,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
           {(d.recentActivity || []).length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">No recent activity</p>
+            <p className="text-muted-foreground text-sm py-8 text-center">No recent activity</p>
           ) : (
             <div className="space-y-2">
               {(d.recentActivity || []).slice(0, 8).map((a, i) => (
                 <div key={i} className="flex items-center justify-between text-sm py-1">
                   <div>
                     <span className="font-medium capitalize">{a.action}</span>
-                    <span className="text-gray-400 ml-1">{a.entity_type}</span>
+                    <span className="text-muted-foreground ml-1">{a.entity_type}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{new Date(a.created_at).toLocaleDateString()}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</span>
                 </div>
               ))}
             </div>

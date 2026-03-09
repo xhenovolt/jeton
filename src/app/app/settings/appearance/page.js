@@ -17,12 +17,12 @@ export default function AppearancePage() {
     <div className="max-w-2xl mx-auto py-10 px-6 space-y-10">
       <div>
         <h1 className="text-2xl font-bold text-white">Appearance</h1>
-        <p className="text-sm text-gray-400 mt-1">Customize colors, gradients and visual effects.</p>
+        <p className="text-sm text-muted-foreground mt-1">Customize colors, gradients and visual effects.</p>
       </div>
 
       {/* ── Color Mode ── */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Color Mode</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Color Mode</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
             { mode: 'system', icon: Monitor, label: 'System' },
@@ -35,7 +35,7 @@ export default function AppearancePage() {
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
                 colorMode === mode
                   ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)]/10 text-white'
-                  : 'border-white/[0.08] bg-white/[0.03] text-gray-400 hover:border-white/[0.15] hover:text-white'
+                  : 'border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:border-white/[0.15] hover:text-white'
               }`}
             >
               <Icon size={22} />
@@ -48,7 +48,7 @@ export default function AppearancePage() {
 
       {/* ── Accent Palette ── */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Accent Color</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Accent Color</h2>
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
           {Object.entries(ACCENT_PALETTES).map(([key, pal]) => (
             <button
@@ -71,7 +71,7 @@ export default function AppearancePage() {
 
         {/* Custom color picker */}
         <div className="flex items-center gap-3 mt-2">
-          <label className="text-sm text-gray-400">Custom primary:</label>
+          <label className="text-sm text-muted-foreground">Custom primary:</label>
           <input
             type="color"
             defaultValue={customAccent?.primary ?? '#3b82f6'}
@@ -86,7 +86,7 @@ export default function AppearancePage() {
           {customAccent && (
             <button
               onClick={() => setCustomAccent(null)}
-              className="text-xs text-gray-500 hover:text-white transition-colors"
+              className="text-xs text-muted-foreground hover:text-white transition-colors"
             >
               Clear
             </button>
@@ -96,7 +96,7 @@ export default function AppearancePage() {
 
       {/* ── Background Gradient ── */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Background Gradient</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Background Gradient</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Object.entries(GRADIENT_PRESETS).map(([key, grad]) => (
             <button
@@ -128,8 +128,8 @@ export default function AppearancePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Glassmorphism</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Blur + frosted-glass effect on cards and panels.</p>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Glassmorphism</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Blur + frosted-glass effect on cards and panels.</p>
           </div>
           <button
             onClick={() => setGlassMode(!glassMode)}
@@ -138,7 +138,7 @@ export default function AppearancePage() {
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-card shadow transition-transform ${
                 glassMode ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
@@ -150,7 +150,7 @@ export default function AppearancePage() {
             ? 'glass-card border-white/10'
             : 'border-white/[0.06] bg-white/[0.03]'}`}
         >
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-muted-foreground">
             {glassMode ? '✓ Glass effects are active.' : 'Glass effects are off — solid surfaces.'}
           </p>
         </div>

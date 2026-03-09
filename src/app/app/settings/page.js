@@ -29,29 +29,29 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your account preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage your account preferences</p>
       </div>
 
       {/* Profile */}
-      <div className="bg-white rounded-xl border p-5 space-y-4">
+      <div className="bg-card rounded-xl border p-5 space-y-4">
         <div className="flex items-center gap-2 mb-2">
-          <User className="w-5 h-5 text-gray-400" />
-          <h2 className="font-semibold text-gray-900">Profile</h2>
+          <User className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Profile</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Name</label>
+            <label className="block text-sm text-muted-foreground mb-1">Name</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Email</label>
-            <input value={form.email} disabled className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500" />
+            <label className="block text-sm text-muted-foreground mb-1">Email</label>
+            <input value={form.email} disabled className="w-full px-3 py-2 border rounded-lg bg-muted text-muted-foreground" />
           </div>
         </div>
         {user && (
-          <div className="text-xs text-gray-400">
-            Role: <span className="capitalize font-medium text-gray-600">{user.role}</span> &middot; 
+          <div className="text-xs text-muted-foreground">
+            Role: <span className="capitalize font-medium text-muted-foreground">{user.role}</span> &middot; 
             Joined: {new Date(user.created_at).toLocaleDateString()}
           </div>
         )}
@@ -65,39 +65,39 @@ export default function SettingsPage() {
       </div>
 
       {/* Security */}
-      <div className="bg-white rounded-xl border p-5 space-y-4">
+      <div className="bg-card rounded-xl border p-5 space-y-4">
         <div className="flex items-center gap-2 mb-2">
-          <Lock className="w-5 h-5 text-gray-400" />
-          <h2 className="font-semibold text-gray-900">Security</h2>
+          <Lock className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Security</h2>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Current Password</label>
+            <label className="block text-sm text-muted-foreground mb-1">Current Password</label>
             <input type="password" value={passwordForm.current} onChange={e => setPasswordForm(f => ({ ...f, current: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">New Password</label>
+              <label className="block text-sm text-muted-foreground mb-1">New Password</label>
               <input type="password" value={passwordForm.newPass} onChange={e => setPasswordForm(f => ({ ...f, newPass: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Confirm Password</label>
+              <label className="block text-sm text-muted-foreground mb-1">Confirm Password</label>
               <input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm(f => ({ ...f, confirm: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             </div>
           </div>
         </div>
-        <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
+        <button className="bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
           Change Password
         </button>
       </div>
 
       {/* App Info */}
-      <div className="bg-white rounded-xl border p-5">
+      <div className="bg-card rounded-xl border p-5">
         <div className="flex items-center gap-2 mb-3">
-          <Bell className="w-5 h-5 text-gray-400" />
-          <h2 className="font-semibold text-gray-900">About</h2>
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">About</h2>
         </div>
-        <div className="text-sm text-gray-500 space-y-1">
+        <div className="text-sm text-muted-foreground space-y-1">
           <div>Jeton Founder OS</div>
           <div>Architecture: Ledger-based finance, event-driven</div>
           <div>Database: PostgreSQL on Neon</div>

@@ -116,7 +116,7 @@ const database = {
 
 export default function SystemMapPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Back Button */}
         <Link
@@ -137,40 +137,40 @@ export default function SystemMapPage() {
 
         {/* System Overview */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <div className="bg-card rounded-xl p-6 shadow-sm text-center">
             <Globe className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-            <div className="text-3xl font-bold text-gray-900 mb-1">42</div>
-            <div className="text-gray-600">UI Page Routes</div>
+            <div className="text-3xl font-bold text-foreground mb-1">42</div>
+            <div className="text-muted-foreground">UI Page Routes</div>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <div className="bg-card rounded-xl p-6 shadow-sm text-center">
             <Server className="w-12 h-12 text-green-600 mx-auto mb-3" />
-            <div className="text-3xl font-bold text-gray-900 mb-1">85</div>
-            <div className="text-gray-600">API Endpoints</div>
+            <div className="text-3xl font-bold text-foreground mb-1">85</div>
+            <div className="text-muted-foreground">API Endpoints</div>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <div className="bg-card rounded-xl p-6 shadow-sm text-center">
             <Database className="w-12 h-12 text-purple-600 mx-auto mb-3" />
-            <div className="text-3xl font-bold text-gray-900 mb-1">30+</div>
-            <div className="text-gray-600">Database Tables</div>
+            <div className="text-3xl font-bold text-foreground mb-1">30+</div>
+            <div className="text-muted-foreground">Database Tables</div>
           </div>
         </div>
 
         {/* UI Routes */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Globe className="w-6 h-6 text-blue-600" />
-            <h2 className="text-2xl font-bold text-gray-900">UI Page Routes</h2>
+            <h2 className="text-2xl font-bold text-foreground">UI Page Routes</h2>
           </div>
           <div className="space-y-6">
             {uiRoutes.map((group, i) => (
               <div key={i}>
-                <h3 className="font-semibold text-gray-900 mb-3 text-lg">{group.category}</h3>
+                <h3 className="font-semibold text-foreground mb-3 text-lg">{group.category}</h3>
                 <div className="grid md:grid-cols-2 gap-2">
                   {group.routes.map((route, j) => {
                     const isDynamic = route.includes('[');
                     return isDynamic ? (
                       <span
                         key={j}
-                        className="p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-600 cursor-default"
+                        className="p-3 bg-muted border border-border rounded-lg font-mono text-sm text-muted-foreground cursor-default"
                       >
                         {route}
                       </span>
@@ -191,23 +191,23 @@ export default function SystemMapPage() {
         </div>
 
         {/* API Endpoints */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Server className="w-6 h-6 text-green-600" />
-            <h2 className="text-2xl font-bold text-gray-900">API Endpoints</h2>
+            <h2 className="text-2xl font-bold text-foreground">API Endpoints</h2>
           </div>
           <div className="space-y-4">
             {apiEndpoints.map((group, i) => (
-              <div key={i} className="p-4 bg-gray-50 rounded-lg">
+              <div key={i} className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900">{group.category}</h3>
+                  <h3 className="font-semibold text-foreground">{group.category}</h3>
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                     {group.count} endpoints
                   </span>
                 </div>
                 <div className="space-y-1">
                   {group.examples.map((example, j) => (
-                    <div key={j} className="text-sm font-mono text-gray-600">
+                    <div key={j} className="text-sm font-mono text-muted-foreground">
                       {example}
                     </div>
                   ))}
@@ -223,14 +223,14 @@ export default function SystemMapPage() {
         </div>
 
         {/* Database Architecture */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Database className="w-6 h-6 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Database Architecture</h2>
+            <h2 className="text-2xl font-bold text-foreground">Database Architecture</h2>
           </div>
 
           <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3 text-lg">Tables</h3>
+            <h3 className="font-semibold text-foreground mb-3 text-lg">Tables</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {database.tables.map((table, i) => (
                 <div key={i} className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
@@ -242,7 +242,7 @@ export default function SystemMapPage() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-3 text-lg">Views</h3>
+            <h3 className="font-semibold text-foreground mb-3 text-lg">Views</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {database.views.map((view, i) => (
                 <div key={i} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -255,13 +255,13 @@ export default function SystemMapPage() {
         </div>
 
         {/* Data Flow */}
-        <div className="bg-white rounded-xl p-8 shadow-sm mb-8">
+        <div className="bg-card rounded-xl p-8 shadow-sm mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Map className="w-6 h-6 text-orange-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Data Flow</h2>
+            <h2 className="text-2xl font-bold text-foreground">Data Flow</h2>
           </div>
-          <div className="bg-gray-50 p-6 rounded-lg font-mono text-sm overflow-x-auto">
-            <pre className="text-gray-700">
+          <div className="bg-muted p-6 rounded-lg font-mono text-sm overflow-x-auto">
+            <pre className="text-foreground">
 {`Prospect → (convert) → Client
     ↓                        ↓
     ↓                        ↓

@@ -8,7 +8,7 @@ import Link from 'next/link';
 const TYPE_ICONS = { call: Phone, email: Mail, meeting: Users, demo: Video, proposal: FileText, site_visit: Users, social: Mail, other: Calendar };
 const STATUS_COLORS = {
   scheduled: 'bg-blue-100 text-blue-700', completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-gray-100 text-gray-500', rescheduled: 'bg-orange-100 text-orange-700', no_show: 'bg-red-100 text-red-700',
+  cancelled: 'bg-muted text-muted-foreground', rescheduled: 'bg-orange-100 text-orange-700', no_show: 'bg-red-100 text-red-700',
 };
 
 export default function FollowupsPage() {
@@ -66,8 +66,8 @@ export default function FollowupsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Follow-ups</h1>
-          <p className="text-sm text-gray-500 mt-1">{followups.length} follow-ups</p>
+          <h1 className="text-2xl font-bold text-foreground">Follow-ups</h1>
+          <p className="text-sm text-muted-foreground mt-1">{followups.length} follow-ups</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> Schedule Follow-up
@@ -75,8 +75,8 @@ export default function FollowupsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={createFollowup} className="bg-white border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-gray-900">New Follow-up</h3>
+        <form onSubmit={createFollowup} className="bg-card border rounded-xl p-5 space-y-4">
+          <h3 className="font-semibold text-foreground">New Follow-up</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <select required value={form.prospect_id} onChange={e => setForm({...form, prospect_id: e.target.value})} className="border rounded-lg px-3 py-2 text-sm">
               <option value="">Select Prospect *</option>
@@ -90,40 +90,40 @@ export default function FollowupsPage() {
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted">Cancel</button>
           </div>
         </form>
       )}
 
       <div className="flex gap-2">
         {['upcoming','scheduled','completed','all'].map(f => (
-          <button key={f} onClick={() => { setFilter(f); setLoading(true); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{f}</button>
+          <button key={f} onClick={() => { setFilter(f); setLoading(true); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-gray-200'}`}>{f}</button>
         ))}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : followups.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No follow-ups found</div>
+        <div className="text-center py-16 text-muted-foreground">No follow-ups found</div>
       ) : (
-        <div className="bg-white rounded-xl border divide-y">
+        <div className="bg-card rounded-xl border divide-y">
           {followups.map(f => {
             const Icon = TYPE_ICONS[f.type] || Calendar;
             return (
-              <div key={f.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+              <div key={f.id} className="flex items-center justify-between p-4 hover:bg-muted">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><Icon className="w-4 h-4 text-gray-500" /></div>
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><Icon className="w-4 h-4 text-muted-foreground" /></div>
                   <div>
                     <div className="flex items-center gap-2">
                       <Link href={`/app/prospects/${f.prospect_id}`} className="text-sm font-medium text-blue-600 hover:underline">{f.prospect_name}</Link>
-                      <span className="text-xs capitalize text-gray-400">{f.type}</span>
+                      <span className="text-xs capitalize text-muted-foreground">{f.type}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[f.status]}`}>{f.status}</span>
                     </div>
-                    {f.summary && <p className="text-xs text-gray-400 mt-0.5">{f.summary}</p>}
+                    {f.summary && <p className="text-xs text-muted-foreground mt-0.5">{f.summary}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500"><Clock className="w-3 h-3 inline mr-1" />{new Date(f.scheduled_at).toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground"><Clock className="w-3 h-3 inline mr-1" />{new Date(f.scheduled_at).toLocaleString()}</span>
                   {f.status === 'scheduled' && (
                     <button onClick={() => markComplete(f.id)} className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"><Check className="w-3 h-3" /> Done</button>
                   )}

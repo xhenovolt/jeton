@@ -68,7 +68,7 @@ export default function LayoutClient({ children }) {
         <p className="mb-1">
           © {new Date().getFullYear()} Jeton. Founder Operating System • v2.0
         </p>
-        <p className="text-xs text-gray-500 dark:text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Made with <span className="text-red-500">♥</span> by{' '}
           <a
             href="https://xhenvolt.com"

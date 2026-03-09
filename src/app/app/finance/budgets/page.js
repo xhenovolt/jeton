@@ -48,8 +48,8 @@ export default function BudgetsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
-          <p className="text-sm text-gray-500 mt-1">{budgets.length} budgets</p>
+          <h1 className="text-2xl font-bold text-foreground">Budgets</h1>
+          <p className="text-sm text-muted-foreground mt-1">{budgets.length} budgets</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', amount: '', category: '', period_start: '', period_end: '' }); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'New Budget'}
@@ -57,19 +57,19 @@ export default function BudgetsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={submit} className="bg-white rounded-xl border p-5 space-y-4">
+        <form onSubmit={submit} className="bg-card rounded-xl border p-5 space-y-4">
           <h2 className="font-semibold">{editId ? 'Edit' : 'Create'} Budget</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Name *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Name *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="e.g. Q1 Marketing" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Limit Amount *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Limit Amount *</label>
               <input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" placeholder="0.00" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Category</label>
+              <label className="block text-sm text-muted-foreground mb-1">Category</label>
               <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                 <option value="">All categories</option>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
@@ -77,11 +77,11 @@ export default function BudgetsPage() {
             </div>
             <div />
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Period Start *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Period Start *</label>
               <input type="date" value={form.period_start} onChange={e => setForm(f => ({ ...f, period_start: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Period End *</label>
+              <label className="block text-sm text-muted-foreground mb-1">Period End *</label>
               <input type="date" value={form.period_end} onChange={e => setForm(f => ({ ...f, period_end: e.target.value }))} required className="w-full px-3 py-2 border rounded-lg" />
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function BudgetsPage() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : budgets.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No budgets yet. Set spending limits to track your expenses.</div>
+        <div className="text-center py-16 text-muted-foreground">No budgets yet. Set spending limits to track your expenses.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {budgets.map(b => {
@@ -101,29 +101,29 @@ export default function BudgetsPage() {
             const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
             const overBudget = pct > 100;
             return (
-              <div key={b.id} className="bg-white rounded-xl border p-5">
+              <div key={b.id} className="bg-card rounded-xl border p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <PiggyBank className="w-5 h-5 text-gray-400" />
-                    <span className="font-medium text-gray-900">{b.name}</span>
-                    {b.category && <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 capitalize">{b.category.replace(/_/g,' ')}</span>}
+                    <PiggyBank className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-medium text-foreground">{b.name}</span>
+                    {b.category && <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground capitalize">{b.category.replace(/_/g,' ')}</span>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => startEdit(b)} className="p-1 hover:bg-gray-100 rounded"><Edit className="w-4 h-4 text-gray-400" /></button>
-                    <button onClick={() => deleteBudget(b.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" /></button>
+                    <button onClick={() => startEdit(b)} className="p-1 hover:bg-muted rounded"><Edit className="w-4 h-4 text-muted-foreground" /></button>
+                    <button onClick={() => deleteBudget(b.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
                   </div>
                 </div>
                 <div className="flex items-end justify-between mb-2">
                   <div>
-                    <span className={`text-lg font-bold ${overBudget ? 'text-red-600' : 'text-gray-900'}`}>{formatCurrency(spent)}</span>
-                    <span className="text-sm text-gray-400"> / {formatCurrency(limit)}</span>
+                    <span className={`text-lg font-bold ${overBudget ? 'text-red-600' : 'text-foreground'}`}>{formatCurrency(spent)}</span>
+                    <span className="text-sm text-muted-foreground"> / {formatCurrency(limit)}</span>
                   </div>
                   <span className={`text-sm font-medium ${overBudget ? 'text-red-600' : pct > 80 ? 'text-orange-600' : 'text-emerald-600'}`}>{pct}%</span>
                 </div>
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${overBudget ? 'bg-red-500' : pct > 80 ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                 </div>
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-muted-foreground mt-2">
                   {b.period_start && b.period_end ? `${new Date(b.period_start).toLocaleDateString()} — ${new Date(b.period_end).toLocaleDateString()}` : 'No period set'}
                   {b.expense_count > 0 && ` · ${b.expense_count} expenses`}
                 </div>

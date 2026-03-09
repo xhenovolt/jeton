@@ -8,8 +8,8 @@ import Link from 'next/link';
 
 function StatCard({ label, value, icon: Icon, color = 'blue', href }) {
   const Card = (
-    <div className={`bg-white rounded-xl border p-5 ${href ? 'hover:border-blue-300 transition cursor-pointer' : ''}`}>
-      <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><Icon className="w-3.5 h-3.5" />{label}</div>
+    <div className={`bg-card rounded-xl border p-5 ${href ? 'hover:border-blue-300 transition cursor-pointer' : ''}`}>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Icon className="w-3.5 h-3.5" />{label}</div>
       <div className={`text-2xl font-bold text-${color}-600`}>{value}</div>
     </div>
   );
@@ -37,8 +37,8 @@ export default function FinancePage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
-        <p className="text-sm text-gray-500 mt-1">Financial overview and quick links</p>
+        <h1 className="text-2xl font-bold text-foreground">Finance</h1>
+        <p className="text-sm text-muted-foreground mt-1">Financial overview and quick links</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -57,12 +57,12 @@ export default function FinancePage() {
           { href: '/app/finance/transfers', icon: ArrowRightLeft, name: 'Transfers', desc: 'Move money between accounts' },
           { href: '/app/finance/budgets', icon: PiggyBank, name: 'Budgets', desc: 'Set and track spending limits' },
         ].map(link => (
-          <Link key={link.href} href={link.href} className="bg-white rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition">
+          <Link key={link.href} href={link.href} className="bg-card rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-lg"><link.icon className="w-5 h-5 text-blue-600" /></div>
               <div>
-                <div className="font-medium text-gray-900">{link.name}</div>
-                <div className="text-xs text-gray-400">{link.desc}</div>
+                <div className="font-medium text-foreground">{link.name}</div>
+                <div className="text-xs text-muted-foreground">{link.desc}</div>
               </div>
             </div>
           </Link>
@@ -71,9 +71,9 @@ export default function FinancePage() {
 
       {/* Account Balances Preview */}
       {data?.accounts && data.accounts.length > 0 && (
-        <div className="bg-white rounded-xl border p-5">
+        <div className="bg-card rounded-xl border p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-900">Account Balances</h2>
+            <h2 className="font-semibold text-foreground">Account Balances</h2>
             <Link href="/app/finance/accounts" className="text-sm text-blue-600 hover:text-blue-700">View All</Link>
           </div>
           <div className="divide-y">
@@ -81,8 +81,8 @@ export default function FinancePage() {
               <div key={a.id} className="flex items-center justify-between py-2.5">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${parseFloat(a.balance) >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  <span className="text-sm text-gray-700">{a.name}</span>
-                  <span className="text-xs text-gray-400 capitalize">{a.type}</span>
+                  <span className="text-sm text-foreground">{a.name}</span>
+                  <span className="text-xs text-muted-foreground capitalize">{a.type}</span>
                 </div>
                 <span className={`text-sm font-medium ${parseFloat(a.balance) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(a.balance)}</span>
               </div>
