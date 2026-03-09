@@ -12,13 +12,17 @@ export async function GET(request) {
     const status = searchParams.get('status');
     const client_id = searchParams.get('client_id');
 
-    let sql = `SELECT d.*, c.company_name as client_name, o.name as offering_name,
+    let sql = `SELECT d.*,
+      COALESCE(c.company_name, d.client_name, 'Unknown') as client_label,
+      o.name as offering_name,
+      s.name as system_name,
       COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed'), 0) as paid_amount,
       d.total_amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed'), 0) as remaining_amount,
       (SELECT COUNT(*) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed') as payment_count
       FROM deals d
-      JOIN clients c ON d.client_id = c.id
+      LEFT JOIN clients c ON d.client_id = c.id
       LEFT JOIN offerings o ON d.offering_id = o.id
+      LEFT JOIN systems s ON d.system_id = s.id
       WHERE 1=1`;
     const params = [];
 
@@ -41,16 +45,20 @@ export async function POST(request) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json();
-    const { client_id, prospect_id, offering_id, title, description, total_amount, currency, status, start_date, end_date, due_date, invoice_number, terms, notes, tags } = body;
-    
-    if (!client_id || !title || !total_amount) {
-      return NextResponse.json({ success: false, error: 'client_id, title, and total_amount are required' }, { status: 400 });
+    const { client_id, prospect_id, offering_id, system_id, client_name, title, description, total_amount, currency, status, start_date, end_date, due_date, invoice_number, terms, notes, tags } = body;
+
+    if (!title || !total_amount) {
+      return NextResponse.json({ success: false, error: 'title and total_amount are required' }, { status: 400 });
+    }
+    if (!client_id && !client_name) {
+      return NextResponse.json({ success: false, error: 'client_id or client_name is required' }, { status: 400 });
     }
 
     const result = await query(
-      `INSERT INTO deals (client_id, prospect_id, offering_id, title, description, total_amount, currency, status, start_date, end_date, due_date, invoice_number, terms, notes, tags, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-      [client_id, prospect_id||null, offering_id||null, title, description||null, total_amount,
+      `INSERT INTO deals (client_id, prospect_id, offering_id, system_id, client_name, title, description, total_amount, currency, status, start_date, end_date, due_date, invoice_number, terms, notes, tags, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [client_id||null, prospect_id||null, offering_id||null, system_id||null, client_name||null,
+       title, description||null, total_amount,
        currency||'UGX', status||'draft', start_date||null, end_date||null, due_date||null,
        invoice_number||null, terms||null, notes||null, tags||'{}', auth.userId]
     );

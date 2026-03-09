@@ -30,13 +30,14 @@ export default function DealsPage() {
 
   const totalValue = deals.reduce((s, d) => s + parseFloat(d.total_amount || 0), 0);
   const totalPaid = deals.reduce((s, d) => s + parseFloat(d.paid_amount || 0), 0);
+  const totalRemaining = totalValue - totalPaid;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Deals</h1>
-          <p className="text-sm text-muted-foreground mt-1">{deals.length} deals &middot; ${totalValue.toLocaleString()} total &middot; ${totalPaid.toLocaleString()} collected</p>
+          <p className="text-sm text-muted-foreground mt-1">{deals.length} deals · UGX {Math.round(totalValue).toLocaleString()} total · UGX {Math.round(totalPaid).toLocaleString()} collected · UGX {Math.round(totalRemaining).toLocaleString()} outstanding</p>
         </div>
         <Link href="/app/deals/new" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Deal
@@ -55,7 +56,7 @@ export default function DealsPage() {
       ) : deals.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No deals found</div>
       ) : (
-        <div className="bg-card rounded-xl border divide-y">
+        <div className="bg-card rounded-xl border border-border divide-y divide-border">
           {deals.map(d => {
             const paid = parseFloat(d.paid_amount || 0);
             const total = parseFloat(d.total_amount || 0);
@@ -65,22 +66,22 @@ export default function DealsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground">{d.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[d.status]}`}>{d.status.replace(/_/g,' ')}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[d.status] || 'bg-muted text-muted-foreground'}`}>{d.status?.replace(/_/g,' ')}</span>
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                    <span>{d.client_name}</span>
+                    <span>{d.client_label}</span>
+                    {d.system_name && <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{d.system_name}</span>}
                     {d.offering_name && <span>{d.offering_name}</span>}
                     {d.payment_count > 0 && <span>{d.payment_count} payments</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="text-sm font-bold text-foreground">${total.toLocaleString()}</div>
+                    <div className="text-sm font-bold text-foreground">{d.currency} {total.toLocaleString()}</div>
                     <div className="text-xs text-muted-foreground">{pct}% paid</div>
                   </div>
-                  {/* Mini progress bar */}
-                  <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-blue-500' : 'bg-gray-200'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-blue-500' : 'bg-muted'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>

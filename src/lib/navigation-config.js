@@ -1,38 +1,31 @@
 /**
  * Navigation Configuration - JETON FOUNDER OS
- * 
+ *
  * Single Source of Truth for all navigation
- * Workflow: Prospect → Follow-up → Convert → Deal → Payment → Ledger
- * 
+ * Core model: Systems → Deals → Payments → Licenses
+ *
  * Every route here exists in /src/app/app/
  */
 
 import {
   Home,
   Target,
-  Bell,
-  Users,
   Briefcase,
-  CreditCard,
   DollarSign,
-  Wallet,
-  BookOpen as LedgerIcon,
-  Receipt,
-  ArrowRightLeft,
-  PiggyBank,
   Package,
   BarChart3,
-  BookOpen,
   Settings,
   Shield,
-  FileText,
   Palette,
   Type,
+  Monitor,
+  Building2,
+  Users,
 } from 'lucide-react';
 
 /**
- * FOUNDER WORKFLOW NAVIGATION
- * Prospect → Follow-up → Convert → Deal → Payment → Ledger
+ * FOUNDER NAVIGATION
+ * Systems → Deals → Payments → Licenses
  */
 export const menuItems = [
   // === PRIMARY ===
@@ -41,6 +34,17 @@ export const menuItems = [
     href: '/app/dashboard',
     icon: Home,
     category: 'primary',
+  },
+
+  // === SYSTEMS (core IP) ===
+  {
+    label: 'Systems',
+    icon: Monitor,
+    category: 'sections',
+    submenu: [
+      { label: 'All Systems', href: '/app/systems', description: 'Software platforms built by Xhenvolt' },
+      { label: 'Licenses', href: '/app/licenses', description: 'Active license registry' },
+    ],
   },
 
   // === SALES PIPELINE ===
@@ -62,8 +66,29 @@ export const menuItems = [
     category: 'sections',
     submenu: [
       { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals' },
-      { label: 'New Deal', href: '/app/deals/new', description: 'Create a deal' },
+      { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal' },
       { label: 'Payments', href: '/app/payments', description: 'Payment records' },
+    ],
+  },
+
+  // === PRODUCTS ===
+  {
+    label: 'Products',
+    href: '/app/products',
+    icon: Package,
+    category: 'sections',
+  },
+
+  // === COMPANY ===
+  {
+    label: 'Company',
+    icon: Building2,
+    category: 'sections',
+    submenu: [
+      { label: 'Staff', href: '/app/staff', description: 'Team members' },
+      { label: 'Assets', href: '/app/assets', description: 'Company asset register' },
+      { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts' },
+      { label: 'Offerings', href: '/app/offerings', description: 'Service catalog' },
     ],
   },
 
@@ -82,35 +107,12 @@ export const menuItems = [
     ],
   },
 
-  // === CATALOG ===
-  {
-    label: 'Offerings',
-    href: '/app/offerings',
-    icon: Package,
-    category: 'sections',
-  },
-
   // === REPORTS ===
   {
     label: 'Reports',
     href: '/app/reports',
     icon: BarChart3,
     category: 'sections',
-  },
-
-  // === DOCUMENTATION ===
-  {
-    label: 'Documentation',
-    icon: BookOpen,
-    category: 'sections',
-    submenu: [
-      { label: 'Getting Started', href: '/app/docs/getting-started', description: 'Quick start guide' },
-      { label: 'Founder Manual', href: '/app/docs/founder', description: 'Daily operating playbook' },
-      { label: 'User Guides', href: '/app/docs/guides', description: 'Step-by-step instructions' },
-      { label: 'Workflow', href: '/app/docs/workflow', description: 'Business process' },
-      { label: 'Modules', href: '/app/docs/modules', description: 'Module reference' },
-      { label: 'System Map', href: '/app/docs/system-map', description: 'Routes & endpoints' },
-    ],
   },
 
   // === ADMIN ===
@@ -143,7 +145,7 @@ export const menuItems = [
  */
 export const quickAccessLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
-  { id: 'prospects', label: 'Prospects', icon: Target, href: '/app/prospects' },
+  { id: 'systems', label: 'Systems', icon: Monitor, href: '/app/systems' },
   { id: 'deals', label: 'Deals', icon: Briefcase, href: '/app/deals' },
   { id: 'finance', label: 'Finance', icon: DollarSign, href: '/app/finance' },
 ];
