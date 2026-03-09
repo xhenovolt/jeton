@@ -34,7 +34,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const fields = ['company_name','contact_name','email','phone','website','industry','source','stage','priority','estimated_value','currency','notes','tags','next_followup_date','lost_reason'];
+    const fields = ['company_name','contact_name','email','phone','website','industry','source','stage','priority','estimated_value','estimated_value_text','currency','notes','tags','next_followup_date','next_followup_time','lost_reason','pipeline'];
     
     const updates = [];
     const values = [];

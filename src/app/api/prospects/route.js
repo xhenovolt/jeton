@@ -53,15 +53,17 @@ export async function POST(request) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json();
-    const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, currency, notes, tags } = body;
+    const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time } = body;
 
-    if (!company_name) return NextResponse.json({ success: false, error: 'company_name is required' }, { status: 400 });
+    // Either a title or company_name is required for quick capture
+    const name = company_name || body.title;
+    if (!name) return NextResponse.json({ success: false, error: 'company_name or title is required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO prospects (company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, currency, notes, tags, created_by, assigned_to)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING *`,
-      [company_name, contact_name||null, email||null, phone||null, website||null, industry||null,
-       source||null, stage||'new', priority||'medium', estimated_value||null, currency||'USD', notes||null, tags||'{}', auth.userId]
+      `INSERT INTO prospects (company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time, created_by, assigned_to)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$18) RETURNING *`,
+      [name, contact_name||null, email||null, phone||null, website||null, industry||null,
+       source||null, stage||'new', priority||'medium', estimated_value||null, estimated_value_text||null, currency||'UGX', notes||null, tags||'{}', pipeline||null, next_followup_date||null, next_followup_time||null, auth.userId]
     );
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,

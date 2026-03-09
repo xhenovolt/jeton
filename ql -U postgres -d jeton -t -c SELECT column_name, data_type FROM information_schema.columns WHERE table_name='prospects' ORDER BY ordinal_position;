@@ -1,0 +1,22 @@
+ id                 | uuid
+ company_name       | character varying
+ contact_name       | character varying
+ email              | character varying
+ phone              | character varying
+ website            | character varying
+ industry           | character varying
+ source             | character varying
+ stage              | character varying
+ priority           | character varying
+ estimated_value    | numeric
+ currency           | character varying
+ notes              | text
+ tags               | ARRAY
+ next_followup_date | date
+ converted_at       | timestamp with time zone
+ lost_reason        | text
+ assigned_to        | uuid
+ created_by         | uuid
+ created_at         | timestamp with time zone
+ updated_at         | timestamp with time zone
+

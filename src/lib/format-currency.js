@@ -5,7 +5,7 @@
  */
 
 /** Supported currencies with their locale and display settings */
-const CURRENCY_CONFIG = {
+export const CURRENCY_CONFIG = {
   UGX: { locale: 'en-UG', minimumFractionDigits: 0, maximumFractionDigits: 0 },
   USD: { locale: 'en-US', minimumFractionDigits: 2, maximumFractionDigits: 2 },
   EUR: { locale: 'de-DE', minimumFractionDigits: 2, maximumFractionDigits: 2 },

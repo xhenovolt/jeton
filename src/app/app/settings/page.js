@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell } from 'lucide-react';
+import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -31,6 +32,27 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your account preferences</p>
+      </div>
+
+      {/* Quick nav to sub-settings */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { href: '/app/settings/financial', icon: DollarSign, label: 'Financial', desc: 'Currency & formatting' },
+          { href: '/app/settings/appearance', icon: Palette, label: 'Appearance', desc: 'Theme & colors' },
+        ].map(item => (
+          <Link key={item.href} href={item.href} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted/50 transition group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <item.icon className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        ))}
       </div>
 
       {/* Profile */}
@@ -86,7 +108,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-        <button className="bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
+        <button className="bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted/80 transition">
           Change Password
         </button>
       </div>

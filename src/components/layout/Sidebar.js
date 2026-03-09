@@ -6,7 +6,7 @@
  * Features: collapse/expand, tooltips, active states, dark mode, keyboard nav
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +28,9 @@ import {
   Percent,
   Target,
   Shield,
+  UserPlus,
+  FileText,
+  X,
 } from 'lucide-react';
 import { menuItems as configMenuItems } from '@/lib/navigation-config';
 
@@ -71,6 +74,20 @@ export default function Sidebar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [displayMenuItems, setDisplayMenuItems] = useState(configMenuItems);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const quickAddRef = useRef(null);
+
+  // Close quick-add dropdown on outside click or Escape
+  useEffect(() => {
+    if (!showQuickAdd) return;
+    const handler = (e) => {
+      if (quickAddRef.current && !quickAddRef.current.contains(e.target)) setShowQuickAdd(false);
+    };
+    const escHandler = (e) => { if (e.key === 'Escape') setShowQuickAdd(false); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', escHandler);
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', escHandler); };
+  }, [showQuickAdd]);
 
   useEffect(() => { fetchCurrentUser(); }, []);
 
@@ -279,13 +296,17 @@ export default function Sidebar() {
         </AnimatePresence>
       </nav>
 
-      {/* Quick Add Button */}
-      <div className="p-2" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
-        <Tooltip label="Create new item">
-          <button className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-white font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+      {/* Quick Add Menu */}
+      <div ref={quickAddRef} className="p-2 relative" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
+        <Tooltip label="Quick create">
+          <button
+            onClick={() => setShowQuickAdd(prev => !prev)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-white font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
             style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
           >
-            <Plus size={18} />
+            <motion.div animate={{ rotate: showQuickAdd ? 45 : 0 }} transition={{ duration: 0.2 }}>
+              <Plus size={18} />
+            </motion.div>
             {!isCollapsed && (
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm">
                 Add
@@ -293,6 +314,54 @@ export default function Sidebar() {
             )}
           </button>
         </Tooltip>
+
+        {/* Quick Create Dropdown */}
+        <AnimatePresence>
+          {showQuickAdd && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-full left-2 right-2 mb-2 rounded-xl overflow-hidden shadow-2xl z-50"
+              style={{ background: 'var(--theme-sidebar, #0f172a)', border: '1px solid var(--sidebar-border)' }}
+            >
+              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--sidebar-muted)' }}>
+                Create new
+              </div>
+              {[
+                { label: 'Prospect', icon: UserPlus, href: '/app/prospects?new=1', desc: 'Add a new prospect' },
+                { label: 'Transaction', icon: TrendingUp, href: '/app/finance?new=1', desc: 'Log a transaction' },
+                { label: 'Note', icon: FileText, href: '/app/followups?new=1', desc: 'Add a note or follow-up' },
+              ].map(item => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setShowQuickAdd(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 transition-colors"
+                  style={{ color: 'var(--sidebar-muted)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-text)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--sidebar-muted)'; }}
+                >
+                  <item.icon size={16} />
+                  {!isCollapsed && (
+                    <div>
+                      <div className="text-sm font-medium">{item.label}</div>
+                      <div className="text-xs opacity-60">{item.desc}</div>
+                    </div>
+                  )}
+                </Link>
+              ))}
+              <button
+                onClick={() => setShowQuickAdd(false)}
+                className="w-full flex items-center justify-center gap-1 py-2 text-xs transition-colors"
+                style={{ borderTop: '1px solid var(--sidebar-border)', color: 'var(--sidebar-muted)' }}
+              >
+                <X size={12} /> Close
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="p-2 space-y-1" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
