@@ -62,24 +62,26 @@ export async function findUserById(userId) {
  * @param {Object} userData - User data
  * @param {string} userData.email - User email
  * @param {string} userData.passwordHash - Hashed password
- * @param {string} [userData.role] - User role (default: 'FOUNDER')
- * @param {string} [userData.firstName] - First name
- * @param {string} [userData.lastName] - Last name
+ * @param {string} userData.name - Full name
+ * @param {string} [userData.role] - User role (default: 'user')
+ * @param {boolean} [userData.isActive] - Whether user is active
+ * @param {string} [userData.status] - User status (active/pending)
  * @returns {Promise<Object|null>} Created user or null on error
  */
 export async function createUser({
   email,
   passwordHash,
-  role = 'FOUNDER',
-  firstName = null,
-  lastName = null,
+  name,
+  role = 'user',
+  isActive = true,
+  status = 'active',
 }) {
   try {
     const result = await query(
-      `INSERT INTO users (email, password_hash, role, created_at, updated_at)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING id, email, role, is_active, created_at`,
-      [email, passwordHash, role]
+      `INSERT INTO users (email, password_hash, name, role, is_active, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       RETURNING id, email, name, role, is_active, status, created_at`,
+      [email, passwordHash, name, role, isActive, status]
     );
 
     return result.rows[0] || null;
@@ -90,6 +92,21 @@ export async function createUser({
       return { error: 'Email already exists' };
     }
     return null;
+  }
+}
+
+/**
+ * Count total users in the system
+ * Used for superadmin bootstrap (first user = superadmin)
+ * @returns {Promise<number>} User count
+ */
+export async function getUserCount() {
+  try {
+    const result = await query('SELECT COUNT(*)::int AS count FROM users');
+    return result.rows[0]?.count || 0;
+  } catch (error) {
+    console.error('Error counting users:', error.message);
+    return 0;
   }
 }
 
@@ -115,7 +132,7 @@ export async function updateUserLastLogin(userId) {
  * Verify user credentials (email and password)
  * @param {string} email - User email
  * @param {string} password - Plain text password
- * @returns {Promise<Object|null>} User object or null if invalid
+ * @returns {Promise<Object|null>} User object, error object, or null if invalid
  */
 export async function verifyCredentials(email, password) {
   try {
@@ -126,7 +143,16 @@ export async function verifyCredentials(email, password) {
     }
 
     if (!user.is_active) {
-      return null;
+      return { error: 'ACCOUNT_DISABLED', message: 'Your account has been disabled. Contact an administrator.' };
+    }
+
+    // Check status-based activation
+    if (user.status === 'pending') {
+      return { error: 'ACCOUNT_PENDING', message: 'Your account is pending activation. Please wait for admin approval.' };
+    }
+
+    if (user.status === 'suspended') {
+      return { error: 'ACCOUNT_SUSPENDED', message: 'Your account has been suspended. Contact an administrator.' };
     }
 
     const isPasswordValid = await comparePassword(password, user.password_hash);
@@ -150,6 +176,7 @@ export default {
   findUserByEmail,
   findUserById,
   createUser,
+  getUserCount,
   updateUserLastLogin,
   verifyCredentials,
 };

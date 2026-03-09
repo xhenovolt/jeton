@@ -31,6 +31,27 @@ export async function POST(request) {
     // Verify credentials
     const user = await verifyCredentials(email, password);
 
+    // Handle status-based errors (pending, suspended, disabled)
+    if (user && user.error) {
+      await logAuthEvent({
+        action: 'LOGIN_BLOCKED',
+        email,
+        reason: user.error,
+        requestMetadata,
+      });
+
+      const statusMessages = {
+        ACCOUNT_PENDING: 'Your account is pending admin activation.',
+        ACCOUNT_SUSPENDED: 'Your account has been suspended.',
+        ACCOUNT_DISABLED: 'Your account has been disabled.',
+      };
+
+      return NextResponse.json(
+        { error: statusMessages[user.error] || user.message || 'Login failed', code: user.error },
+        { status: 403 }
+      );
+    }
+
     if (!user) {
       // Log failed attempt
       await logAuthEvent({

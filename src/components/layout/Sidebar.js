@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Enhanced Sidebar Navigation
- * Modern, collapsible sidebar with full responsiveness
+ * Enhanced Sidebar Navigation - Futuristic Design
+ * Collapsible, theme-aware sidebar with smooth animations
  * Features: collapse/expand, tooltips, active states, dark mode, keyboard nav
  */
 
@@ -27,12 +27,12 @@ import {
   Plus,
   Percent,
   Target,
+  Shield,
 } from 'lucide-react';
 import { menuItems as configMenuItems } from '@/lib/navigation-config';
 
 /**
  * Tooltip Component
- * Shows label text when sidebar is collapsed
  */
 function Tooltip({ children, label }) {
   const [show, setShow] = useState(false);
@@ -45,7 +45,7 @@ function Tooltip({ children, label }) {
     >
       {children}
       {show && (
-        <div className="absolute left-full ml-3 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded whitespace-nowrap pointer-events-none z-50 font-medium">
+        <div className="absolute left-full ml-3 px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg whitespace-nowrap pointer-events-none z-50 font-medium shadow-xl">
           {label}
           <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-100" />
         </div>
@@ -54,11 +54,6 @@ function Tooltip({ children, label }) {
   );
 }
 
-/**
- * Sidebar Component - Enhanced
- * Collapsible navigation with smooth animations, tooltips, and dark mode
- * DESKTOP ONLY - Hidden on mobile (md: breakpoint)
- */
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -74,22 +69,14 @@ export default function Sidebar() {
   const [loading, setLoading] = useState(true);
   const [displayMenuItems, setDisplayMenuItems] = useState(configMenuItems);
 
-  // Fetch current user to check if they're admin
-  useEffect(() => {
-    fetchCurrentUser();
-  }, []);
+  useEffect(() => { fetchCurrentUser(); }, []);
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
-
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-        
-        // If user is not admin, filter out Admin menu
         if (!(data.user?.is_superadmin || data.user?.role === 'admin' || data.user?.role === 'superadmin')) {
           setDisplayMenuItems(configMenuItems.filter(item => item.label !== 'Admin'));
         }
@@ -101,45 +88,31 @@ export default function Sidebar() {
     }
   };
 
-  // Load collapsed state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved) setIsCollapsed(JSON.parse(saved));
   }, []);
 
-  // Save collapsed state to localStorage
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
       const newState = !prev;
       localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
-      // Dispatch custom event to notify other components
       window.dispatchEvent(new CustomEvent('sidebar-toggled'));
       return newState;
     });
   };
 
   const toggleSection = (section) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
   const isActive = (href) => pathname === href;
-
-  const isParentActive = (submenu) => {
-    return submenu?.some((item) => pathname === item.href);
-  };
+  const isParentActive = (submenu) => submenu?.some((item) => pathname === item.href);
 
   const handleLogout = async () => {
     try {
-      // Call logout endpoint to delete session from database
       const response = await fetch('/api/auth/logout', { method: 'POST' });
-      if (response.ok) {
-        // Navigate to a protected route (/app/dashboard)
-        // Middleware will validate session is gone and redirect to /login
-        window.location.href = '/app/dashboard';
-      }
+      if (response.ok) window.location.href = '/app/dashboard';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -149,33 +122,37 @@ export default function Sidebar() {
     <motion.aside
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="hidden md:flex fixed left-0 top-0 h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-r border-gray-200 dark:border-gray-800 flex-col shadow-sm overflow-hidden z-40"
+      className="hidden md:flex fixed left-0 top-0 h-screen flex-col shadow-xl overflow-hidden z-40 border-r border-white/[0.06]"
+      style={{ background: 'var(--theme-sidebar, #0f172a)' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-white/[0.06]">
         {!isCollapsed && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+            className="flex items-center gap-2"
           >
-            Jeton
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <span className="text-sm font-bold text-white">J</span>
+            </div>
+            <span className="font-bold text-lg text-white">Jeton</span>
           </motion.div>
         )}
         <button
           onClick={toggleCollapse}
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ml-auto"
+          className="p-1.5 hover:bg-white/[0.08] rounded-lg transition-colors ml-auto"
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }}>
-            <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400" />
+            <ChevronLeft size={20} className="text-gray-400" />
           </motion.div>
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-thin">
         <AnimatePresence>
           {displayMenuItems.map((item) => {
             const Icon = item.icon;
@@ -185,14 +162,17 @@ export default function Sidebar() {
             const isParentItemActive = isParentActive(item.submenu);
 
             if (!hasSubmenu) {
-              // Direct link item
               return (
                 <Tooltip key={item.href} label={item.label}>
                   <Link
                     href={item.href}
-                    className="relative flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                      isItemActive
+                        ? 'bg-white/[0.1] text-white shadow-sm'
+                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                    }`}
                   >
-                    <Icon size={20} />
+                    <Icon size={20} className={isItemActive ? 'text-blue-400' : ''} />
                     {!isCollapsed && (
                       <motion.span
                         initial={{ opacity: 0 }}
@@ -203,12 +183,11 @@ export default function Sidebar() {
                         {item.label}
                       </motion.span>
                     )}
-                    
-                    {/* Active indicator */}
                     {isItemActive && (
                       <motion.div
-                        layoutId={`activeDirectIndicator-${item.href}`}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-lg"
+                        layoutId="activeSidebarDirect"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full"
+                        style={{ background: 'var(--theme-primary, #3b82f6)' }}
                         transition={{ duration: 0.2 }}
                       />
                     )}
@@ -216,15 +195,18 @@ export default function Sidebar() {
                 </Tooltip>
               );
             } else {
-              // Parent with submenu
               return (
                 <div key={item.label}>
                   <Tooltip label={item.label}>
                     <button
                       onClick={() => toggleSection(item.label)}
-                      className="relative w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                      className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                        isParentItemActive
+                          ? 'bg-white/[0.06] text-white'
+                          : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                      }`}
                     >
-                      <Icon size={20} />
+                      <Icon size={20} className={isParentItemActive ? 'text-purple-400' : ''} />
                       {!isCollapsed && (
                         <>
                           <motion.span
@@ -235,27 +217,21 @@ export default function Sidebar() {
                           >
                             {item.label}
                           </motion.span>
-                          <motion.div
-                            animate={{ rotate: isExpanded ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
+                          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
                             <ChevronDown size={16} />
                           </motion.div>
                         </>
                       )}
-
-                      {/* Active indicator for parent */}
                       {isParentItemActive && (
                         <motion.div
-                          layoutId={`activeParentIndicator-${item.label}`}
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-purple-600 rounded-r-lg"
+                          layoutId="activeSidebarParent"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-purple-500 rounded-r-full"
                           transition={{ duration: 0.2 }}
                         />
                       )}
                     </button>
                   </Tooltip>
 
-                  {/* Submenu */}
                   <AnimatePresence>
                     {isExpanded && !isCollapsed && (
                       <motion.div
@@ -265,25 +241,18 @@ export default function Sidebar() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="ml-6 border-l border-gray-200 dark:border-gray-700 space-y-1 py-1">
+                        <div className="ml-6 border-l border-white/[0.08] space-y-0.5 py-1">
                           {item.submenu.map((subitem) => (
                             <Link
                               key={subitem.href}
                               href={subitem.href}
-                              className={`relative block px-3 py-1.5 text-sm rounded transition-colors ${
+                              className={`relative block px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
                                 isActive(subitem.href)
-                                  ? 'text-blue-600 dark:text-blue-400 font-medium'
-                                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                  ? 'text-blue-400 font-medium bg-white/[0.05]'
+                                  : 'text-gray-500 hover:text-white hover:bg-white/[0.04]'
                               }`}
                             >
                               {subitem.label}
-                              {isActive(subitem.href) && (
-                                <motion.div
-                                  layoutId={`activeSubmenuIndicator-${subitem.href}`}
-                                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-600 rounded-r-lg"
-                                  transition={{ duration: 0.2 }}
-                                />
-                              )}
                             </Link>
                           ))}
                         </div>
@@ -298,17 +267,14 @@ export default function Sidebar() {
       </nav>
 
       {/* Quick Add Button */}
-      <div className="p-2 border-t border-gray-200 dark:border-gray-800">
+      <div className="p-2 border-t border-white/[0.06]">
         <Tooltip label="Create new item">
-          <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2 px-3 rounded-lg transition-all transform hover:scale-105 active:scale-95">
+          <button className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-white font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+            style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
+          >
             <Plus size={18} />
             {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-sm font-medium"
-              >
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm">
                 Add
               </motion.span>
             )}
@@ -317,29 +283,21 @@ export default function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-2 border-t border-gray-200 dark:border-gray-800 space-y-1">
+      <div className="p-2 border-t border-white/[0.06] space-y-1">
         <Tooltip label="Settings">
           <Link
             href="/app/settings"
-            className="relative flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
+              isActive('/app/settings')
+                ? 'bg-white/[0.1] text-white'
+                : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+            }`}
           >
             <Settings size={20} />
             {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-sm font-medium flex-1"
-              >
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm font-medium flex-1">
                 Settings
               </motion.span>
-            )}
-            {isActive('/app/settings') && (
-              <motion.div
-                layoutId="activeSettingsIndicator"
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-lg"
-                transition={{ duration: 0.2 }}
-              />
             )}
           </Link>
         </Tooltip>
@@ -347,16 +305,11 @@ export default function Sidebar() {
         <Tooltip label="Logout">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors hover:text-red-600 dark:hover:text-red-400"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
           >
             <LogOut size={20} />
             {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-sm font-medium flex-1 text-left"
-              >
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm font-medium flex-1 text-left">
                 Logout
               </motion.span>
             )}

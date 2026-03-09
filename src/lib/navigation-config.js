@@ -118,6 +118,7 @@ export const menuItems = [
     category: 'sections',
     submenu: [
       { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles' },
+      { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail' },
     ],
   },

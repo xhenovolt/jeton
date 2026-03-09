@@ -1,16 +1,17 @@
 /**
- * Register Form Component
- * Handles new account creation
+ * Register Form Component - Futuristic Glassmorphism
+ * Handles new account creation with name field
  */
 
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
 
 export default function RegisterForm() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,13 +20,14 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setFieldErrors({});
+    setSuccessMessage('');
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -38,21 +40,23 @@ export default function RegisterForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, name }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.fields) {
-          setFieldErrors(data.fields);
-        }
+        if (data.fields) setFieldErrors(data.fields);
         setError(data.error || 'Registration failed');
         return;
       }
 
-      // Registration successful
-      router.push('/app');
+      if (data.role === 'superadmin' && data.status === 'active') {
+        router.push('/app');
+        return;
+      }
+
+      setSuccessMessage(data.message || 'Account created. Pending admin activation.');
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Registration error:', err);
@@ -61,11 +65,54 @@ export default function RegisterForm() {
     }
   }
 
+  if (successMessage) {
+    return (
+      <div className="text-center space-y-4 py-4">
+        <div className="flex justify-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <CheckCircle className="w-10 h-10 text-emerald-400" />
+          </div>
+        </div>
+        <h3 className="text-lg font-semibold text-white">Account Created</h3>
+        <p className="text-gray-400 text-sm">{successMessage}</p>
+        <a
+          href="/login"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/20"
+        >
+          Go to Login
+          <ArrowRight className="w-4 h-4" />
+        </a>
+      </div>
+    );
+  }
+
+  const inputClasses = 'w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50';
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full">
-      {/* Email Input */}
+      {/* Full Name */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+          Full Name
+        </label>
+        <input
+          id="name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="John Doe"
+          required
+          disabled={isLoading}
+          className={inputClasses}
+        />
+        {fieldErrors.name && (
+          <p className="text-sm text-red-400 mt-1">{fieldErrors.name[0]}</p>
+        )}
+      </div>
+
+      {/* Email */}
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
           Email Address
         </label>
         <input
@@ -76,16 +123,16 @@ export default function RegisterForm() {
           placeholder="you@example.com"
           required
           disabled={isLoading}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+          className={inputClasses}
         />
         {fieldErrors.email && (
-          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{fieldErrors.email[0]}</p>
+          <p className="text-sm text-red-400 mt-1">{fieldErrors.email[0]}</p>
         )}
       </div>
 
-      {/* Password Input */}
+      {/* Password */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
           Password (min. 8 characters)
         </label>
         <div className="relative">
@@ -97,30 +144,25 @@ export default function RegisterForm() {
             placeholder="••••••••"
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className={inputClasses}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             disabled={isLoading}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
           >
-            {showPassword ? (
-              <EyeOff className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
         </div>
         {fieldErrors.password && (
-          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{fieldErrors.password[0]}</p>
+          <p className="text-sm text-red-400 mt-1">{fieldErrors.password[0]}</p>
         )}
       </div>
 
-      {/* Confirm Password Input */}
+      {/* Confirm Password */}
       <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
           Confirm Password
         </label>
         <div className="relative">
@@ -132,48 +174,46 @@ export default function RegisterForm() {
             placeholder="••••••••"
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className={inputClasses}
           />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             disabled={isLoading}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
           >
-            {showConfirmPassword ? (
-              <EyeOff className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
+            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Error Message */}
+      {/* Error */}
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-300">
           {error}
         </div>
       )}
 
-      {/* Submit Button */}
+      {/* Submit */}
       <button
         type="submit"
-        disabled={isLoading || !email || !password || !confirmPassword}
-        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        disabled={isLoading || !name || !email || !password || !confirmPassword}
+        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-gray-700 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
       >
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isLoading ? 'Creating account...' : 'Create Account'}
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <>
+            Create Account
+            <ArrowRight className="w-4 h-4" />
+          </>
+        )}
       </button>
 
-      {/* Login Link */}
-      <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+      {/* Login link */}
+      <p className="text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <a
-          href="/login"
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-        >
+        <a href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
           Sign in
         </a>
       </p>

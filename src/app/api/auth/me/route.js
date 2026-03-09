@@ -48,13 +48,16 @@ export async function GET(request) {
       );
     }
 
-    // Fetch detailed user information
+    // Fetch detailed user information with RBAC roles
     const userResult = await query(
       `SELECT 
         u.id,
         u.email,
+        u.name,
         u.role,
-        u.status
+        u.status,
+        u.is_active,
+        u.created_at
       FROM users u
       WHERE u.id = $1`,
       [session.userId]
@@ -69,6 +72,32 @@ export async function GET(request) {
 
     const user = userResult.rows[0];
 
+    // Fetch RBAC roles for the user
+    let rbacRoles = [];
+    try {
+      const rolesResult = await query(
+        `SELECT r.name FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1`,
+        [user.id]
+      );
+      rbacRoles = rolesResult.rows.map(r => r.name);
+    } catch (_) { /* RBAC tables may not exist yet */ }
+
+    // Fetch permissions for the user's roles
+    let permissions = [];
+    try {
+      const permResult = await query(
+        `SELECT DISTINCT p.module, p.action 
+         FROM user_roles ur 
+         JOIN role_permissions rp ON ur.role_id = rp.role_id 
+         JOIN permissions p ON rp.permission_id = p.id 
+         WHERE ur.user_id = $1`,
+        [user.id]
+      );
+      permissions = permResult.rows.map(p => `${p.module}.${p.action}`);
+    } catch (_) { /* RBAC tables may not exist yet */ }
+
+    const isSuperadmin = user.role === 'superadmin';
+
     // Log successful access
     await logRouteAccess({
       action: 'PROTECTED_ROUTE_ACCESS',
@@ -82,13 +111,15 @@ export async function GET(request) {
         user: {
           id: user.id,
           email: user.email,
-          username: user.username,
-          full_name: user.full_name,
-          profile_photo_url: user.profile_photo_url,
+          name: user.name,
+          full_name: user.name,
           role: user.role,
           status: user.status,
-          is_superadmin: user.is_superadmin,
-          roles: user.roles || [],
+          is_active: user.is_active,
+          is_superadmin: isSuperadmin,
+          roles: rbacRoles.length > 0 ? rbacRoles : [user.role],
+          permissions: isSuperadmin ? ['*'] : permissions,
+          created_at: user.created_at,
         },
       },
       { status: 200 }

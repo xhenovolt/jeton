@@ -1,10 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Shield, ShieldCheck, Edit, X } from 'lucide-react';
+import { Users, Shield, ShieldCheck, Edit, X, Check, UserX, UserCheck, Search, ChevronDown, MoreVertical } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
-const ROLE_COLORS = { superadmin: 'bg-red-100 text-red-700', admin: 'bg-purple-100 text-purple-700', user: 'bg-blue-100 text-blue-700' };
+const STATUS_STYLES = {
+  active: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+  pending: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
+  suspended: 'bg-red-500/15 text-red-400 border border-red-500/20',
+  disabled: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+  inactive: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+};
+
+const ROLE_STYLES = {
+  superadmin: 'bg-red-500/15 text-red-400 border border-red-500/20',
+  admin: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
+  user: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
+  viewer: 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -12,11 +25,17 @@ export default function AdminUsersPage() {
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({ role: '', status: '' });
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
-    try { const res = await fetchWithAuth('/api/admin/users'); const j = await res.json(); if (j.success) setUsers(j.data); } catch (err) { console.error(err); } finally { setLoading(false); }
+    try {
+      const res = await fetchWithAuth('/api/admin/users');
+      const j = await res.json();
+      if (j.success) setUsers(j.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const startEdit = (u) => { setEditUser(u); setEditForm({ role: u.role, status: u.status || 'active' }); };
@@ -24,62 +43,206 @@ export default function AdminUsersPage() {
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const res = await fetchWithAuth(`/api/admin/users/${editUser.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
+      const res = await fetchWithAuth(`/api/admin/users/${editUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
       if ((await res.json()).success) { setEditUser(null); fetchUsers(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
+  const filteredUsers = users
+    .filter((u) => filter === 'all' || u.status === filter || u.role === filter)
+    .filter((u) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (u.name || '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+    });
+
+  const counts = {
+    all: users.length,
+    active: users.filter((u) => u.status === 'active').length,
+    pending: users.filter((u) => u.status === 'pending').length,
+    suspended: users.filter((u) => u.status === 'suspended').length,
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-        <p className="text-sm text-gray-500 mt-1">{users.length} registered users</p>
+    <div className="p-6 space-y-6 min-h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">User Management</h1>
+          <p className="text-sm text-gray-500 mt-1">{users.length} registered users</p>
+        </div>
       </div>
 
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total', value: counts.all, color: 'var(--theme-primary, #3b82f6)' },
+          { label: 'Active', value: counts.active, color: '#10b981' },
+          { label: 'Pending', value: counts.pending, color: '#f59e0b' },
+          { label: 'Suspended', value: counts.suspended, color: '#ef4444' },
+        ].map((s) => (
+          <div key={s.label} className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wider">{s.label}</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Tabs + Search */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex gap-1 bg-white/[0.04] border border-white/[0.06] rounded-xl p-1">
+          {['all', 'active', 'pending', 'suspended'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
+                filter === f ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
+              style={filter === f ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 max-w-xs">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search users..."
+              className="w-full pl-9 pr-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/[0.2]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Panel */}
       {editUser && (
-        <div className="bg-white rounded-xl border p-5 space-y-4">
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Editing: {editUser.name || editUser.email}</h2>
-            <button onClick={() => setEditUser(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            <h2 className="font-semibold text-white">Editing: {editUser.name || editUser.email}</h2>
+            <button onClick={() => setEditUser(null)} className="p-1 hover:bg-white/[0.08] rounded-lg">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Role</label>
-              <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
-                {['user', 'admin', 'superadmin'].map(r => <option key={r} value={r}>{r}</option>)}
+              <label className="block text-sm text-gray-400 mb-1">Role</label>
+              <select
+                value={editForm.role}
+                onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
+                className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white focus:outline-none focus:border-white/[0.2] [&>option]:bg-gray-900"
+              >
+                {['user', 'admin', 'superadmin'].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Status</label>
-              <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
-                {['active', 'inactive', 'suspended'].map(s => <option key={s} value={s}>{s}</option>)}
+              <label className="block text-sm text-gray-400 mb-1">Status</label>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white focus:outline-none focus:border-white/[0.2] [&>option]:bg-gray-900"
+              >
+                {['active', 'pending', 'suspended', 'disabled'].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
               </select>
             </div>
           </div>
-          <button onClick={saveEdit} disabled={saving} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving...' : 'Save Changes'}</button>
+          <div className="flex gap-3">
+            <button
+              onClick={saveEdit}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white transition-opacity disabled:opacity-50"
+              style={{ background: 'var(--theme-primary, #3b82f6)' }}
+            >
+              <Check size={14} />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button onClick={() => setEditUser(null)} className="px-5 py-2 rounded-xl text-sm font-medium text-gray-400 bg-white/[0.06] hover:bg-white/[0.1]">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Users Table */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--theme-primary, #3b82f6)', borderTopColor: 'transparent' }} />
+        </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="text-center py-16">
+          <Users size={40} className="mx-auto text-gray-600 mb-3" />
+          <p className="text-gray-400">No users match your filters</p>
+        </div>
       ) : (
-        <div className="bg-white rounded-xl border divide-y">
-          {users.map(u => (
-            <div key={u.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+          {/* Table Header */}
+          <div className="hidden sm:grid sm:grid-cols-[1fr_120px_100px_140px_60px] px-5 py-3 bg-white/[0.03] border-b border-white/[0.06] text-xs text-gray-500 uppercase tracking-wider">
+            <span>User</span>
+            <span>Role</span>
+            <span>Status</span>
+            <span>Joined</span>
+            <span />
+          </div>
+
+          {/* User Rows */}
+          {filteredUsers.map((u) => (
+            <div
+              key={u.id}
+              className="grid grid-cols-1 sm:grid-cols-[1fr_120px_100px_140px_60px] items-center px-5 py-4 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.03] transition-colors"
+            >
+              {/* User info */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  {u.role === 'superadmin' ? <ShieldCheck className="w-5 h-5 text-red-600" /> : u.role === 'admin' ? <Shield className="w-5 h-5 text-purple-600" /> : <Users className="w-5 h-5 text-gray-400" />}
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ background: `linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))` }}
+                >
+                  {(u.name || u.email).split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{u.name || 'No name'}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[u.role]}`}>{u.role}</span>
-                    {u.status && u.status !== 'active' && <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">{u.status}</span>}
-                  </div>
-                  <div className="text-xs text-gray-400">{u.email} &middot; joined {new Date(u.created_at).toLocaleDateString()}</div>
+                <div className="min-w-0">
+                  <p className="font-medium text-white text-sm truncate">{u.name || 'No name'}</p>
+                  <p className="text-xs text-gray-500 truncate">{u.email}</p>
                 </div>
               </div>
-              <button onClick={() => startEdit(u)} className="p-2 hover:bg-gray-100 rounded-lg"><Edit className="w-4 h-4 text-gray-400" /></button>
+
+              {/* Role */}
+              <div className="mt-2 sm:mt-0">
+                <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium ${ROLE_STYLES[u.role] || ROLE_STYLES.user}`}>
+                  {u.role}
+                </span>
+              </div>
+
+              {/* Status */}
+              <div className="mt-1 sm:mt-0">
+                <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium ${STATUS_STYLES[u.status] || STATUS_STYLES.active}`}>
+                  {u.status || 'active'}
+                </span>
+              </div>
+
+              {/* Joined */}
+              <p className="text-xs text-gray-500 mt-1 sm:mt-0">
+                {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+
+              {/* Actions */}
+              <div className="mt-2 sm:mt-0 flex justify-end">
+                <button
+                  onClick={() => startEdit(u)}
+                  className="p-2 rounded-lg hover:bg-white/[0.08] text-gray-500 hover:text-white transition-colors"
+                >
+                  <Edit size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

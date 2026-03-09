@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { NavigationWrapper } from '@/components/layout/NavigationWrapper';
 import LayoutClient from './layout-client';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -54,6 +55,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground transition-colors duration-300`}
       >
+        <ThemeProvider>
           {/* Navigation Wrapper - Only shows on /app routes */}
           <NavigationWrapper />
 
@@ -63,6 +65,7 @@ export default function RootLayout({ children }) {
               {children}
             </LayoutClient>
           </div>
+        </ThemeProvider>
       </body>
     </html>
   );

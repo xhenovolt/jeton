@@ -1,5 +1,5 @@
 /**
- * Login Form Component
+ * Login Form Component - Futuristic Glassmorphism
  * Handles user authentication with email and password
  */
 
@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -37,7 +37,6 @@ export default function LoginForm() {
         return;
       }
 
-      // Login successful
       router.push('/app');
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -47,11 +46,13 @@ export default function LoginForm() {
     }
   }
 
+  const inputClasses = 'w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50';
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full">
-      {/* Email Input */}
+    <form onSubmit={handleSubmit} className="space-y-5 w-full">
+      {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
           Email Address
         </label>
         <input
@@ -62,13 +63,13 @@ export default function LoginForm() {
           placeholder="you@example.com"
           required
           disabled={isLoading}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+          className={inputClasses}
         />
       </div>
 
-      {/* Password Input */}
+      {/* Password */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
           Password
         </label>
         <div className="relative">
@@ -80,48 +81,47 @@ export default function LoginForm() {
             placeholder="••••••••"
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className={inputClasses}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             disabled={isLoading}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
-            {showPassword ? (
-              <EyeOff className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Error Message */}
+      {/* Error */}
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-300">
           {error}
         </div>
       )}
 
-      {/* Submit Button */}
+      {/* Submit */}
       <button
         type="submit"
         disabled={isLoading || !email || !password}
-        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-gray-700 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
       >
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isLoading ? 'Signing in...' : 'Sign In'}
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <>
+            Sign In
+            <ArrowRight className="w-4 h-4" />
+          </>
+        )}
       </button>
 
-      {/* Register Link */}
-      <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-        Don't have an account?{' '}
-        <a
-          href="/register"
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-        >
+      {/* Register link */}
+      <p className="text-center text-sm text-gray-500">
+        Don&apos;t have an account?{' '}
+        <a href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
           Create one
         </a>
       </p>

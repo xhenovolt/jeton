@@ -155,3 +155,81 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ============================================================================
+   JETON THEME SYSTEM - Custom CSS Variables
+   ============================================================================ */
+:root {
+  --theme-primary: #3b82f6;
+  --theme-sidebar: #0f172a;
+  --theme-navbar: #0f172a;
+  --theme-accent: #6366f1;
+  --theme-content-bg: #f8fafc;
+}
+
+/* ============================================================================
+   ANIMATIONS - Auth Background & UI Micro-interactions
+   ============================================================================ */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+@keyframes float-medium {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, 30px) scale(1.08); }
+}
+@keyframes float-reverse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+@keyframes particle-drift-1 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+  50% { transform: translate(20px, -30px); opacity: 0.8; }
+}
+@keyframes particle-drift-2 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  50% { transform: translate(-30px, 20px); opacity: 0.7; }
+}
+@keyframes particle-drift-3 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.35; }
+  50% { transform: translate(15px, 25px); opacity: 0.75; }
+}
+@keyframes particle-drift-4 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  50% { transform: translate(-20px, -15px); opacity: 0.6; }
+}
+@keyframes particle-drift-5 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+  50% { transform: translate(25px, 20px); opacity: 0.7; }
+}
+
+.animate-float-slow { animation: float-slow 20s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 15s ease-in-out infinite; }
+.animate-float-reverse { animation: float-reverse 25s ease-in-out infinite; }
+.animate-particle-1 { animation: particle-drift-1 8s ease-in-out infinite; }
+.animate-particle-2 { animation: particle-drift-2 10s ease-in-out infinite; }
+.animate-particle-3 { animation: particle-drift-3 12s ease-in-out infinite; }
+.animate-particle-4 { animation: particle-drift-4 9s ease-in-out infinite; }
+.animate-particle-5 { animation: particle-drift-5 11s ease-in-out infinite; }
+
+/* Smooth transitions for theme changes */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 100, 100, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 100, 100, 0.5);
+}

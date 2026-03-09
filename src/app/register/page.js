@@ -1,10 +1,10 @@
 /**
- * Register Page
+ * Register Page - Futuristic Glassmorphism Design
  * New account creation interface
  */
 
-import { Metadata } from 'next';
 import RegisterForm from '@/components/auth/RegisterForm';
+import AnimatedAuthBackground from '@/components/auth/AnimatedAuthBackground';
 
 export const metadata = {
   title: 'Create Account - Jeton',
@@ -13,33 +13,32 @@ export const metadata = {
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-12">
-      <div className="w-full max-w-md">
-        {/* Header */}
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12">
+      <AnimatedAuthBackground />
+      
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo & Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/25 mb-4">
+            <span className="text-2xl font-bold text-white">J</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">
             Create Account
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-400">
             Get started with Jeton today
           </p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-6">
+        {/* Glassmorphism Card */}
+        <div className="backdrop-blur-xl bg-white/[0.07] border border-white/[0.12] rounded-2xl shadow-2xl shadow-black/20 p-8">
           <RegisterForm />
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        <div className="mt-8 text-center text-sm text-gray-500">
           <p>
-            Protected by industry-standard security.{' '}
-            <a
-              href="#"
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-            >
-              Learn more
-            </a>
+            Protected by enterprise-grade security
           </p>
         </div>
       </div>

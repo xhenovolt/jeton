@@ -63,8 +63,19 @@ export default function LayoutClient({ children }) {
 
       {/* Footer */}
       <footer className={footerClasses}>
-        <p>
+        <p className="mb-1">
           © {new Date().getFullYear()} Jeton. Founder Operating System • v2.0
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-500">
+          Made with <span className="text-red-500">♥</span> by{' '}
+          <a
+            href="https://xhenvolt.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
+          >
+            Xhenvolt
+          </a>
         </p>
       </footer>
 

@@ -1,15 +1,161 @@
 /**
- * Permissions System
- * Enterprise-grade role-based access control for Jeton
+ * RBAC Permission System
+ * Database-backed role-based access control for Jeton
+ * 
+ * Superadmin bypasses ALL permission checks.
+ * All other users checked against role_permissions table.
  */
 
+import { query } from './db.js';
+import { verifyAuth } from './auth-utils.js';
+import { NextResponse } from 'next/server';
+
+// ============================================================================
+// DATABASE-BACKED PERMISSION CHECKS
+// ============================================================================
+
 /**
- * Permission Matrix
- * Defines what each role can do across the system
+ * Check if user has a specific permission via DB RBAC tables
+ * @param {string} userId - User UUID
+ * @param {string} module - Module name (e.g., 'finance')
+ * @param {string} action - Action name (e.g., 'view')
+ * @param {string} userRole - User's role from session
+ * @returns {Promise<boolean>}
  */
+export async function hasPermission(userId, module, action, userRole) {
+  if (userRole === 'superadmin') return true;
+  try {
+    const result = await query(
+      `SELECT 1 FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p ON rp.permission_id = p.id
+       WHERE ur.user_id = $1 AND p.module = $2 AND p.action = $3
+       LIMIT 1`,
+      [userId, module, action]
+    );
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('[RBAC] hasPermission failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Get all permissions for a user from DB
+ */
+export async function getUserPermissions(userId) {
+  try {
+    const result = await query(
+      `SELECT DISTINCT p.module, p.action 
+       FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p ON rp.permission_id = p.id
+       WHERE ur.user_id = $1
+       ORDER BY p.module, p.action`,
+      [userId]
+    );
+    return result.rows.map(r => `${r.module}.${r.action}`);
+  } catch (error) {
+    console.error('[RBAC] getUserPermissions failed:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Get all permissions for a role from DB
+ */
+export async function getRolePermissionsFromDB(roleId) {
+  try {
+    const result = await query(
+      `SELECT p.id, p.module, p.action, p.description
+       FROM role_permissions rp
+       JOIN permissions p ON rp.permission_id = p.id
+       WHERE rp.role_id = $1
+       ORDER BY p.module, p.action`,
+      [roleId]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('[RBAC] getRolePermissionsFromDB failed:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Middleware: require specific permission on API route
+ * Returns { auth } if allowed, or NextResponse error if denied
+ */
+export async function requirePermission(request, module, action) {
+  const auth = await verifyAuth(request);
+  if (!auth) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (auth.status === 'pending') {
+    return NextResponse.json(
+      { error: 'Your account is awaiting activation by an administrator.' },
+      { status: 403 }
+    );
+  }
+  if (auth.status === 'suspended') {
+    return NextResponse.json(
+      { error: 'Your account has been suspended. Contact an administrator.' },
+      { status: 403 }
+    );
+  }
+  if (auth.role === 'superadmin') return { auth };
+
+  const allowed = await hasPermission(auth.userId, module, action, auth.role);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'You do not have permission to perform this action.' },
+      { status: 403 }
+    );
+  }
+  return { auth };
+}
+
+/**
+ * Assign a role to a user
+ */
+export async function assignRole(userId, roleName, assignedBy = null) {
+  try {
+    const roleResult = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
+    if (!roleResult.rows[0]) throw new Error(`Role '${roleName}' not found`);
+    await query(
+      `INSERT INTO user_roles (user_id, role_id, assigned_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, role_id) DO NOTHING`,
+      [userId, roleResult.rows[0].id, assignedBy]
+    );
+    return true;
+  } catch (error) {
+    console.error('[RBAC] assignRole failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Remove a role from a user
+ */
+export async function removeRole(userId, roleName) {
+  try {
+    const roleResult = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
+    if (!roleResult.rows[0]) return false;
+    await query('DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2', [userId, roleResult.rows[0].id]);
+    return true;
+  } catch (error) {
+    console.error('[RBAC] removeRole failed:', error.message);
+    return false;
+  }
+}
+
+// ============================================================================
+// LEGACY COMPATIBILITY LAYER (static permission matrix)
+// Kept for backward compatibility with existing code
+// ============================================================================
+
 const PERMISSION_MATRIX = {
   FOUNDER: {
-    // Full access to all resources
     assets: ['create', 'read', 'update', 'delete', 'restore', 'lock', 'unlock', 'export'],
     liabilities: ['create', 'read', 'update', 'delete', 'restore', 'lock', 'unlock', 'export'],
     deals: ['create', 'read', 'update', 'delete', 'restore', 'lock', 'unlock', 'export'],
