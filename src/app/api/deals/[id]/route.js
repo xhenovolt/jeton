@@ -10,12 +10,19 @@ export async function GET(request, { params }) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     const { id } = await params;
     const result = await query(
-      `SELECT d.*, c.company_name as client_name, o.name as offering_name,
+      `SELECT d.*,
+        COALESCE(c.company_name, d.client_name, 'Unknown') as client_label,
+        o.name as offering_name,
+        s.name as system_name,
+        svc.name as service_name,
         (SELECT json_agg(p.* ORDER BY p.payment_date DESC) FROM payments p WHERE p.deal_id = d.id) as payments,
-        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed'), 0) as paid_amount
+        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed'), 0) as paid_amount,
+        (SELECT row_to_json(l.*) FROM licenses l WHERE l.deal_id = d.id LIMIT 1) as license
        FROM deals d
-       JOIN clients c ON d.client_id = c.id
+       LEFT JOIN clients c ON d.client_id = c.id
        LEFT JOIN offerings o ON d.offering_id = o.id
+       LEFT JOIN systems s ON d.system_id = s.id
+       LEFT JOIN services svc ON d.service_id = svc.id
        WHERE d.id = $1`, [id]
     );
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
@@ -34,21 +41,46 @@ export async function PUT(request, { params }) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
-    const fields = ['title','description','total_amount','currency','status','start_date','end_date','due_date','invoice_number','invoice_sent_at','invoice_pdf_url','terms','notes','tags','metadata'];
+    const fields = ['title','description','total_amount','currency','status','system_id','service_id','client_name',
+      'start_date','end_date','due_date','invoice_number','invoice_sent_at','invoice_pdf_url','terms','notes','tags','metadata'];
     const updates = [];
     const values = [];
     fields.forEach(f => { if (body[f] !== undefined) { values.push(typeof body[f] === 'object' && !Array.isArray(body[f]) ? JSON.stringify(body[f]) : body[f]); updates.push(`${f} = $${values.length}`); } });
     if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
-    if (body.status === 'completed') updates.push(`closed_at = NOW()`);
+    if (body.status === 'completed' || body.status === 'closed_won') updates.push(`closed_at = NOW()`);
     values.push(id);
     const result = await query(`UPDATE deals SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
+    const deal = result.rows[0];
+
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'UPDATE', 'deal', id, JSON.stringify(body)]);
-    if (body.status === 'closed_won' || body.status === 'completed') {
-      await Events.dealClosed(id, result.rows[0].title, result.rows[0].total_amount, result.rows[0].currency, auth.userId);
+
+    // AUTO-ISSUE LICENSE: If a system deal is marked closed_won or completed, auto-create a license
+    if ((body.status === 'closed_won' || body.status === 'completed') && deal.system_id) {
+      try {
+        // Get client name
+        const clientLabel = deal.client_name || 'Unknown Client';
+        const existing = await query(
+          `SELECT id FROM licenses WHERE deal_id = $1 LIMIT 1`, [id]
+        );
+        if (!existing.rows.length) {
+          await query(
+            `INSERT INTO licenses (system_id, deal_id, client_name, license_type, issued_date, status)
+             VALUES ($1,$2,$3,'lifetime',CURRENT_DATE,'active') RETURNING *`,
+            [deal.system_id, id, clientLabel]
+          );
+        }
+      } catch (licErr) {
+        console.error('[Deals] license auto-issue error:', licErr);
+        // Do not fail the deal update if license creation fails
+      }
     }
-    return NextResponse.json({ success: true, data: result.rows[0] });
+
+    if (body.status === 'closed_won' || body.status === 'completed') {
+      try { await Events.dealClosed(id, deal.title, deal.total_amount, deal.currency, auth.userId); } catch {}
+    }
+    return NextResponse.json({ success: true, data: deal });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to update deal' }, { status: 500 });
   }

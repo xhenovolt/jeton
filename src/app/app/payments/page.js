@@ -30,7 +30,7 @@ export default function PaymentsPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-        <p className="text-sm text-muted-foreground mt-1">{payments.length} payments &middot; ${totalCompleted.toLocaleString()} completed</p>
+        <p className="text-sm text-muted-foreground mt-1">{payments.length} payments &middot; UGX {Math.round(totalCompleted).toLocaleString()} completed</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -54,7 +54,7 @@ export default function PaymentsPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">${parseFloat(p.amount).toLocaleString()}</span>
+                    <span className="font-medium text-foreground">{p.currency || 'UGX'} {Math.round(parseFloat(p.amount || 0)).toLocaleString()}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAY_STATUS[p.status]}`}>{p.status}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">

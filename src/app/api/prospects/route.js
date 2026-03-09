@@ -17,8 +17,13 @@ export async function GET(request) {
 
     let sql = `SELECT p.*, 
       (SELECT COUNT(*) FROM followups f WHERE f.prospect_id = p.id) as followup_count,
-      (SELECT COUNT(*) FROM prospect_contacts pc WHERE pc.prospect_id = p.id) as contact_count
-      FROM prospects p WHERE 1=1`;
+      (SELECT COUNT(*) FROM prospect_contacts pc WHERE pc.prospect_id = p.id) as contact_count,
+      s.name as system_name,
+      sv.name as service_name
+      FROM prospects p
+      LEFT JOIN systems s ON p.system_id = s.id
+      LEFT JOIN services sv ON p.service_id = sv.id
+      WHERE 1=1`;
     const params = [];
 
     if (stage) { params.push(stage); sql += ` AND p.stage = $${params.length}`; }
@@ -53,17 +58,17 @@ export async function POST(request) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json();
-    const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time } = body;
+    const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time, system_id, service_id } = body;
 
     // Either a title or company_name is required for quick capture
     const name = company_name || body.title;
     if (!name) return NextResponse.json({ success: false, error: 'company_name or title is required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO prospects (company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time, created_by, assigned_to)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$18) RETURNING *`,
+      `INSERT INTO prospects (company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time, system_id, service_id, created_by, assigned_to)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$20) RETURNING *`,
       [name, contact_name||null, email||null, phone||null, website||null, industry||null,
-       source||null, stage||'new', priority||'medium', estimated_value||null, estimated_value_text||null, currency||'UGX', notes||null, tags||'{}', pipeline||null, next_followup_date||null, next_followup_time||null, auth.userId]
+       source||null, stage||'new', priority||'medium', estimated_value||null, estimated_value_text||null, currency||'UGX', notes||null, tags||'{}', pipeline||null, next_followup_date||null, next_followup_time||null, system_id||null, service_id||null, auth.userId]
     );
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,

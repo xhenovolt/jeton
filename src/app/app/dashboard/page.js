@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Users, Handshake, DollarSign, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
 function StatCard({ title, value, subtitle, icon: Icon, color = 'blue', trend }) {
@@ -32,12 +33,12 @@ function StatCard({ title, value, subtitle, icon: Icon, color = 'blue', trend })
   );
 }
 
-function fmt(n) {
-  if (n === null || n === undefined) return '$0';
+function fmt(n, currency = 'UGX') {
+  if (n === null || n === undefined) return formatCurrency(0, currency);
   const num = parseFloat(n);
-  if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
-  return `$${num.toFixed(0)}`;
+  if (num >= 1000000) return `${currency} ${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${currency} ${(num / 1000).toFixed(1)}K`;
+  return formatCurrency(num, currency);
 }
 
 export default function DashboardPage() {

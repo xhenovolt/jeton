@@ -54,14 +54,29 @@ export default function SystemDetailPage() {
   const [showIssueForm, setShowIssueForm] = useState(false);
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showOpForm, setShowOpForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [issueForm, setIssueForm] = useState({ title: '', description: '', status: 'open' });
   const [changeForm, setChangeForm] = useState({ title: '', description: '', status: 'planned' });
   const [editForm, setEditForm] = useState({});
+  const [opForm, setOpForm] = useState({ operation_type: 'development', description: '', status: 'completed' });
+  const [operations, setOperations] = useState([]);
+  const [opsLoading, setOpsLoading] = useState(false);
   const [timelineEvents, setTimelineEvents] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => { if (id) fetchSystem(); }, [id]);
+
+  useEffect(() => {
+    if (tab === 'operations' && id && operations.length === 0) {
+      setOpsLoading(true);
+      fetchWithAuth(`/api/systems/${id}/operations`)
+        .then(r => r.json())
+        .then(j => { setOperations(j.data || []); })
+        .catch(console.error)
+        .finally(() => setOpsLoading(false));
+    }
+  }, [tab, id]);
 
   useEffect(() => {
     if (tab === 'timeline' && id && timelineEvents.length === 0) {
@@ -83,6 +98,24 @@ export default function SystemDetailPage() {
         setEditForm({ name: json.data.name, description: json.data.description || '', version: json.data.version || '', status: json.data.status });
       }
     } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const submitOperation = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetchWithAuth(`/api/systems/${id}/operations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opForm),
+      });
+      const json = await res.json();
+      if (json.success || json.data) {
+        setOperations(prev => [json.data, ...prev]);
+        setOpForm({ operation_type: 'development', description: '', status: 'completed' });
+        setShowOpForm(false);
+      }
+    } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
   const submitIssue = async (e) => {
@@ -247,6 +280,7 @@ export default function SystemDetailPage() {
         <TabButton label={`Licenses (${(data.licenses || []).length})`} active={tab === 'licenses'} onClick={() => setTab('licenses')} />
         <TabButton label={`Issues (${(data.issues || []).length})`} active={tab === 'issues'} onClick={() => setTab('issues')} />
         <TabButton label={`Changes (${(data.changes || []).length})`} active={tab === 'changes'} onClick={() => setTab('changes')} />
+        <TabButton label={`Operations (${operations.length})`} active={tab === 'operations'} onClick={() => setTab('operations')} />
         <TabButton label="Timeline" active={tab === 'timeline'} onClick={() => setTab('timeline')} />
       </div>
 
@@ -421,6 +455,62 @@ export default function SystemDetailPage() {
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── OPERATIONS TAB ── */}
+      {tab === 'operations' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">System Operations</h2>
+            <button onClick={() => setShowOpForm(!showOpForm)} className="flex items-center gap-1 text-sm bg-purple-50 text-purple-600 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition">
+              <Plus className="w-3.5 h-3.5" /> Log Operation
+            </button>
+          </div>
+          {showOpForm && (
+            <form onSubmit={submitOperation} className="bg-card rounded-xl border border-border p-4 space-y-3">
+              <select value={opForm.operation_type} onChange={e => setOpForm(f => ({ ...f, operation_type: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm [&>option]:bg-background">
+                <option value="development">Development</option>
+                <option value="bug_fix">Bug Fix</option>
+                <option value="testing">Testing</option>
+                <option value="deployment">Deployment</option>
+                <option value="architecture_change">Architecture Change</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="update">Update</option>
+                <option value="other">Other</option>
+              </select>
+              <textarea required value={opForm.description} onChange={e => setOpForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Describe what was done..." className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
+              <div className="flex gap-2">
+                <select value={opForm.status} onChange={e => setOpForm(f => ({ ...f, status: e.target.value }))} className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm [&>option]:bg-background">
+                  <option value="completed">Completed</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="planned">Planned</option>
+                </select>
+                <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-blue-700">Save</button>
+                <button type="button" onClick={() => setShowOpForm(false)} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancel</button>
+              </div>
+            </form>
+          )}
+          {opsLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+          ) : operations.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">No operations logged for this system</div>
+          ) : (
+            <div className="bg-card rounded-xl border border-border divide-y divide-border">
+              {operations.map(op => (
+                <div key={op.id} className="p-4 flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">{op.operation_type?.replace(/_/g, ' ')}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${op.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{op.status}</span>
+                    </div>
+                    <p className="text-sm text-foreground">{op.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{new Date(op.created_at).toLocaleDateString()}</p>
+                  </div>
                 </div>
               ))}
             </div>

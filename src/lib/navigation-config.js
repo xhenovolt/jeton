@@ -22,6 +22,10 @@ import {
   Building2,
   Users,
   Activity,
+  Layers,
+  Workflow,
+  PieChart,
+  BookOpen,
 } from 'lucide-react';
 
 /**
@@ -51,7 +55,16 @@ export const menuItems = [
     submenu: [
       { label: 'All Systems', href: '/app/systems', description: 'Software platforms built by Xhenvolt' },
       { label: 'Licenses', href: '/app/licenses', description: 'Active license registry' },
+      { label: 'Operations Log', href: '/app/operations', description: 'Daily founder workflow log' },
     ],
+  },
+
+  // === SERVICES ===
+  {
+    label: 'Services',
+    href: '/app/services',
+    icon: Layers,
+    category: 'sections',
   },
 
   // === SALES PIPELINE ===
@@ -75,6 +88,7 @@ export const menuItems = [
       { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals' },
       { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal' },
       { label: 'Payments', href: '/app/payments', description: 'Payment records' },
+      { label: 'Allocations', href: '/app/allocations', description: 'Money allocation tracking' },
     ],
   },
 
@@ -112,6 +126,14 @@ export const menuItems = [
       { label: 'Transfers', href: '/app/finance/transfers', description: 'Move between accounts' },
       { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits' },
     ],
+  },
+
+  // === DOCS ===
+  {
+    label: 'Docs',
+    href: '/app/docs',
+    icon: BookOpen,
+    category: 'sections',
   },
 
   // === REPORTS ===

@@ -26,7 +26,7 @@ export async function GET(request) {
     sql += ` ORDER BY l.created_at DESC`;
 
     const result = await query(sql, params);
-    return NextResponse.json({ success: true, data: result.rows });
+    return NextResponse.json({ success: true, licenses: result.rows });
   } catch (error) {
     console.error('[Licenses] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch licenses' }, { status: 500 });
@@ -40,14 +40,15 @@ export async function POST(request) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json();
-    const { system_id, deal_id, client_name, license_type, start_date, end_date, status, notes } = body;
+    const { system_id, deal_id, client_name, license_type, issued_date, is_historical, start_date, end_date, status, notes } = body;
 
     if (!client_name) return NextResponse.json({ success: false, error: 'client_name is required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO licenses (system_id, deal_id, client_name, license_type, start_date, end_date, status, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      `INSERT INTO licenses (system_id, deal_id, client_name, license_type, issued_date, is_historical, start_date, end_date, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [system_id || null, deal_id || null, client_name, license_type || 'lifetime',
+       issued_date || null, is_historical || false,
        start_date || null, end_date || null, status || 'active', notes || null]
     );
     await logEvent({ event_type: 'license_issued', entity_type: 'license', entity_id: result.rows[0].id, description: `License issued to ${client_name}`, metadata: { system_id, license_type: license_type || 'lifetime' }, created_by: auth.userId });

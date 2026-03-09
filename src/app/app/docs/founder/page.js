@@ -29,14 +29,15 @@ export default function FounderManualPage() {
           <h2 className="text-2xl font-bold text-foreground mb-6">The Big Picture: Your Core Workflow</h2>
           <div className="space-y-3">
             {[
-              { label: 'PROSPECT', desc: 'You find a lead', route: '/app/prospecting/new' },
-              { label: 'FOLLOW-UP', desc: 'You nurture them', route: '/app/prospecting/followups' },
-              { label: 'CONVERT', desc: 'They become a client', route: '/app/prospecting/conversions' },
-              { label: 'DEAL', desc: 'You pitch a product/system', route: '/app/deals/create' },
-              { label: 'CONTRACT', desc: 'They agree to buy', route: '/app/contracts' },
+              { label: 'PROSPECT', desc: 'You find a lead', route: '/app/prospects' },
+              { label: 'FOLLOW-UP', desc: 'You nurture them', route: '/app/followups' },
+              { label: 'CONVERT', desc: 'They become a client', route: '/app/clients' },
+              { label: 'DEAL', desc: 'You pitch a system or service', route: '/app/deals/new' },
+              { label: 'LICENSE', desc: 'Auto-issued when deal is closed/won', route: '/app/licenses' },
               { label: 'PAYMENT', desc: 'Money arrives', route: '/app/payments' },
-              { label: 'ALLOCATION', desc: 'You distribute the funds', route: '/app/payments' },
-              { label: 'DASHBOARD', desc: 'You see the profit', route: '/app/finance' },
+              { label: 'ALLOCATION', desc: 'You distribute the funds', route: '/app/allocations' },
+              { label: 'DASHBOARD', desc: 'You see the profit', route: '/app/dashboard' },
+              { label: 'LOG', desc: 'Record your daily operations', route: '/app/operations' },
             ].map((item, index) => (
               <div key={index} className="flex items-center gap-4 p-4 bg-muted rounded-lg hover:bg-muted transition">
                 <div className="flex-shrink-0 w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">

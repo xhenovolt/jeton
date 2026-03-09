@@ -13,12 +13,14 @@ export default function NewDealPage() {
   const [clients, setClients] = useState([]);
   const [offerings, setOfferings] = useState([]);
   const [systems, setSystems] = useState([]);
+  const [services, setServices] = useState([]);
   const [saving, setSaving] = useState(false);
   const [clientMode, setClientMode] = useState('select');
   const [form, setForm] = useState({
     client_id: '',
     client_name: '',
     system_id: prefillSystemId || '',
+    service_id: '',
     offering_id: '',
     title: '',
     description: '',
@@ -33,6 +35,7 @@ export default function NewDealPage() {
     fetchWithAuth('/api/clients').then(r => r.json()).then(j => { if (j.success) setClients(j.data); }).catch(() => {});
     fetchWithAuth('/api/offerings').then(r => r.json()).then(j => { if (j.success) setOfferings(j.data); }).catch(() => {});
     fetchWithAuth('/api/systems').then(r => r.json()).then(j => { if (j.success) setSystems(j.data); }).catch(() => {});
+    fetchWithAuth('/api/services?active=true').then(r => r.json()).then(j => { if (j.success) setServices(j.data); }).catch(() => {});
   }, []);
 
   const handleOfferingSelect = (offeringId) => {
@@ -51,6 +54,7 @@ export default function NewDealPage() {
       if (clientMode === 'select') { delete body.client_name; } else { delete body.client_id; }
       if (!body.offering_id) delete body.offering_id;
       if (!body.system_id) delete body.system_id;
+      if (!body.service_id) delete body.service_id;
       if (!body.start_date) delete body.start_date;
       if (!body.end_date) delete body.end_date;
       if (!body.description) delete body.description;
@@ -78,22 +82,53 @@ export default function NewDealPage() {
         {/* System (optional) */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">
-            <Monitor className="w-4 h-4 inline mr-1" />System (optional)
+            <Monitor className="w-4 h-4 inline mr-1" />System (optional — for license deals)
           </label>
           <select
             value={form.system_id}
-            onChange={e => setForm(f => ({ ...f, system_id: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, system_id: e.target.value, service_id: e.target.value ? '' : f.service_id }))}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground [&>option]:bg-background"
           >
-            <option value="">No system (service deal)</option>
+            <option value="">— No system —</option>
             {systems.map(s => (
               <option key={s.id} value={s.id}>{s.version ? s.name + ' v' + s.version : s.name}</option>
             ))}
           </select>
           {form.system_id && (
-            <p className="text-xs text-blue-600 mt-1">This deal will appear in the system's sales history</p>
+            <p className="text-xs text-blue-600 mt-1">✓ A license will be auto-issued when this deal is marked closed/won</p>
           )}
         </div>
+
+        {/* Service (optional — alternative to system) */}
+        {!form.system_id && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Service (optional — for service deals)
+            </label>
+            <select
+              value={form.service_id}
+              onChange={e => {
+                const svc = services.find(s => s.id === e.target.value);
+                setForm(f => ({
+                  ...f,
+                  service_id: e.target.value,
+                  total_amount: svc?.price ? svc.price.toString() : f.total_amount,
+                  currency: svc?.currency || f.currency,
+                  title: f.title || (svc ? svc.name : ''),
+                }));
+              }}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground [&>option]:bg-background"
+            >
+              <option value="">— No service —</option>
+              {services.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.service_type === 'recurring' ? 'Recurring' : 'One-Time'})
+                  {s.price ? ` — ${s.currency} ${Math.round(parseFloat(s.price)).toLocaleString()}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Client */}
         <div>

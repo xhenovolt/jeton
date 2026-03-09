@@ -40,6 +40,8 @@ function parseQuickCapture(text) {
 export default function ProspectsPage() {
   const searchParams = useSearchParams();
   const [prospects, setProspects] = useState([]);
+  const [systems, setSystems] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
@@ -52,7 +54,14 @@ export default function ProspectsPage() {
     company_name: '', contact_name: '', email: '', phone: '',
     source: '', stage: 'new', priority: 'medium',
     estimated_value: '', currency: 'UGX', notes: '', pipeline: '', next_followup_date: '',
+    system_id: '', service_id: '',
   });
+
+  // Fetch systems and services for dropdowns
+  useEffect(() => {
+    fetchWithAuth('/api/systems').then(r => r.json()).then(d => setSystems(d.systems || d || []));
+    fetchWithAuth('/api/services?active=true').then(r => r.json()).then(d => setServices(d.services || d || []));
+  }, []);
 
   // Auto-focus quick input if ?new=1 (from sidebar quick-add)
   useEffect(() => {
@@ -99,12 +108,17 @@ export default function ProspectsPage() {
     try {
       const res = await fetchWithAuth('/api/prospects', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null }),
+        body: JSON.stringify({
+          ...form,
+          estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
+          system_id: form.system_id || null,
+          service_id: form.service_id || null,
+        }),
       });
       const json = await res.json();
       if (json.success) {
         setShowForm(false);
-        setForm({ company_name: '', contact_name: '', email: '', phone: '', source: '', stage: 'new', priority: 'medium', estimated_value: '', currency: 'UGX', notes: '', pipeline: '', next_followup_date: '' });
+        setForm({ company_name: '', contact_name: '', email: '', phone: '', source: '', stage: 'new', priority: 'medium', estimated_value: '', currency: 'UGX', notes: '', pipeline: '', next_followup_date: '', system_id: '', service_id: '' });
         setLoading(true); fetchProspects();
       }
     } catch (err) { console.error(err); }
@@ -176,8 +190,16 @@ export default function ProspectsPage() {
               <input type="number" value={form.estimated_value} onChange={e => setForm({...form, estimated_value: e.target.value})} placeholder="Estimated value" className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
             </div>
             <select value={form.pipeline} onChange={e => setForm({...form, pipeline: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground [&>option]:bg-background">
-              <option value="">Attach to system (optional)</option>
+              <option value="">Pipeline (optional)</option>
               {PIPELINES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select value={form.system_id} onChange={e => setForm({...form, system_id: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground [&>option]:bg-background">
+              <option value="">Interested in system (optional)</option>
+              {systems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground [&>option]:bg-background">
+              <option value="">Interested in service (optional)</option>
+              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <input type="date" value={form.next_followup_date} onChange={e => setForm({...form, next_followup_date: e.target.value})} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" title="Follow-up date (optional)" />
           </div>
