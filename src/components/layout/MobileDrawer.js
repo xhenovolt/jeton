@@ -83,7 +83,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
         credentials: 'include',
       });
       if (response.ok) {
-        window.location.href = '/app/dashboard';
+        window.location.href = '/login';
       }
     } catch (error) {
       console.error('Logout error:', error);

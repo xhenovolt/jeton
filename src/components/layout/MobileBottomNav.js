@@ -73,10 +73,8 @@ export function MobileBottomNav({ onDrawerOpen }) {
 
                 {/* Active indicator */}
                 {active && (
-                  <motion.div
-                    layoutId="navActiveIndicator"
+                  <div
                     className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-purple-600"
-                    transition={{ duration: 0.2 }}
                   />
                 )}
               </Link>

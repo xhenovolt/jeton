@@ -13,7 +13,6 @@ import type { NextRequest } from 'next/server';
 
 // Protected routes that require authentication
 const PROTECTED_ROUTES = [
-  '/dashboard',
   '/app',
   '/assets',
   '/liabilities',
@@ -82,7 +81,7 @@ export function middleware(request: NextRequest) {
 
   // Auth-only routes: redirect away if session exists
   if (isAuthOnlyRoute(pathname) && hasSessionCookie) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/app/dashboard', request.url));
   }
 
   // Public routes and API routes pass through
