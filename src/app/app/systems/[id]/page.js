@@ -55,17 +55,32 @@ export default function SystemDetailPage() {
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showOpForm, setShowOpForm] = useState(false);
+  const [showPlanForm, setShowPlanForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [issueForm, setIssueForm] = useState({ title: '', description: '', status: 'open' });
   const [changeForm, setChangeForm] = useState({ title: '', description: '', status: 'planned' });
   const [editForm, setEditForm] = useState({});
   const [opForm, setOpForm] = useState({ operation_type: 'development', description: '', status: 'completed' });
+  const [planForm, setPlanForm] = useState({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
   const [operations, setOperations] = useState([]);
   const [opsLoading, setOpsLoading] = useState(false);
   const [timelineEvents, setTimelineEvents] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => { if (id) fetchSystem(); }, [id]);
+
+  useEffect(() => {
+    if (tab === 'plans' && id && plans.length === 0) {
+      setPlansLoading(true);
+      fetchWithAuth(`/api/systems/${id}/plans`)
+        .then(r => r.json())
+        .then(j => { setPlans(j.data || []); })
+        .catch(console.error)
+        .finally(() => setPlansLoading(false));
+    }
+  }, [tab, id]);
 
   useEffect(() => {
     if (tab === 'operations' && id && operations.length === 0) {
@@ -98,6 +113,34 @@ export default function SystemDetailPage() {
         setEditForm({ name: json.data.name, description: json.data.description || '', version: json.data.version || '', status: json.data.status });
       }
     } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const submitPlan = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const features = planForm.features ? planForm.features.split('\n').map(s => s.trim()).filter(Boolean) : [];
+      const body = {
+        name: planForm.name,
+        description: planForm.description || null,
+        installation_fee: planForm.installation_fee ? parseFloat(planForm.installation_fee) : 0,
+        monthly_fee: planForm.monthly_fee ? parseFloat(planForm.monthly_fee) : 0,
+        annual_fee: planForm.annual_fee ? parseFloat(planForm.annual_fee) : null,
+        currency: planForm.currency,
+        billing_cycle: planForm.billing_cycle,
+        max_users: planForm.max_users ? parseInt(planForm.max_users) : null,
+        features,
+      };
+      const res = await fetchWithAuth(`/api/systems/${id}/plans`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (json.success) {
+        setPlans(prev => [...prev, json.data]);
+        setPlanForm({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
+        setShowPlanForm(false);
+      } else {
+        alert(json.error || 'Failed to create plan');
+      }
+    } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
   const submitOperation = async (e) => {
@@ -278,6 +321,7 @@ export default function SystemDetailPage() {
       <div className="flex gap-2 flex-wrap">
         <TabButton label={`Deals (${deals.length})`} active={tab === 'overview'} onClick={() => setTab('overview')} />
         <TabButton label={`Licenses (${(data.licenses || []).length})`} active={tab === 'licenses'} onClick={() => setTab('licenses')} />
+        <TabButton label={`Plans (${plans.length})`} active={tab === 'plans'} onClick={() => setTab('plans')} />
         <TabButton label={`Issues (${(data.issues || []).length})`} active={tab === 'issues'} onClick={() => setTab('issues')} />
         <TabButton label={`Changes (${(data.changes || []).length})`} active={tab === 'changes'} onClick={() => setTab('changes')} />
         <TabButton label={`Operations (${operations.length})`} active={tab === 'operations'} onClick={() => setTab('operations')} />

@@ -15,17 +15,22 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 const PING_INTERVAL_MS = 30_000; // 30 seconds
 
 export function useHeartbeat() {
   const intervalRef = useRef(null);
+  const pathname = usePathname();
 
   const ping = async () => {
     try {
+      const pageTitle = typeof document !== 'undefined' ? document.title : '';
       await fetch('/api/presence/ping', {
         method: 'POST',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ route: pathname, page_title: pageTitle }),
       });
     } catch {
       // Network error — silently ignore, will retry on next tick
