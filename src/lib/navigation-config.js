@@ -29,6 +29,10 @@ import {
   Wrench,
   Image,
   Calculator,
+  ClipboardCheck,
+  GitBranch,
+  Brain,
+  BoxSelect,
 } from 'lucide-react';
 
 /**
@@ -77,6 +81,7 @@ export const menuItems = [
     icon: Target,
     category: 'sections',
     submenu: [
+      { label: 'Pipeline Board', href: '/app/pipeline', description: 'Visual pipeline intelligence' },
       { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads' },
       { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints' },
       { label: 'Clients', href: '/app/clients', description: 'Converted prospects' },
@@ -91,6 +96,7 @@ export const menuItems = [
     submenu: [
       { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals' },
       { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal' },
+      { label: 'Obligations', href: '/app/obligations', description: 'Client deliverable tracking' },
       { label: 'Payments', href: '/app/payments', description: 'Payment records' },
       { label: 'Allocations', href: '/app/allocations', description: 'Money allocation tracking' },
     ],
@@ -111,8 +117,8 @@ export const menuItems = [
     category: 'sections',
     submenu: [
       { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy' },
-      { label: 'Resources', href: '/app/resources', description: 'Tools, infrastructure & hardware' },
-      { label: 'Assets', href: '/app/assets', description: 'Company asset register' },
+      { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure' },
+      { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts' },
       { label: 'Offerings', href: '/app/offerings', description: 'Service catalog' },
       { label: 'Media', href: '/app/media', description: 'Files, images & documents' },
