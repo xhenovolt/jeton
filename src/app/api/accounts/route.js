@@ -27,6 +27,11 @@ export async function POST(request) {
     const { name, type, currency, description, institution, account_number, initial_balance } = body;
     if (!name || !type) return NextResponse.json({ success: false, error: 'name and type are required' }, { status: 400 });
 
+    const VALID_TYPES = ['bank','cash','mobile_money','credit_card','investment','escrow','savings','internal','salary','other'];
+    if (!VALID_TYPES.includes(type)) {
+      return NextResponse.json({ success: false, error: `Invalid account type "${type}". Allowed: ${VALID_TYPES.join(', ')}` }, { status: 400 });
+    }
+
     const result = await query(
       `INSERT INTO accounts (name, type, currency, description, institution, account_number)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,

@@ -26,6 +26,9 @@ import {
   Workflow,
   PieChart,
   BookOpen,
+  Wrench,
+  Image,
+  Calculator,
 } from 'lucide-react';
 
 /**
@@ -56,6 +59,7 @@ export const menuItems = [
       { label: 'All Systems', href: '/app/systems', description: 'Software platforms built by Xhenvolt' },
       { label: 'Licenses', href: '/app/licenses', description: 'Active license registry' },
       { label: 'Operations Log', href: '/app/operations', description: 'Daily founder workflow log' },
+      { label: 'Dev Costs', href: '/app/system-costs', description: 'System development cost tracking' },
     ],
   },
 
@@ -106,10 +110,12 @@ export const menuItems = [
     icon: Building2,
     category: 'sections',
     submenu: [
-      { label: 'Staff', href: '/app/staff', description: 'Team members' },
+      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy' },
+      { label: 'Resources', href: '/app/resources', description: 'Tools, infrastructure & hardware' },
       { label: 'Assets', href: '/app/assets', description: 'Company asset register' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts' },
       { label: 'Offerings', href: '/app/offerings', description: 'Service catalog' },
+      { label: 'Media', href: '/app/media', description: 'Files, images & documents' },
     ],
   },
 

@@ -3,6 +3,9 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { Events } from '@/lib/events.js';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUUID(v) { return typeof v === 'string' && UUID_RE.test(v); }
+
 // GET /api/deals
 export async function GET(request) {
   try {
@@ -93,7 +96,7 @@ export async function POST(request) {
     const deal = result.rows[0];
 
     // Record initial payment if provided
-    if (initial_payment && initial_payment.amount > 0 && initial_payment.account_id) {
+    if (initial_payment && initial_payment.amount > 0 && initial_payment.account_id && isUUID(initial_payment.account_id)) {
       try {
         const payResult = await query(
           `INSERT INTO payments (deal_id, account_id, amount, currency, method, status, payment_date, notes, received_at, created_by)
@@ -148,8 +151,13 @@ export async function POST(request) {
       } catch (payErr) {
         console.error('[Deals] Initial payment error:', payErr);
         // Deal was created, payment failed — don't fail the whole thing
+        deal.paid_amount = 0;
+        deal.remaining_amount = parseFloat(total_amount);
       }
     } else {
+      if (initial_payment && initial_payment.account_id && !isUUID(initial_payment.account_id)) {
+        console.error('[Deals] Invalid account_id (not UUID):', initial_payment.account_id);
+      }
       deal.paid_amount = 0;
       deal.remaining_amount = parseFloat(total_amount);
     }

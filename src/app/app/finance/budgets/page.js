@@ -24,8 +24,14 @@ export default function BudgetsPage() {
   const submit = async (e) => {
     e.preventDefault(); setSaving(true);
     try {
-      const body = { ...form, amount: parseFloat(form.amount) };
-      if (!body.category) delete body.category;
+      const body = {
+        name: form.name,
+        amount: parseFloat(form.amount),
+        category: form.category || undefined,
+        period: 'custom',
+        start_date: form.period_start,
+        end_date: form.period_end,
+      };
       const url = editId ? `/api/budgets/${editId}` : '/api/budgets';
       const method = editId ? 'PUT' : 'POST';
       const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

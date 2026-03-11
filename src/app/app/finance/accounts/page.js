@@ -6,13 +6,14 @@ import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 
-const TYPE_COLORS = { checking: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', credit: 'bg-purple-100 text-purple-700', investment: 'bg-cyan-100 text-cyan-700', other: 'bg-muted text-foreground' };
+const TYPE_COLORS = { bank: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', mobile_money: 'bg-purple-100 text-purple-700', credit_card: 'bg-pink-100 text-pink-700', investment: 'bg-cyan-100 text-cyan-700', internal: 'bg-orange-100 text-orange-700', salary: 'bg-teal-100 text-teal-700', escrow: 'bg-indigo-100 text-indigo-700', other: 'bg-muted text-foreground' };
+const ACCOUNT_TYPES = ['cash','mobile_money','bank','savings','credit_card','investment','internal','salary','escrow','other'];
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', type: 'checking', currency: 'UGX', initial_balance: '' });
+  const [form, setForm] = useState({ name: '', type: 'cash', currency: 'UGX', initial_balance: '', institution: '', account_number: '', description: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchAccounts(); }, []);
@@ -32,7 +33,7 @@ export default function AccountsPage() {
       if (body.initial_balance) body.initial_balance = parseFloat(body.initial_balance);
       else delete body.initial_balance;
       const res = await fetchWithAuth('/api/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setForm({ name: '', type: 'checking', currency: 'UGX', initial_balance: '' }); fetchAccounts(); }
+      if ((await res.json()).success) { setShowForm(false); setForm({ name: '', type: 'cash', currency: 'UGX', initial_balance: '', institution: '', account_number: '', description: '' }); fetchAccounts(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -61,7 +62,7 @@ export default function AccountsPage() {
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Type</label>
               <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
-                {['checking','savings','cash','credit','investment','other'].map(t => <option key={t} value={t}>{t}</option>)}
+                {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
               </select>
             </div>
             <div>
