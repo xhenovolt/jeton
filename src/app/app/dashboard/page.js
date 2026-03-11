@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart3, Users, Handshake, DollarSign, TrendingUp, Calendar, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
+import {
+  BarChart3, Users, Handshake, DollarSign, TrendingUp, Calendar,
+  ArrowUpRight, ArrowDownRight, Wallet, Activity, AlertTriangle,
+  Clock, Zap, ExternalLink,
+} from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
@@ -14,6 +18,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color = 'blue', trend })
     orange: 'from-orange-500 to-orange-600',
     rose: 'from-rose-500 to-rose-600',
     cyan: 'from-cyan-500 to-cyan-600',
+    amber: 'from-amber-500 to-amber-600',
   };
   return (
     <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-5 text-white shadow-lg`}>
@@ -40,6 +45,12 @@ function fmt(n, currency = 'UGX') {
   if (num >= 1000) return `${currency} ${(num / 1000).toFixed(1)}K`;
   return formatCurrency(num, currency);
 }
+
+const ATTENTION_ICONS = {
+  overdue_followup: { icon: Calendar, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20', label: 'Overdue follow-up' },
+  overdue_deal: { icon: Clock, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', label: 'Overdue deal' },
+  unlinked_op: { icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', label: 'Op without expense' },
+};
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
@@ -74,6 +85,8 @@ export default function DashboardPage() {
   const d = data || {};
   const fin = d.financial || {};
   const deals = d.deals || {};
+  const ops = d.operations || {};
+  const attention = d.attention || [];
 
   return (
     <div className="space-y-6 p-6">
@@ -81,10 +94,42 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Founder Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Real-time business overview</p>
+          <p className="text-sm text-muted-foreground mt-1">Real-time business overview — Xhenvolt</p>
         </div>
         <div className="text-xs text-muted-foreground">Auto-refreshes every 30s</div>
       </div>
+
+      {/* Attention Items Banner */}
+      {attention.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Needs Your Attention ({attention.length})</span>
+          </div>
+          <div className="space-y-2">
+            {attention.slice(0, 8).map((item, i) => {
+              const cfg = ATTENTION_ICONS[item.item_type] || ATTENTION_ICONS.unlinked_op;
+              const ItemIcon = cfg.icon;
+              const href = item.item_type === 'overdue_deal' ? `/app/deals/${item.item_id}`
+                : item.item_type === 'unlinked_op' ? '/app/operations'
+                : '/app/followups';
+              return (
+                <Link key={i} href={href} className={`flex items-center justify-between px-3 py-2 rounded-lg ${cfg.bg} hover:opacity-80 transition`}>
+                  <div className="flex items-center gap-2">
+                    <ItemIcon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                    <span className="text-sm font-medium text-foreground">{item.label || 'Item'}</span>
+                    <span className="text-xs text-muted-foreground">{cfg.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.detail && <span className="text-xs text-muted-foreground">{new Date(item.detail).toLocaleDateString()}</span>}
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -92,6 +137,30 @@ export default function DashboardPage() {
         <StatCard title="Total Income" value={fmt(fin.total_income)} subtitle={`${fin.income_transactions || 0} payments`} icon={TrendingUp} color="blue" />
         <StatCard title="Total Expenses" value={fmt(fin.total_expenses)} subtitle={`${fin.expense_transactions || 0} expenses`} icon={ArrowDownRight} color="rose" />
         <StatCard title="Active Deals" value={deals.active_deals || 0} subtitle={fmt(deals.active_value) + ' pipeline'} icon={Handshake} color="purple" />
+      </div>
+
+      {/* Operations + Deals Quick Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card rounded-xl border p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Activity className="w-3.5 h-3.5" />Operations</div>
+          <div className="text-xl font-bold text-foreground">{ops.total_ops || 0}</div>
+          <div className="text-xs text-muted-foreground">{ops.month_ops || 0} this month</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Zap className="w-3.5 h-3.5" />Ops Spending</div>
+          <div className="text-xl font-bold text-orange-600">{fmt(ops.total_spent)}</div>
+          <div className="text-xs text-muted-foreground">{fmt(ops.month_spent)} this month</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Clock className="w-3.5 h-3.5" />Outstanding</div>
+          <div className="text-xl font-bold text-amber-600">{fmt(deals.outstanding_balance)}</div>
+          <div className="text-xs text-muted-foreground">{deals.overdue_deals || 0} overdue deals</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><AlertTriangle className="w-3.5 h-3.5" />Unlinked Ops</div>
+          <div className={`text-xl font-bold ${parseInt(ops.unlinked_ops) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{ops.unlinked_ops || 0}</div>
+          <div className="text-xs text-muted-foreground">{parseInt(ops.unlinked_ops) > 0 ? 'need expense linking' : 'all linked'}</div>
+        </div>
       </div>
 
       {/* Middle Row: Pipeline + Accounts */}
@@ -200,6 +269,28 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Monthly Financials Chart */}
+      {(d.monthlyFinancials || []).length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Monthly Financial Trend</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {(d.monthlyFinancials || []).slice(0, 6).reverse().map((m, i) => {
+              const income = parseFloat(m.income || 0);
+              const expenses = parseFloat(m.expenses || 0);
+              const net = income - expenses;
+              return (
+                <div key={i} className="text-center p-3 rounded-lg bg-muted/50">
+                  <div className="text-xs text-muted-foreground mb-2">{m.month || m.period}</div>
+                  <div className="text-xs text-emerald-600">+{fmt(income)}</div>
+                  <div className="text-xs text-red-500">-{fmt(expenses)}</div>
+                  <div className={`text-sm font-bold mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(net)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

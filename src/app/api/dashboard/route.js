@@ -19,6 +19,8 @@ export async function GET(request) {
       accountBalances,
       recentActivity,
       monthlyFinancials,
+      operationsStats,
+      attentionItems,
     ] = await Promise.all([
       // Prospect pipeline
       query(`
@@ -43,7 +45,10 @@ export async function GET(request) {
           COUNT(*) FILTER (WHERE status IN ('draft','sent','accepted','in_progress')) as active_deals,
           COALESCE(SUM(total_amount) FILTER (WHERE status IN ('draft','sent','accepted','in_progress')), 0) as active_value,
           COUNT(*) FILTER (WHERE status = 'completed') as completed_deals,
-          COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as completed_value
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as completed_value,
+          COALESCE(SUM(total_amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = deals.id AND p.status = 'completed'), 0))
+            FILTER (WHERE status IN ('in_progress','accepted','sent')), 0) as outstanding_balance,
+          COUNT(*) FILTER (WHERE due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('completed','cancelled')) as overdue_deals
         FROM deals
       `),
       // Financial summary from ledger
@@ -57,6 +62,44 @@ export async function GET(request) {
       `),
       // Monthly financials
       query(`SELECT * FROM v_monthly_financials LIMIT 12`),
+      // Operations stats — spending by category + system
+      query(`
+        SELECT
+          COUNT(*) as total_ops,
+          COALESCE(SUM(amount), 0) as total_spent,
+          COUNT(*) FILTER (WHERE amount IS NULL OR amount = 0) as unlinked_ops,
+          COALESCE(SUM(amount) FILTER (WHERE operation_date >= date_trunc('month', NOW())), 0) as month_spent,
+          COUNT(*) FILTER (WHERE operation_date >= date_trunc('month', NOW())) as month_ops
+        FROM operations
+      `),
+      // Attention items — things the founder should act on
+      query(`
+        SELECT * FROM (
+          SELECT 'overdue_followup' as item_type, f.id::text as item_id,
+            p.company_name as label, f.scheduled_at::text as detail
+          FROM followups f JOIN prospects p ON f.prospect_id = p.id
+          WHERE f.status = 'scheduled' AND f.scheduled_at < NOW()
+          ORDER BY f.scheduled_at ASC LIMIT 5
+        ) ff
+        UNION ALL
+        SELECT * FROM (
+          SELECT 'overdue_deal' as item_type, d.id::text as item_id,
+            d.title as label, d.due_date::text as detail
+          FROM deals d
+          WHERE d.due_date IS NOT NULL AND d.due_date < NOW()
+            AND d.status NOT IN ('completed','cancelled')
+          ORDER BY d.due_date ASC LIMIT 5
+        ) dd
+        UNION ALL
+        SELECT * FROM (
+          SELECT 'unlinked_op' as item_type, o.id::text as item_id,
+            COALESCE(o.title, o.description, o.category) as label,
+            o.operation_date::text as detail
+          FROM operations o
+          WHERE (o.amount IS NULL OR o.amount = 0)
+          ORDER BY o.created_at DESC LIMIT 5
+        ) oo
+      `),
     ]);
 
     return NextResponse.json({
@@ -64,11 +107,13 @@ export async function GET(request) {
       data: {
         pipeline: prospectPipeline.rows,
         upcomingFollowups: recentFollowups.rows,
-        deals: dealSummary.rows[0] || { active_deals: 0, active_value: 0, completed_deals: 0, completed_value: 0 },
+        deals: dealSummary.rows[0] || { active_deals: 0, active_value: 0, completed_deals: 0, completed_value: 0, outstanding_balance: 0, overdue_deals: 0 },
         financial: financialSummary.rows[0] || { total_income: 0, total_expenses: 0, net_position: 0 },
         accounts: accountBalances.rows,
         recentActivity: recentActivity.rows,
         monthlyFinancials: monthlyFinancials.rows,
+        operations: operationsStats.rows[0] || { total_ops: 0, total_spent: 0, unlinked_ops: 0, month_spent: 0, month_ops: 0 },
+        attention: attentionItems.rows,
       },
     });
   } catch (error) {
