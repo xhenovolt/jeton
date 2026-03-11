@@ -40,14 +40,15 @@ export default function NewDealPage() {
   });
 
   useEffect(() => {
-    Promise.all([
-      fetchWithAuth('/api/clients').then(r => r.json()).then(j => j.success ? j.data : []),
-      fetchWithAuth('/api/systems').then(r => r.json()).then(j => j.success ? j.data : []),
-      fetchWithAuth('/api/services?active=true').then(r => r.json()).then(j => j.success ? j.data : []),
-      fetchWithAuth('/api/accounts').then(r => r.json()).then(j => j.success ? j.data : []),
-    ]).then(([c, sys, svc, acc]) => {
-      setClients(c || []); setSystems(sys || []); setServices(svc || []); setAccounts(acc || []);
-    }).catch(console.error);
+    const safeFetch = (url) => fetchWithAuth(url)
+      .then(r => r.json())
+      .then(j => { console.log(`[deals/new] ${url}:`, j); return j.success ? (j.data || []) : []; })
+      .catch(err => { console.error(`[deals/new] ${url} failed:`, err); return []; });
+
+    safeFetch('/api/clients').then(d => setClients(d));
+    safeFetch('/api/systems').then(d => setSystems(d));
+    safeFetch('/api/services').then(d => setServices(d));
+    safeFetch('/api/accounts').then(d => setAccounts(d));
   }, []);
 
   useEffect(() => {
