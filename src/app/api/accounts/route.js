@@ -8,8 +8,8 @@ export async function GET(request) {
     const auth = await verifyAuth(request);
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     
-    // Use the view to get balances computed from ledger
-    const result = await query(`SELECT * FROM v_account_balances ORDER BY balance DESC`);
+    // Use the view to get balances computed from ledger (alias account_id → id for frontend compat)
+    const result = await query(`SELECT account_id AS id, * FROM v_account_balances ORDER BY balance DESC`);
     return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('[Accounts] GET error:', error);

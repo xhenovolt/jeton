@@ -147,10 +147,10 @@ export default function NewDealPage() {
       const res = await fetchWithAuth('/api/deals', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
-      const json = await res.json();
+      const json = res.json ? await res.json() : res;
       if (json.success) router.push(`/app/deals/${json.data.id}`);
       else setError(json.error || 'Failed to create deal');
-    } catch (err) { console.error(err); setError('Network error'); } finally { setSaving(false); }
+    } catch (err) { console.error(err); setError(err.message || 'Network error'); } finally { setSaving(false); }
   };
 
   return (
