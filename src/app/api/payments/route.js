@@ -13,11 +13,11 @@ export async function GET(request) {
     const deal_id = searchParams.get('deal_id');
     const status = searchParams.get('status');
 
-    let sql = `SELECT p.*, d.title as deal_title, c.company_name as client_name, a.name as account_name
+    let sql = `SELECT p.*, d.title as deal_title, COALESCE(c.company_name, d.client_name) as client_name, a.name as account_name
                FROM payments p
-               JOIN deals d ON p.deal_id = d.id
-               JOIN clients c ON d.client_id = c.id
-               JOIN accounts a ON p.account_id = a.id WHERE 1=1`;
+               LEFT JOIN deals d ON p.deal_id = d.id
+               LEFT JOIN clients c ON d.client_id = c.id
+               LEFT JOIN accounts a ON p.account_id = a.id WHERE 1=1`;
     const params = [];
     if (deal_id) { params.push(deal_id); sql += ` AND p.deal_id = $${params.length}`; }
     if (status) { params.push(status); sql += ` AND p.status = $${params.length}`; }
@@ -45,7 +45,7 @@ export async function POST(request) {
     }
 
     // Validate deal exists and check remaining amount
-    const deal = await query(`SELECT d.*, c.company_name FROM deals d JOIN clients c ON d.client_id = c.id WHERE d.id = $1`, [deal_id]);
+    const deal = await query(`SELECT d.*, COALESCE(c.company_name, d.client_name) as company_name FROM deals d LEFT JOIN clients c ON d.client_id = c.id WHERE d.id = $1`, [deal_id]);
     if (!deal.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
 
     const paymentStatus = status || 'completed';
@@ -73,6 +73,21 @@ export async function POST(request) {
       // Link ledger entry back to payment
       await query(`UPDATE payments SET ledger_entry_id = $1 WHERE id = $2`, [ledgerResult.rows[0].id, payment.id]);
       payment.ledger_entry_id = ledgerResult.rows[0].id;
+    }
+
+    // Auto-compute deal status based on total completed payments
+    if (paymentStatus === 'completed') {
+      const totals = await query(
+        `SELECT COALESCE(SUM(p.amount),0) as paid FROM payments p WHERE p.deal_id = $1 AND p.status = 'completed'`, [deal_id]
+      );
+      const totalPaid = parseFloat(totals.rows[0].paid);
+      const totalDeal = parseFloat(deal.rows[0].total_amount);
+      let newDealStatus = deal.rows[0].status;
+      if (totalPaid >= totalDeal) newDealStatus = 'completed';
+      else if (totalPaid > 0) newDealStatus = 'in_progress';
+      if (newDealStatus !== deal.rows[0].status) {
+        await query(`UPDATE deals SET status = $1 WHERE id = $2`, [newDealStatus, deal_id]);
+      }
     }
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
