@@ -3,6 +3,7 @@ import './globals.css';
 import { NavigationWrapper } from '@/components/layout/NavigationWrapper';
 import LayoutClient from './layout-client';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -56,6 +57,7 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground transition-colors duration-300`}
       >
         <ThemeProvider>
+          <ToastProvider>
           {/* Navigation Wrapper - Only shows on /app routes */}
           <NavigationWrapper />
 
@@ -65,6 +67,7 @@ export default function RootLayout({ children }) {
               {children}
             </LayoutClient>
           </div>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

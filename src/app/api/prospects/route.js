@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/prospects - List all prospects
 export async function GET(request) {
@@ -12,8 +13,9 @@ export async function GET(request) {
     const stage = searchParams.get('stage');
     const source = searchParams.get('source');
     const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25')));
+    const offset = (page - 1) * limit;
 
     let sql = `SELECT p.*, 
       (SELECT COUNT(*) FROM followups f WHERE f.prospect_id = p.id) as followup_count,
@@ -38,12 +40,23 @@ export async function GET(request) {
     params.push(offset); sql += ` OFFSET $${params.length}`;
 
     const result = await query(sql, params);
-    const countResult = await query(`SELECT COUNT(*) FROM prospects`);
+
+    // Count query with same filters
+    let countSql = `SELECT COUNT(*) FROM prospects p WHERE 1=1`;
+    const countParams = [];
+    if (stage) { countParams.push(stage); countSql += ` AND p.stage = $${countParams.length}`; }
+    if (source) { countParams.push(source); countSql += ` AND p.source = $${countParams.length}`; }
+    if (search) {
+      countParams.push(`%${search}%`);
+      countSql += ` AND (p.company_name ILIKE $${countParams.length} OR p.contact_name ILIKE $${countParams.length} OR p.email ILIKE $${countParams.length})`;
+    }
+    const countResult = await query(countSql, countParams);
+    const total = parseInt(countResult.rows[0].count);
 
     return NextResponse.json({
       success: true,
       data: result.rows,
-      pagination: { total: parseInt(countResult.rows[0].count), limit, offset },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('[Prospects] GET error:', error);
@@ -73,6 +86,8 @@ export async function POST(request) {
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'prospect', result.rows[0].id, JSON.stringify({ company_name })]);
+
+    dispatch('prospect_created', { entityType: 'prospect', entityId: result.rows[0].id, description: `Prospect created: ${name}`, metadata: { name, stage: stage || 'new', estimated_value }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {

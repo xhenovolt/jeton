@@ -33,6 +33,10 @@ import {
   GitBranch,
   Brain,
   BoxSelect,
+  FileText,
+  Bug,
+  Zap,
+  Code2,
 } from 'lucide-react';
 
 /**
@@ -98,6 +102,7 @@ export const menuItems = [
       { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal' },
       { label: 'Obligations', href: '/app/obligations', description: 'Client deliverable tracking' },
       { label: 'Payments', href: '/app/payments', description: 'Payment records' },
+      { label: 'Invoices', href: '/app/invoices', description: 'Generated invoices & PDFs' },
       { label: 'Allocations', href: '/app/allocations', description: 'Money allocation tracking' },
     ],
   },
@@ -146,6 +151,20 @@ export const menuItems = [
     href: '/app/docs',
     icon: BookOpen,
     category: 'sections',
+  },
+
+  // === INTELLIGENCE ===
+  {
+    label: 'Intelligence',
+    icon: Brain,
+    category: 'sections',
+    submenu: [
+      { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview' },
+      { label: 'Engineering', href: '/app/tech-intelligence', description: 'Bugs, features & tech stack' },
+      { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue' },
+      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments' },
+      { label: 'Documents', href: '/app/documents', description: 'Document center' },
+    ],
   },
 
   // === REPORTS ===

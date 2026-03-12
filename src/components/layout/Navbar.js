@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type, Check, CheckCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
@@ -23,7 +23,88 @@ export function Navbar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Notification state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef(null);
+
   useEffect(() => { fetchCurrentUser(); }, []);
+
+  // Fetch notifications every 30 seconds
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications?limit=15', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setNotifications(data.data || []);
+          setUnreadCount(data.unread_count || 0);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const markAllRead = async () => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mark_all: true }),
+      });
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch {}
+  };
+
+  const markRead = async (id) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
+
+  const getNotifLink = (n) => {
+    if (!n.reference_type || !n.reference_id) return null;
+    const routes = {
+      deal: `/app/deals/${n.reference_id}`,
+      prospect: `/app/prospects/${n.reference_id}`,
+      client: `/app/clients/${n.reference_id}`,
+      system: `/app/systems/${n.reference_id}`,
+      payment: `/app/payments`,
+      operation: `/app/operations`,
+      expense: `/app/finance/expenses`,
+    };
+    return routes[n.reference_type] || null;
+  };
+
+  const timeAgo = (date) => {
+    const s = Math.floor((Date.now() - new Date(date)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  };
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) setNotifOpen(false);
+    };
+    if (notifOpen) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }
+  }, [notifOpen]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -196,15 +277,94 @@ export function Navbar() {
         </div>
 
         {/* Notifications */}
-        <button
-          className="relative p-2 rounded-xl transition-colors"
-          style={{ color: 'var(--navbar-muted)' }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--navbar-text)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--navbar-muted)'}
-        >
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full" />
-        </button>
+        <div ref={notifRef} className="relative">
+          <button
+            onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchNotifications(); }}
+            className="relative p-2 rounded-xl transition-colors"
+            style={{ color: 'var(--navbar-muted)' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--navbar-text)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--navbar-muted)'}
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {notifOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl shadow-2xl z-50 overflow-hidden"
+                style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--navbar-border)' }}>
+                  <span className="font-semibold text-sm" style={{ color: 'var(--navbar-text)' }}>Notifications</span>
+                  {unreadCount > 0 && (
+                    <button onClick={markAllRead} className="flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: 'var(--theme-primary, #3b82f6)' }}>
+                      <CheckCheck size={14} /> Mark all read
+                    </button>
+                  )}
+                </div>
+
+                {/* List */}
+                <div className="max-h-[400px] overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <Bell size={24} className="mx-auto mb-2 opacity-30" style={{ color: 'var(--navbar-muted)' }} />
+                      <p className="text-sm" style={{ color: 'var(--navbar-muted)' }}>No notifications yet</p>
+                    </div>
+                  ) : (
+                    notifications.map(n => {
+                      const link = getNotifLink(n);
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (!n.is_read) markRead(n.id);
+                            if (link) { window.location.href = link; setNotifOpen(false); }
+                          }}
+                          className={`px-4 py-3 transition-colors ${link ? 'cursor-pointer' : ''} ${!n.is_read ? 'bg-blue-500/5' : ''}`}
+                          style={{ borderBottom: '1px solid var(--navbar-border)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = !n.is_read ? 'rgba(59,130,246,0.05)' : ''}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!n.is_read ? 'bg-blue-500' : 'bg-transparent'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate" style={{ color: 'var(--navbar-text)' }}>{n.title}</p>
+                              <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--navbar-muted)' }}>{n.message}</p>
+                              <p className="text-[10px] mt-1" style={{ color: 'var(--navbar-muted)' }}>{timeAgo(n.created_at)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer */}
+                {notifications.length > 0 && (
+                  <div className="px-4 py-2 text-center" style={{ borderTop: '1px solid var(--navbar-border)' }}>
+                    <button
+                      onClick={() => { window.location.href = '/app/activity'; setNotifOpen(false); }}
+                      className="text-xs font-medium hover:underline"
+                      style={{ color: 'var(--theme-primary, #3b82f6)' }}
+                    >
+                      View all activity →
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* User Profile */}
         <div ref={profileRef} className="relative ml-2">

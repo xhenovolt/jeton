@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, DollarSign, Calendar, CreditCard, Plus, CheckCircle, Clock,
-  FileText, X, Edit2, Server, Settings, User, Trash2, Save, AlertTriangle,
+  FileText, X, Edit2, Server, Settings, User, Trash2, Save, AlertTriangle, Eye, Download,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
@@ -35,6 +35,7 @@ export default function DealDetailPage() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('payments');
   const [events, setEvents] = useState([]);
+  const [invoices, setInvoices] = useState([]);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -46,7 +47,7 @@ export default function DealDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { fetchDeal(); fetchAccounts(); fetchTimeline(); }, [id]);
+  useEffect(() => { fetchDeal(); fetchAccounts(); fetchTimeline(); fetchInvoices(); }, [id]);
 
   const fetchDeal = async () => {
     try {
@@ -66,6 +67,14 @@ export default function DealDetailPage() {
       const j = await res.json();
       if (j.success) setEvents(j.data || []);
     } catch { setEvents([]); }
+  };
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await fetchWithAuth(`/api/invoices?deal_id=${id}`);
+      const j = res.json ? await res.json() : res;
+      if (j.success) setInvoices(j.data || []);
+    } catch { setInvoices([]); }
   };
 
   const updateStatus = async (newStatus) => {
@@ -143,7 +152,7 @@ export default function DealDetailPage() {
       if ((await res.json()).success) {
         setShowPayForm(false);
         setPayForm({ amount: '', account_id: '', method: 'mobile_money', reference: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
-        fetchDeal(); fetchTimeline();
+        fetchDeal(); fetchTimeline(); fetchInvoices();
       }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
@@ -302,22 +311,46 @@ export default function DealDetailPage() {
             <p className="text-sm text-muted-foreground text-center py-8">No payments recorded yet</p>
           ) : (
             <div className="divide-y">
-              {payments.map(p => (
-                <div key={p.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{fmtCurrency(p.amount, cur)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${PAY_STATUS[p.status] || 'bg-muted text-foreground'}`}>{p.status}</span>
+              {payments.map(p => {
+                const inv = invoices.find(i => i.payment_id === p.id);
+                return (
+                <div key={p.id} className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{fmtCurrency(p.amount, cur)}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${PAY_STATUS[p.status] || 'bg-muted text-foreground'}`}>{p.status}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 ml-6">
+                        {p.method?.replace(/_/g, ' ')} {p.reference && `· Ref: ${p.reference}`} · {new Date(p.payment_date || p.created_at).toLocaleDateString()}
+                        {p.notes && <span className="italic ml-1">— {p.notes}</span>}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 ml-6">
-                      {p.method?.replace(/_/g, ' ')} {p.reference && `· Ref: ${p.reference}`} · {new Date(p.payment_date || p.created_at).toLocaleDateString()}
-                      {p.notes && <span className="italic ml-1">— {p.notes}</span>}
+                    <div className="flex items-center gap-2">
+                      {p.ledger_entry_id && <span className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Ledger</span>}
                     </div>
                   </div>
-                  {p.ledger_entry_id && <span className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Ledger</span>}
+                  {inv && (
+                    <div className="ml-6 mt-2 flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+                      <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Invoice: {inv.invoice_number}</span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <button onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, '_blank')}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                          <Eye className="w-3.5 h-3.5" /> Preview
+                        </button>
+                        <span className="text-muted-foreground">·</span>
+                        <button onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, '_blank')}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { Events } from '@/lib/events.js';
+import { dispatch } from '@/lib/system-events.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUUID(v) { return typeof v === 'string' && UUID_RE.test(v); }
@@ -167,6 +168,8 @@ export async function POST(request) {
       [auth.userId, 'CREATE', 'deal', deal.id, JSON.stringify({ title, total_amount, has_payment: !!initial_payment })]
     );
     try { await Events.dealCreated(deal.id, title, auth.userId); } catch {}
+
+    dispatch('deal_created', { entityType: 'deal', entityId: deal.id, description: `Deal created: ${title}`, metadata: { title, total_amount, currency: currency || 'UGX', has_payment: !!initial_payment }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: deal }, { status: 201 });
   } catch (error) {

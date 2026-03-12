@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/expenses
 export async function GET(request) {
@@ -65,6 +66,8 @@ export async function POST(request) {
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'expense', expense.id, JSON.stringify({ category, amount, vendor })]);
+
+    dispatch('expense_recorded', { entityType: 'expense', entityId: expense.id, description: `Expense recorded: ${currency || 'UGX'} ${Number(amount).toLocaleString()} — ${description}`, metadata: { amount, currency: currency || 'UGX', category, description, vendor }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: expense }, { status: 201 });
   } catch (error) {

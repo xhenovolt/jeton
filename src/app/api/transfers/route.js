@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/transfers
 export async function GET(request) {
@@ -74,6 +75,8 @@ export async function POST(request) {
     // Link ledger entries back to transfer
     await query(`UPDATE transfers SET ledger_debit_id = $1, ledger_credit_id = $2 WHERE id = $3`,
       [debitResult.rows[0].id, creditResult.rows[0].id, transfer.id]);
+
+    dispatch('transfer_completed', { entityType: 'transfer', entityId: transfer.id, description: `Transfer: ${currency || 'UGX'} ${Number(amount).toLocaleString()} from ${fromName} to ${toName}`, metadata: { amount, currency: currency || 'UGX', from: fromName, to: toName }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: transfer }, { status: 201 });
   } catch (error) {

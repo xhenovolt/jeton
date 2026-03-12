@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { Events } from '@/lib/events.js';
+import { dispatch } from '@/lib/system-events.js';
+import { createInvoiceForPayment } from '@/lib/invoice-engine.js';
 
 // GET /api/payments
 export async function GET(request) {
@@ -94,7 +96,19 @@ export async function POST(request) {
       [auth.userId, 'CREATE', 'payment', payment.id, JSON.stringify({ deal_id, amount, method })]);
     await Events.paymentReceived(payment.id, amount, currency || 'UGX', deal.rows[0].title, auth.userId);
 
-    return NextResponse.json({ success: true, data: payment }, { status: 201 });
+    dispatch('payment_received', { entityType: 'payment', entityId: payment.id, description: `Payment: ${currency || 'UGX'} ${Number(amount).toLocaleString()} for ${deal.rows[0].title}`, metadata: { amount, currency: currency || 'UGX', deal_title: deal.rows[0].title, deal_id }, actorId: auth.userId }).catch(() => {});
+
+    // Auto-generate invoice for completed payments
+    let invoice = null;
+    if (paymentStatus === 'completed') {
+      invoice = await createInvoiceForPayment({
+        payment,
+        deal: deal.rows[0],
+        userId: auth.userId,
+      });
+    }
+
+    return NextResponse.json({ success: true, data: { ...payment, invoice } }, { status: 201 });
   } catch (error) {
     console.error('[Payments] POST error:', error);
     return NextResponse.json({ success: false, error: 'Failed to create payment' }, { status: 500 });

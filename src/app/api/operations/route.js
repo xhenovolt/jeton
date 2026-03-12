@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { dispatch } from '@/lib/system-events.js';
 
 const VALID_CATEGORIES = [
   'transport', 'prospecting', 'internet_data', 'marketing',
@@ -147,6 +148,8 @@ export async function POST(request) {
       [auth.userId, 'CREATE', 'operation', result.rows[0].id,
        JSON.stringify({ title: effectiveTitle, category: effectiveCategory, amount })]
     );
+
+    dispatch('operation_created', { entityType: 'operation', entityId: result.rows[0].id, description: `Operation: ${effectiveTitle}`, metadata: { title: effectiveTitle, category: effectiveCategory, amount }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {

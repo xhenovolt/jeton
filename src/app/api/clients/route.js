@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/clients
 export async function GET(request) {
@@ -11,6 +12,9 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25')));
+    const offset = (page - 1) * limit;
 
     let sql = `SELECT c.*, 
       (SELECT COUNT(*) FROM deals d WHERE d.client_id = c.id) as deal_count,
@@ -25,8 +29,22 @@ export async function GET(request) {
     }
     sql += ` ORDER BY c.created_at DESC`;
 
-    const result = await query(sql, params);
-    return NextResponse.json({ success: true, data: result.rows });
+    // Count with same filters
+    let countSql = `SELECT COUNT(*) FROM clients c WHERE 1=1`;
+    const countParams = [];
+    if (status) { countParams.push(status); countSql += ` AND c.status = $${countParams.length}`; }
+    if (search) { countParams.push(`%${search}%`); countSql += ` AND (c.company_name ILIKE $${countParams.length} OR c.contact_name ILIKE $${countParams.length} OR c.email ILIKE $${countParams.length})`; }
+
+    params.push(limit); sql += ` LIMIT $${params.length}`;
+    params.push(offset); sql += ` OFFSET $${params.length}`;
+
+    const [result, countResult] = await Promise.all([
+      query(sql, params),
+      query(countSql, countParams),
+    ]);
+    const total = parseInt(countResult.rows[0].count);
+
+    return NextResponse.json({ success: true, data: result.rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch (error) {
     console.error('[Clients] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch clients' }, { status: 500 });
@@ -52,6 +70,8 @@ export async function POST(request) {
 
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'client', result.rows[0].id, JSON.stringify({ company_name })]);
+
+    dispatch('client_created', { entityType: 'client', entityId: result.rows[0].id, description: `Client created: ${company_name}`, metadata: { name: company_name }, actorId: auth.userId }).catch(() => {});
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {

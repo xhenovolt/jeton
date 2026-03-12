@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Search, ChevronRight, Zap, AlertTriangle } from 'lucide-react';
+import { Plus, Search, ChevronRight, Zap, AlertTriangle, Building2, Phone, Mail, Calendar } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
+import { useFormSubmit } from '@/lib/useFormSubmit';
+import { SkeletonTable, SkeletonCards } from '@/components/ui/Skeleton';
+import { Pagination } from '@/components/ui/Pagination';
+import { ViewToggle } from '@/components/ui/ViewToggle';
 
 const STAGES = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'dormant'];
 const STAGE_COLORS = {
