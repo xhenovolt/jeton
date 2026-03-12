@@ -6,7 +6,7 @@
  * Features: collapse/expand, tooltips, active states, dark mode, keyboard nav
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { menuItems as configMenuItems } from '@/lib/navigation-config';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 /**
  * Tooltip Component
@@ -73,9 +74,39 @@ export default function Sidebar() {
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [displayMenuItems, setDisplayMenuItems] = useState(configMenuItems);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const quickAddRef = useRef(null);
+  const { user: permUser, hasPermission, hasModuleAccess, hasAnyPermission, hierarchyLevel, loading: permLoading } = usePermissions();
+
+  // Filter menu items based on user permissions
+  const displayMenuItems = useMemo(() => {
+    // While loading or no user, show nothing with permission gates - show all
+    if (permLoading || !permUser) return configMenuItems;
+    // Superadmins see everything
+    if (permUser.is_superadmin) return configMenuItems;
+
+    return configMenuItems.reduce((acc, item) => {
+      // Check hierarchy minimum if set (e.g., Admin requires level ≤ 3)
+      if (item.minHierarchy && hierarchyLevel > item.minHierarchy) return acc;
+
+      // Check module-level access for top-level items
+      if (item.module && !hasModuleAccess(item.module)) return acc;
+
+      // For items with submenu, filter sub-items by permission
+      if (item.submenu) {
+        const filteredSubmenu = item.submenu.filter(sub => {
+          if (!sub.permission) return true;
+          return hasPermission(sub.permission);
+        });
+        // Only show parent if at least one sub-item is visible
+        if (filteredSubmenu.length === 0 && item.module) return acc;
+        acc.push({ ...item, submenu: filteredSubmenu.length > 0 ? filteredSubmenu : item.submenu });
+      } else {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+  }, [permUser, permLoading, hasPermission, hasModuleAccess, hierarchyLevel]);
 
   // Close quick-add dropdown on outside click or Escape
   useEffect(() => {
@@ -89,24 +120,14 @@ export default function Sidebar() {
     return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', escHandler); };
   }, [showQuickAdd]);
 
-  useEffect(() => { fetchCurrentUser(); }, []);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        if (!(data.user?.is_superadmin || data.user?.role === 'admin' || data.user?.role === 'superadmin')) {
-          setDisplayMenuItems(configMenuItems.filter(item => item.label !== 'Admin'));
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    } finally {
+  useEffect(() => {
+    if (permUser) {
+      setUser(permUser);
+      setLoading(false);
+    } else if (!permLoading) {
       setLoading(false);
     }
-  };
+  }, [permUser, permLoading]);
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');

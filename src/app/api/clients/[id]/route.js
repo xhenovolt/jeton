@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/clients/[id]
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'clients', 'view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(
       `SELECT c.*,
@@ -25,8 +27,9 @@ export async function GET(request, { params }) {
 // PUT /api/clients/[id]
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'clients', 'edit');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const fields = ['company_name','contact_name','email','phone','website','industry','billing_address','tax_id','payment_terms','preferred_currency','status','notes','tags'];
@@ -46,8 +49,9 @@ export async function PUT(request, { params }) {
 // DELETE /api/clients/[id]
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'clients', 'delete');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     // Check for active deals
     const deals = await query(`SELECT COUNT(*) FROM deals WHERE client_id = $1 AND status NOT IN ('completed','cancelled')`, [id]);

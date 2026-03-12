@@ -1,8 +1,21 @@
 'use client';
 
+/**
+ * Admin Roles & Permissions Management
+ * Enterprise RBAC with hierarchy levels and comprehensive permission grid
+ */
+
 import { useEffect, useState } from 'react';
-import { Shield, Plus, X, Check, Trash2, ChevronRight, Lock } from 'lucide-react';
+import { Shield, Plus, X, Check, Trash2, ChevronRight, Lock, Layers } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+
+const HIERARCHY_LABELS = {
+  1: 'Founder / Super Admin',
+  2: 'Executive Leadership',
+  3: 'Department Manager',
+  4: 'Operational Staff',
+  5: 'Limited User',
+};
 
 export default function AdminRolesPage() {
   const [roles, setRoles] = useState([]);
@@ -13,8 +26,11 @@ export default function AdminRolesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
+  const [newRoleHierarchy, setNewRoleHierarchy] = useState(4);
   const [newRolePerms, setNewRolePerms] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [editHierarchy, setEditHierarchy] = useState(null);
+  const [expandedModules, setExpandedModules] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -40,6 +56,7 @@ export default function AdminRolesPage() {
   const selectRole = async (role) => {
     setSelectedRole(role);
     setShowCreate(false);
+    setEditHierarchy(role.hierarchy_level);
     try {
       const res = await fetchWithAuth(`/api/admin/roles/${role.id}`);
       const data = await res.json();
@@ -58,7 +75,10 @@ export default function AdminRolesPage() {
       await fetchWithAuth(`/api/admin/roles/${selectedRole.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permission_ids: rolePermissions }),
+        body: JSON.stringify({
+          permission_ids: rolePermissions,
+          hierarchy_level: editHierarchy,
+        }),
       });
       fetchData();
     } catch (err) {
@@ -78,7 +98,8 @@ export default function AdminRolesPage() {
         body: JSON.stringify({
           name: newRoleName.trim().toLowerCase().replace(/\s+/g, '_'),
           description: newRoleDescription.trim() || undefined,
-          permission_ids: newRolePerms,
+          permissionIds: newRolePerms,
+          hierarchy_level: newRoleHierarchy,
         }),
       });
       const data = await res.json();
@@ -86,6 +107,7 @@ export default function AdminRolesPage() {
         setShowCreate(false);
         setNewRoleName('');
         setNewRoleDescription('');
+        setNewRoleHierarchy(4);
         setNewRolePerms([]);
         fetchData();
       }
@@ -99,7 +121,12 @@ export default function AdminRolesPage() {
   const deleteRole = async (roleId) => {
     if (!confirm('Delete this role? Users with this role will lose associated permissions.')) return;
     try {
-      await fetchWithAuth(`/api/admin/roles/${roleId}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/admin/roles/${roleId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error);
+        return;
+      }
       if (selectedRole?.id === roleId) setSelectedRole(null);
       fetchData();
     } catch (err) {
@@ -121,65 +148,118 @@ export default function AdminRolesPage() {
     }
   };
 
-  const PermissionGrid = ({ permList, setPerm, isSystem }) => (
-    <div className="space-y-4">
-      {Object.entries(permissions.grouped).map(([module, perms]) => {
-        const moduleIds = perms.map((p) => p.id);
-        const selectedCount = moduleIds.filter((id) => permList.includes(id)).length;
-        const allSelected = selectedCount === moduleIds.length;
+  const toggleModuleExpand = (module) => {
+    setExpandedModules(prev => ({ ...prev, [module]: !prev[module] }));
+  };
 
-        return (
-          <div key={module} className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl overflow-hidden">
+  const HierarchySelector = ({ value, onChange, disabled }) => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-foreground">Authority Level</label>
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-1.5">
+        {Object.entries(HIERARCHY_LABELS).map(([level, label]) => {
+          const lvl = parseInt(level);
+          const isSelected = value === lvl;
+          const isDisabled = disabled || lvl === 1;
+          return (
             <button
-              onClick={() => !isSystem && toggleModule(perms, permList, setPerm)}
-              disabled={isSystem}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 dark:bg-white/[0.04] transition-colors disabled:cursor-not-allowed"
+              key={level}
+              onClick={() => !isDisabled && onChange(lvl)}
+              disabled={isDisabled}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed ${
+                isSelected
+                  ? 'bg-muted dark:bg-white/[0.08] border border-border dark:border-white/20'
+                  : 'hover:bg-muted/50 dark:hover:bg-white/[0.04] border border-transparent'
+              }`}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground capitalize">{module}</span>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted dark:bg-white/[0.06] text-muted-foreground">
-                  {selectedCount}/{moduleIds.length}
-                </span>
-              </div>
               <div
-                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                  allSelected
-                    ? 'border-transparent'
-                    : selectedCount > 0
-                      ? 'border-border dark:border-white/20 bg-muted dark:bg-white/[0.10]'
-                      : 'border-border dark:border-white/10'
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                  isSelected ? 'text-white' : 'text-muted-foreground'
                 }`}
-                style={allSelected ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
+                style={isSelected ? { background: 'var(--theme-primary, #3b82f6)' } : { background: 'var(--muted)' }}
               >
-                {allSelected && <Check size={10} className="text-foreground" />}
-                {!allSelected && selectedCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white/50" />}
+                {level}
               </div>
+              <span className={`truncate ${isSelected ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
             </button>
-            <div className="px-4 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {perms.map((p) => (
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const PermissionGrid = ({ permList, setPerm, isSystem }) => (
+    <div className="space-y-2">
+      {Object.entries(permissions.grouped)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([module, perms]) => {
+          const moduleIds = perms.map((p) => p.id);
+          const selectedCount = moduleIds.filter((id) => permList.includes(id)).length;
+          const allSelected = selectedCount === moduleIds.length;
+          const isExpanded = expandedModules[module] !== false;
+
+          return (
+            <div key={module} className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between">
                 <button
-                  key={p.id}
-                  onClick={() => !isSystem && togglePermission(p.id, permList, setPerm)}
+                  onClick={() => toggleModuleExpand(module)}
+                  className="flex-1 flex items-center gap-2 px-4 py-3 hover:bg-muted/50 dark:hover:bg-white/[0.06] transition-colors text-left"
+                >
+                  <ChevronRight
+                    size={14}
+                    className={`text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  />
+                  <span className="text-sm font-medium text-foreground capitalize">{module.replace(/_/g, ' ')}</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted dark:bg-white/[0.06] text-muted-foreground">
+                    {selectedCount}/{moduleIds.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => !isSystem && toggleModule(perms, permList, setPerm)}
                   disabled={isSystem}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-xs disabled:cursor-not-allowed ${
-                    permList.includes(p.id) ? 'bg-muted dark:bg-white/[0.06] text-foreground' : 'text-muted-foreground hover:text-muted-foreground hover:bg-muted/50 dark:bg-white/[0.04]'
-                  }`}
+                  className="px-4 py-3 disabled:cursor-not-allowed"
                 >
                   <div
-                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                      permList.includes(p.id) ? 'border-transparent' : 'border-border dark:border-white/10'
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      allSelected
+                        ? 'border-transparent'
+                        : selectedCount > 0
+                          ? 'border-border dark:border-white/20 bg-muted dark:bg-white/[0.10]'
+                          : 'border-border dark:border-white/10'
                     }`}
-                    style={permList.includes(p.id) ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
+                    style={allSelected ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
                   >
-                    {permList.includes(p.id) && <Check size={8} className="text-foreground" />}
+                    {allSelected && <Check size={10} className="text-white" />}
+                    {!allSelected && selectedCount > 0 && <div className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />}
                   </div>
-                  <span className="truncate">{p.action.replace(/_/g, ' ')}</span>
                 </button>
-              ))}
+              </div>
+              {isExpanded && (
+                <div className="px-4 pb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                  {perms.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => !isSystem && togglePermission(p.id, permList, setPerm)}
+                      disabled={isSystem}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-xs disabled:cursor-not-allowed ${
+                        permList.includes(p.id) ? 'bg-muted dark:bg-white/[0.06] text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div
+                        className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                          permList.includes(p.id) ? 'border-transparent' : 'border-border dark:border-white/10'
+                        }`}
+                        style={permList.includes(p.id) ? { background: 'var(--theme-primary, #3b82f6)' } : {}}
+                      >
+                        {permList.includes(p.id) && <Check size={8} className="text-white" />}
+                      </div>
+                      <span className="truncate capitalize">{p.action.replace(/_/g, ' ')}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
     </div>
   );
 
@@ -197,11 +277,11 @@ export default function AdminRolesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Roles & Permissions</h1>
-          <p className="text-sm text-muted-foreground mt-1">{roles.length} roles configured</p>
+          <p className="text-sm text-muted-foreground mt-1">{roles.length} roles configured &middot; Enterprise RBAC with hierarchy enforcement</p>
         </div>
         <button
           onClick={() => { setShowCreate(true); setSelectedRole(null); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-foreground transition-opacity"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ background: 'var(--theme-primary, #3b82f6)' }}
         >
           <Plus size={16} />
@@ -209,7 +289,7 @@ export default function AdminRolesPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
         {/* Role List */}
         <div className="space-y-2">
           {roles.map((role) => (
@@ -218,8 +298,8 @@ export default function AdminRolesPage() {
               onClick={() => selectRole(role)}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left ${
                 selectedRole?.id === role.id
-                  ? 'bg-muted dark:bg-white/[0.06] border-border dark:border-white/[0.10]'
-                  : 'bg-muted/50 dark:bg-white/[0.04] border-border dark:border-white/[0.10] hover:bg-muted/50 dark:bg-white/[0.04]'
+                  ? 'bg-muted dark:bg-white/[0.06] border-border dark:border-white/[0.15]'
+                  : 'bg-muted/50 dark:bg-white/[0.04] border-border dark:border-white/[0.10] hover:bg-muted dark:hover:bg-white/[0.06]'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -231,11 +311,13 @@ export default function AdminRolesPage() {
                       : 'linear-gradient(135deg, var(--theme-primary, #3b82f6), var(--theme-accent, #6366f1))',
                   }}
                 >
-                  {role.is_system ? <Lock size={14} className="text-foreground" /> : <Shield size={14} className="text-foreground" />}
+                  {role.is_system ? <Lock size={14} className="text-white" /> : <Shield size={14} className="text-white" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground capitalize truncate">{role.name.replace(/_/g, ' ')}</p>
-                  <p className="text-[11px] text-muted-foreground">{role.permission_count || 0} permissions &middot; {role.user_count || 0} users</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Lvl {role.hierarchy_level || '?'} &middot; {role.permission_count || 0} perms &middot; {role.user_count || 0} users
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -259,7 +341,7 @@ export default function AdminRolesPage() {
             <div className="bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] rounded-xl p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Create New Role</h2>
-                <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-muted dark:bg-white/[0.06] rounded-lg">
+                <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-muted dark:hover:bg-white/[0.06] rounded-lg">
                   <X size={18} className="text-muted-foreground" />
                 </button>
               </div>
@@ -270,8 +352,8 @@ export default function AdminRolesPage() {
                     type="text"
                     value={newRoleName}
                     onChange={(e) => setNewRoleName(e.target.value)}
-                    placeholder="e.g. manager"
-                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border dark:border-white/[0.10] text-sm"
+                    placeholder="e.g. department_manager"
+                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                   />
                 </div>
                 <div>
@@ -281,15 +363,19 @@ export default function AdminRolesPage() {
                     value={newRoleDescription}
                     onChange={(e) => setNewRoleDescription(e.target.value)}
                     placeholder="Optional description"
-                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border dark:border-white/[0.10] text-sm"
+                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                   />
                 </div>
               </div>
-              <PermissionGrid permList={newRolePerms} setPerm={setNewRolePerms} isSystem={false} />
+              <HierarchySelector value={newRoleHierarchy} onChange={setNewRoleHierarchy} />
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">Module Permissions</h3>
+                <PermissionGrid permList={newRolePerms} setPerm={setNewRolePerms} isSystem={false} />
+              </div>
               <button
                 onClick={createRole}
                 disabled={saving || !newRoleName.trim()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
                 style={{ background: 'var(--theme-primary, #3b82f6)' }}
               >
                 <Check size={14} />
@@ -303,7 +389,14 @@ export default function AdminRolesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground capitalize">{selectedRole.name.replace(/_/g, ' ')}</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">{selectedRole.description || 'No description'}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {selectedRole.description || 'No description'}
+                    {' · '}
+                    <span className="inline-flex items-center gap-1">
+                      <Layers size={11} />
+                      Level {selectedRole.hierarchy_level || '?'} — {HIERARCHY_LABELS[selectedRole.hierarchy_level] || 'Custom'}
+                    </span>
+                  </p>
                   {selectedRole.is_system && (
                     <p className="text-[11px] text-amber-400 mt-1 flex items-center gap-1">
                       <Lock size={10} /> System role — permissions are read-only
@@ -314,27 +407,33 @@ export default function AdminRolesPage() {
                   <button
                     onClick={savePermissions}
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
                     style={{ background: 'var(--theme-primary, #3b82f6)' }}
                   >
                     <Check size={14} />
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                 )}
               </div>
-              <PermissionGrid
-                permList={rolePermissions}
-                setPerm={setRolePermissions}
-                isSystem={selectedRole.is_system}
-              />
+              {!selectedRole.is_system && (
+                <HierarchySelector value={editHierarchy} onChange={setEditHierarchy} disabled={selectedRole.is_system} />
+              )}
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">Module Permissions</h3>
+                <PermissionGrid
+                  permList={rolePermissions}
+                  setPerm={setRolePermissions}
+                  isSystem={selectedRole.is_system}
+                />
+              </div>
             </div>
           )}
 
           {!selectedRole && !showCreate && (
             <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-              <Shield size={48} className="text-foreground mb-4" />
+              <Shield size={48} className="text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-sm">Select a role to view and edit its permissions</p>
-              <p className="text-muted-foreground text-xs mt-1">Or create a new custom role</p>
+              <p className="text-muted-foreground text-xs mt-1">Or create a new custom role with hierarchy level</p>
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
 import { dispatch } from '@/lib/system-events.js';
 
@@ -10,8 +11,9 @@ function isUUID(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // GET /api/deals
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'deals', 'view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -50,8 +52,9 @@ export async function GET(request) {
 // POST /api/deals — Create deal with optional initial payment
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'deals', 'create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const {

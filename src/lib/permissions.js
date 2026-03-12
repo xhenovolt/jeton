@@ -1,7 +1,11 @@
 /**
- * RBAC Permission System
- * Database-backed role-based access control for Jeton
- * 
+ * Enterprise RBAC Permission System
+ * Database-backed role-based access control with:
+ *  - Permission caching (in-memory, per-user, TTL-based)
+ *  - Hierarchical authority enforcement
+ *  - Approval workflow integration
+ *  - Comprehensive audit logging
+ *
  * Superadmin bypasses ALL permission checks.
  * All other users checked against role_permissions table.
  */
@@ -11,11 +15,73 @@ import { verifyAuth } from './auth-utils.js';
 import { NextResponse } from 'next/server';
 
 // ============================================================================
+// PERMISSION CACHE (in-memory, per-process)
+// ============================================================================
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/** @type {Map<string, { permissions: string[], hierarchyLevel: number, expiry: number }>} */
+const permissionCache = new Map();
+
+/**
+ * Get cached permissions for a user, or load from DB and cache
+ */
+async function getCachedPermissions(userId) {
+  const cached = permissionCache.get(userId);
+  if (cached && cached.expiry > Date.now()) {
+    return cached;
+  }
+  // Load from DB
+  const permissions = await loadUserPermissionsFromDB(userId);
+  const hierarchyLevel = await getUserHierarchyLevel(userId);
+  const entry = { permissions, hierarchyLevel, expiry: Date.now() + CACHE_TTL_MS };
+  permissionCache.set(userId, entry);
+  return entry;
+}
+
+/**
+ * Invalidate cache for a specific user (call after role/permission changes)
+ */
+export function invalidatePermissionCache(userId) {
+  if (userId) {
+    permissionCache.delete(userId);
+  }
+}
+
+/**
+ * Invalidate all cached permissions (call after bulk changes)
+ */
+export function invalidateAllPermissionCaches() {
+  permissionCache.clear();
+}
+
+// ============================================================================
 // DATABASE-BACKED PERMISSION CHECKS
 // ============================================================================
 
 /**
- * Check if user has a specific permission via DB RBAC tables
+ * Load all permissions for a user from DB (internal, used by cache)
+ */
+async function loadUserPermissionsFromDB(userId) {
+  try {
+    const result = await query(
+      `SELECT DISTINCT p.module, p.action
+       FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p ON rp.permission_id = p.id
+       WHERE ur.user_id = $1
+       ORDER BY p.module, p.action`,
+      [userId]
+    );
+    return result.rows.map(r => `${r.module}.${r.action}`);
+  } catch (error) {
+    console.error('[RBAC] loadUserPermissionsFromDB failed:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Check if user has a specific permission via cached RBAC
  * @param {string} userId - User UUID
  * @param {string} module - Module name (e.g., 'finance')
  * @param {string} action - Action name (e.g., 'view')
@@ -25,15 +91,8 @@ import { NextResponse } from 'next/server';
 export async function hasPermission(userId, module, action, userRole) {
   if (userRole === 'superadmin') return true;
   try {
-    const result = await query(
-      `SELECT 1 FROM user_roles ur
-       JOIN role_permissions rp ON ur.role_id = rp.role_id
-       JOIN permissions p ON rp.permission_id = p.id
-       WHERE ur.user_id = $1 AND p.module = $2 AND p.action = $3
-       LIMIT 1`,
-      [userId, module, action]
-    );
-    return result.rows.length > 0;
+    const { permissions } = await getCachedPermissions(userId);
+    return permissions.includes(`${module}.${action}`);
   } catch (error) {
     console.error('[RBAC] hasPermission failed:', error.message);
     return false;
@@ -41,20 +100,12 @@ export async function hasPermission(userId, module, action, userRole) {
 }
 
 /**
- * Get all permissions for a user from DB
+ * Get all permissions for a user (cached)
  */
 export async function getUserPermissions(userId) {
   try {
-    const result = await query(
-      `SELECT DISTINCT p.module, p.action 
-       FROM user_roles ur
-       JOIN role_permissions rp ON ur.role_id = rp.role_id
-       JOIN permissions p ON rp.permission_id = p.id
-       WHERE ur.user_id = $1
-       ORDER BY p.module, p.action`,
-      [userId]
-    );
-    return result.rows.map(r => `${r.module}.${r.action}`);
+    const { permissions } = await getCachedPermissions(userId);
+    return permissions;
   } catch (error) {
     console.error('[RBAC] getUserPermissions failed:', error.message);
     return [];
@@ -81,8 +132,153 @@ export async function getRolePermissionsFromDB(roleId) {
   }
 }
 
+// ============================================================================
+// HIERARCHY SYSTEM
+// ============================================================================
+
 /**
- * Middleware: require specific permission on API route
+ * Get the effective hierarchy level for a user (lowest number = highest authority)
+ * Uses the best (lowest) hierarchy_level among all assigned roles
+ */
+export async function getUserHierarchyLevel(userId) {
+  try {
+    const result = await query(
+      `SELECT MIN(r.hierarchy_level) AS hierarchy_level
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.hierarchy_level ?? 5; // Default to lowest authority
+  } catch (error) {
+    console.error('[RBAC] getUserHierarchyLevel failed:', error.message);
+    return 5;
+  }
+}
+
+/**
+ * Check if a user has sufficient authority to act on a record created by another user
+ * Returns { allowed: true } or { allowed: false, requiresApproval: true }
+ *
+ * @param {string} actingUserId - The user trying to perform the action
+ * @param {string} recordCreatorId - The user who created the target record
+ * @param {string} action - The action being attempted (delete, update)
+ */
+export async function checkHierarchyAuthority(actingUserId, recordCreatorId, action) {
+  // Same user can always modify their own records
+  if (actingUserId === recordCreatorId) {
+    return { allowed: true };
+  }
+
+  try {
+    const [actingCache, creatorLevel] = await Promise.all([
+      getCachedPermissions(actingUserId),
+      getUserHierarchyLevel(recordCreatorId),
+    ]);
+
+    const actingLevel = actingCache.hierarchyLevel;
+
+    // Lower number = higher authority
+    if (actingLevel <= creatorLevel) {
+      return { allowed: true };
+    }
+
+    // Restricted actions that require approval when acting on higher-authority records
+    const restrictedActions = ['delete', 'update'];
+    if (restrictedActions.includes(action)) {
+      return { allowed: false, requiresApproval: true };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    console.error('[RBAC] checkHierarchyAuthority failed:', error.message);
+    return { allowed: false, requiresApproval: true };
+  }
+}
+
+// ============================================================================
+// APPROVAL WORKFLOW
+// ============================================================================
+
+/**
+ * Create an approval request when a user attempts a restricted action
+ */
+export async function createApprovalRequest({
+  requesterUserId,
+  targetRecordType,
+  targetRecordId,
+  actionRequested,
+  reason = null,
+}) {
+  try {
+    const result = await query(
+      `INSERT INTO approval_requests (requester_user_id, target_record_type, target_record_id, action_requested, reason)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, status, created_at`,
+      [requesterUserId, targetRecordType, targetRecordId, actionRequested, reason]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('[RBAC] createApprovalRequest failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Resolve an approval request (approve or reject)
+ */
+export async function resolveApprovalRequest(requestId, approverUserId, status, notes = null) {
+  try {
+    const result = await query(
+      `UPDATE approval_requests
+       SET status = $1, approver_user_id = $2, approver_notes = $3, resolved_at = NOW()
+       WHERE id = $4 AND status = 'pending'
+       RETURNING *`,
+      [status, approverUserId, notes, requestId]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('[RBAC] resolveApprovalRequest failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get pending approval requests for users with equal or lower hierarchy level
+ */
+export async function getPendingApprovalsForUser(userId) {
+  try {
+    const hierarchyLevel = await getUserHierarchyLevel(userId);
+    const result = await query(
+      `SELECT ar.*, 
+              u.name AS requester_name, u.email AS requester_email
+       FROM approval_requests ar
+       JOIN users u ON ar.requester_user_id = u.id
+       WHERE ar.status = 'pending'
+         AND (
+           -- User can approve if they have higher authority than requester
+           $1 <= (
+             SELECT COALESCE(MIN(r.hierarchy_level), 5)
+             FROM user_roles ur JOIN roles r ON ur.role_id = r.id
+             WHERE ur.user_id = ar.requester_user_id
+           )
+         )
+       ORDER BY ar.created_at DESC`,
+      [hierarchyLevel]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('[RBAC] getPendingApprovalsForUser failed:', error.message);
+    return [];
+  }
+}
+
+// ============================================================================
+// MIDDLEWARE: require specific permission on API route
+// ============================================================================
+
+/**
+ * Require specific permission on an API route
  * Returns { auth } if allowed, or NextResponse error if denied
  */
 export async function requirePermission(request, module, action) {
@@ -115,6 +311,49 @@ export async function requirePermission(request, module, action) {
 }
 
 /**
+ * Require permission AND hierarchy check for modifying records
+ * Use this for update/delete on records that have a created_by field
+ *
+ * Returns: { auth } on success, NextResponse on error, or { auth, approvalRequired, approvalRequest } if approval needed
+ */
+export async function requirePermissionWithHierarchy(request, module, action, recordCreatorId) {
+  // First check basic permission
+  const result = await requirePermission(request, module, action);
+  if (result instanceof NextResponse) return result;
+
+  const { auth } = result;
+
+  // If no creator ID, skip hierarchy check
+  if (!recordCreatorId) return { auth };
+
+  // Superadmin bypasses hierarchy
+  if (auth.role === 'superadmin') return { auth };
+
+  // Check hierarchy authority
+  const hierarchyResult = await checkHierarchyAuthority(auth.userId, recordCreatorId, action);
+
+  if (hierarchyResult.allowed) {
+    return { auth };
+  }
+
+  if (hierarchyResult.requiresApproval) {
+    return {
+      auth,
+      approvalRequired: true,
+    };
+  }
+
+  return NextResponse.json(
+    { error: 'Insufficient authority to perform this action.' },
+    { status: 403 }
+  );
+}
+
+// ============================================================================
+// ROLE MANAGEMENT
+// ============================================================================
+
+/**
  * Assign a role to a user
  */
 export async function assignRole(userId, roleName, assignedBy = null) {
@@ -127,6 +366,7 @@ export async function assignRole(userId, roleName, assignedBy = null) {
        ON CONFLICT (user_id, role_id) DO NOTHING`,
       [userId, roleResult.rows[0].id, assignedBy]
     );
+    invalidatePermissionCache(userId);
     return true;
   } catch (error) {
     console.error('[RBAC] assignRole failed:', error.message);
@@ -142,10 +382,31 @@ export async function removeRole(userId, roleName) {
     const roleResult = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
     if (!roleResult.rows[0]) return false;
     await query('DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2', [userId, roleResult.rows[0].id]);
+    invalidatePermissionCache(userId);
     return true;
   } catch (error) {
     console.error('[RBAC] removeRole failed:', error.message);
     return false;
+  }
+}
+
+/**
+ * Get all available permissions grouped by module
+ */
+export async function getAllPermissionsGrouped() {
+  try {
+    const result = await query(
+      'SELECT id, module, action, description, route_path FROM permissions ORDER BY module, action'
+    );
+    const grouped = {};
+    for (const perm of result.rows) {
+      if (!grouped[perm.module]) grouped[perm.module] = [];
+      grouped[perm.module].push(perm);
+    }
+    return { flat: result.rows, grouped };
+  } catch (error) {
+    console.error('[RBAC] getAllPermissionsGrouped failed:', error.message);
+    return { flat: [], grouped: {} };
   }
 }
 

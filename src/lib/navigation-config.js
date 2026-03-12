@@ -50,12 +50,14 @@ export const menuItems = [
     href: '/app/dashboard',
     icon: Home,
     category: 'primary',
+    // Dashboard visible to all authenticated users
   },
   {
     label: 'Activity',
     href: '/app/activity',
     icon: Activity,
     category: 'primary',
+    module: 'activity_logs',
   },
 
   // === SYSTEMS (core IP) ===
@@ -63,11 +65,12 @@ export const menuItems = [
     label: 'Systems',
     icon: Monitor,
     category: 'sections',
+    module: 'systems',
     submenu: [
-      { label: 'All Systems', href: '/app/systems', description: 'Software platforms built by Xhenvolt' },
-      { label: 'Licenses', href: '/app/licenses', description: 'Active license registry' },
-      { label: 'Operations Log', href: '/app/operations', description: 'Daily founder workflow log' },
-      { label: 'Dev Costs', href: '/app/system-costs', description: 'System development cost tracking' },
+      { label: 'All Systems', href: '/app/systems', description: 'Software platforms built by Xhenvolt', permission: 'systems.view' },
+      { label: 'Licenses', href: '/app/licenses', description: 'Active license registry', permission: 'licenses.view' },
+      { label: 'Operations Log', href: '/app/operations', description: 'Daily founder workflow log', permission: 'operations.view' },
+      { label: 'Dev Costs', href: '/app/system-costs', description: 'System development cost tracking', permission: 'systems.view' },
     ],
   },
 
@@ -77,6 +80,7 @@ export const menuItems = [
     href: '/app/services',
     icon: Layers,
     category: 'sections',
+    module: 'services',
   },
 
   // === SALES PIPELINE ===
@@ -84,11 +88,12 @@ export const menuItems = [
     label: 'Pipeline',
     icon: Target,
     category: 'sections',
+    module: 'pipeline',
     submenu: [
-      { label: 'Pipeline Board', href: '/app/pipeline', description: 'Visual pipeline intelligence' },
-      { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads' },
-      { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints' },
-      { label: 'Clients', href: '/app/clients', description: 'Converted prospects' },
+      { label: 'Pipeline Board', href: '/app/pipeline', description: 'Visual pipeline intelligence', permission: 'pipeline.view' },
+      { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads', permission: 'prospects.view' },
+      { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints', permission: 'prospects.view' },
+      { label: 'Clients', href: '/app/clients', description: 'Converted prospects', permission: 'clients.view' },
     ],
   },
 
@@ -97,13 +102,14 @@ export const menuItems = [
     label: 'Deals',
     icon: Briefcase,
     category: 'sections',
+    module: 'deals',
     submenu: [
-      { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals' },
-      { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal' },
-      { label: 'Obligations', href: '/app/obligations', description: 'Client deliverable tracking' },
-      { label: 'Payments', href: '/app/payments', description: 'Payment records' },
-      { label: 'Invoices', href: '/app/invoices', description: 'Generated invoices & PDFs' },
-      { label: 'Allocations', href: '/app/allocations', description: 'Money allocation tracking' },
+      { label: 'All Deals', href: '/app/deals', description: 'Active and completed deals', permission: 'deals.view' },
+      { label: 'New Deal', href: '/app/deals/new', description: 'Record a licensing deal', permission: 'deals.create' },
+      { label: 'Obligations', href: '/app/obligations', description: 'Client deliverable tracking', permission: 'obligations.view' },
+      { label: 'Payments', href: '/app/payments', description: 'Payment records', permission: 'payments.view' },
+      { label: 'Invoices', href: '/app/invoices', description: 'Generated invoices & PDFs', permission: 'invoices.view' },
+      { label: 'Allocations', href: '/app/allocations', description: 'Money allocation tracking', permission: 'allocations.view' },
     ],
   },
 
@@ -113,6 +119,7 @@ export const menuItems = [
     href: '/app/products',
     icon: Package,
     category: 'sections',
+    module: 'products',
   },
 
   // === COMPANY ===
@@ -121,12 +128,12 @@ export const menuItems = [
     icon: Building2,
     category: 'sections',
     submenu: [
-      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy' },
-      { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure' },
-      { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation' },
-      { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts' },
-      { label: 'Offerings', href: '/app/offerings', description: 'Service catalog' },
-      { label: 'Media', href: '/app/media', description: 'Files, images & documents' },
+      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'employees.view' },
+      { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
+      { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
+      { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts', permission: 'finance.view' },
+      { label: 'Offerings', href: '/app/offerings', description: 'Service catalog', permission: 'offerings.view' },
+      { label: 'Media', href: '/app/media', description: 'Files, images & documents', permission: 'media.view' },
     ],
   },
 
@@ -135,13 +142,14 @@ export const menuItems = [
     label: 'Finance',
     icon: DollarSign,
     category: 'sections',
+    module: 'finance',
     submenu: [
-      { label: 'Overview', href: '/app/finance', description: 'Financial dashboard' },
-      { label: 'Accounts', href: '/app/finance/accounts', description: 'Bank and cash accounts' },
-      { label: 'Ledger', href: '/app/finance/ledger', description: 'Transaction history' },
-      { label: 'Expenses', href: '/app/finance/expenses', description: 'Track spending' },
-      { label: 'Transfers', href: '/app/finance/transfers', description: 'Move between accounts' },
-      { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits' },
+      { label: 'Overview', href: '/app/finance', description: 'Financial dashboard', permission: 'finance.view' },
+      { label: 'Accounts', href: '/app/finance/accounts', description: 'Bank and cash accounts', permission: 'accounts.view' },
+      { label: 'Ledger', href: '/app/finance/ledger', description: 'Transaction history', permission: 'finance.view' },
+      { label: 'Expenses', href: '/app/finance/expenses', description: 'Track spending', permission: 'expenses.view' },
+      { label: 'Transfers', href: '/app/finance/transfers', description: 'Move between accounts', permission: 'finance.view' },
+      { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits', permission: 'budgets.view' },
     ],
   },
 
@@ -151,6 +159,7 @@ export const menuItems = [
     href: '/app/docs',
     icon: BookOpen,
     category: 'sections',
+    module: 'knowledge',
   },
 
   // === INTELLIGENCE ===
@@ -158,12 +167,13 @@ export const menuItems = [
     label: 'Intelligence',
     icon: Brain,
     category: 'sections',
+    module: 'intelligence',
     submenu: [
-      { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview' },
-      { label: 'Engineering', href: '/app/tech-intelligence', description: 'Bugs, features & tech stack' },
-      { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue' },
-      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments' },
-      { label: 'Documents', href: '/app/documents', description: 'Document center' },
+      { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview', permission: 'intelligence.view' },
+      { label: 'Engineering', href: '/app/tech-intelligence', description: 'Bugs, features & tech stack', permission: 'bug_tracking.view' },
+      { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue', permission: 'finance.view' },
+      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
+      { label: 'Documents', href: '/app/documents', description: 'Document center', permission: 'documents.view' },
     ],
   },
 
@@ -173,6 +183,7 @@ export const menuItems = [
     href: '/app/reports',
     icon: BarChart3,
     category: 'sections',
+    module: 'reports',
   },
 
   // === ADMIN ===
@@ -180,10 +191,13 @@ export const menuItems = [
     label: 'Admin',
     icon: Shield,
     category: 'sections',
+    module: 'roles',
+    minHierarchy: 3,
     submenu: [
-      { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles' },
-      { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions' },
-      { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail' },
+      { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles', permission: 'users.view' },
+      { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.view' },
+      { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'roles.approve' },
+      { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'activity_logs.view' },
     ],
   },
 
@@ -192,6 +206,7 @@ export const menuItems = [
     label: 'Settings',
     icon: Settings,
     category: 'sections',
+    // Settings visible to all authenticated users
     submenu: [
       { label: 'General', href: '/app/settings', description: 'Account & preferences' },
       { label: 'Appearance', href: '/app/settings/appearance', icon: Palette, description: 'Colors, gradients, glass' },

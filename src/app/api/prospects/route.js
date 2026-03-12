@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/prospects - List all prospects
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'prospects', 'view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const stage = searchParams.get('stage');
@@ -67,8 +69,9 @@ export async function GET(request) {
 // POST /api/prospects - Create new prospect
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'prospects', 'create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { company_name, contact_name, email, phone, website, industry, source, stage, priority, estimated_value, estimated_value_text, currency, notes, tags, pipeline, next_followup_date, next_followup_time, system_id, service_id } = body;

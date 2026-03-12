@@ -1,13 +1,15 @@
 /**
  * GET /api/auth/me
- * Get current user information from session with roles and permissions
+ * Get current user information from session with roles, permissions,
+ * hierarchy level, and pending approval count
  */
 
 import { NextResponse } from 'next/server.js';
 import { cookies } from 'next/headers.js';
-import { getSession, getSessionFromCookies } from '@/lib/session.js';
+import { getSession } from '@/lib/session.js';
 import { logRouteAccess, extractRequestMetadata } from '@/lib/audit.js';
 import { query } from '@/lib/db.js';
+import { getUserPermissions, getUserHierarchyLevel } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
@@ -71,32 +73,43 @@ export async function GET(request) {
     }
 
     const user = userResult.rows[0];
+    const isSuperadmin = user.role === 'superadmin';
 
     // Fetch RBAC roles for the user
     let rbacRoles = [];
     try {
       const rolesResult = await query(
-        `SELECT r.name FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1`,
+        `SELECT r.name, r.hierarchy_level FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1`,
         [user.id]
       );
       rbacRoles = rolesResult.rows.map(r => r.name);
     } catch (_) { /* RBAC tables may not exist yet */ }
 
-    // Fetch permissions for the user's roles
+    // Fetch permissions using cached system
     let permissions = [];
+    let hierarchyLevel = 5;
     try {
-      const permResult = await query(
-        `SELECT DISTINCT p.module, p.action 
-         FROM user_roles ur 
-         JOIN role_permissions rp ON ur.role_id = rp.role_id 
-         JOIN permissions p ON rp.permission_id = p.id 
-         WHERE ur.user_id = $1`,
-        [user.id]
-      );
-      permissions = permResult.rows.map(p => `${p.module}.${p.action}`);
+      if (isSuperadmin) {
+        permissions = ['*'];
+        hierarchyLevel = 1;
+      } else {
+        [permissions, hierarchyLevel] = await Promise.all([
+          getUserPermissions(user.id),
+          getUserHierarchyLevel(user.id),
+        ]);
+      }
     } catch (_) { /* RBAC tables may not exist yet */ }
 
-    const isSuperadmin = user.role === 'superadmin';
+    // Count pending approval requests for this user (if they have authority)
+    let pendingApprovals = 0;
+    try {
+      if (hierarchyLevel <= 3) {
+        const approvalResult = await query(
+          `SELECT COUNT(*) AS cnt FROM approval_requests WHERE status = 'pending'`
+        );
+        pendingApprovals = parseInt(approvalResult.rows[0]?.cnt || 0, 10);
+      }
+    } catch (_) { /* approval_requests table may not exist yet */ }
 
     // Log successful access
     await logRouteAccess({
@@ -118,7 +131,9 @@ export async function GET(request) {
           is_active: user.is_active,
           is_superadmin: isSuperadmin,
           roles: rbacRoles.length > 0 ? rbacRoles : [user.role],
-          permissions: isSuperadmin ? ['*'] : permissions,
+          permissions: permissions,
+          hierarchy_level: hierarchyLevel,
+          pending_approvals: pendingApprovals,
           created_at: user.created_at,
         },
       },

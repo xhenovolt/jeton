@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
 
 // GET /api/deals/[id]
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'deals', 'view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(
       `SELECT d.*,
@@ -37,8 +39,9 @@ export async function GET(request, { params }) {
 // PUT /api/deals/[id]
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'deals', 'edit');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const fields = ['title','description','total_amount','currency','status','system_id','service_id','client_name',
@@ -89,8 +92,9 @@ export async function PUT(request, { params }) {
 // DELETE /api/deals/[id]
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'deals', 'delete');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const payments = await query(`SELECT COUNT(*) FROM payments WHERE deal_id = $1 AND status = 'completed'`, [id]);
     if (parseInt(payments.rows[0].count) > 0) {
