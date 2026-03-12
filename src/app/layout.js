@@ -20,17 +20,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: 'Jeton - Production-Grade Next.js App',
-  description: 'A full-stack Next.js application with PostgreSQL integration',
-  keywords: ['next.js', 'react', 'tailwindcss', 'postgresql'],
-  authors: [{ name: 'Development Team' }],
-  creator: 'Jeton Team',
+  title: 'Jeton — Founder Operating System',
+  description: 'Institutional intelligence platform by Xhenvolt. Systems, deals, payments, invoices, and organizational intelligence.',
+  keywords: ['jeton', 'founder os', 'business intelligence', 'xhenvolt'],
+  authors: [{ name: 'Xhenvolt' }],
+  creator: 'Xhenvolt',
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icons/icon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Jeton',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'http://localhost:3000',
-    title: 'Jeton',
-    description: 'A full-stack Next.js application',
+    title: 'Jeton — Founder Operating System',
+    description: 'Institutional intelligence platform by Xhenvolt',
+    images: [{ url: '/icons/icon-512x512.png', width: 512, height: 512 }],
   },
 };
 
@@ -50,8 +63,12 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
-        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Jeton" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground transition-colors duration-300`}

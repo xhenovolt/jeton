@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { useHeartbeat } from '@/lib/use-heartbeat';
+import SplashScreen from '@/components/SplashScreen';
 
 const mockUser = {
   name: 'Admin User',
@@ -15,10 +16,23 @@ const mockUser = {
 };
 
 export default function LayoutClient({ children }) {
-  useHeartbeat(); // Send heartbeat pings every 30s while tab is active
+  useHeartbeat(); // Send heartbeat pings every tab is active
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
   const pathname = usePathname();
+
+  // Show splash screen once per session on /app routes
+  useEffect(() => {
+    if (pathname.startsWith('/app') && !sessionStorage.getItem('jeton_splash_shown')) {
+      setShowSplash(true);
+    }
+  }, []);
+
+  const handleSplashFinished = useCallback(() => {
+    setShowSplash(false);
+    sessionStorage.setItem('jeton_splash_shown', '1');
+  }, []);
   
   // Show navigation only on /app and /admin routes
   const showNavigation = pathname.startsWith('/app') || pathname.startsWith('/admin');
@@ -55,6 +69,9 @@ export default function LayoutClient({ children }) {
 
   return (
     <>
+      {/* Splash Screen — shown once per session like WhatsApp */}
+      {showSplash && <SplashScreen onFinished={handleSplashFinished} />}
+
       {/* Page Title Bar - Only on /app routes */}
       {showNavigation && <PageTitle />}
 
