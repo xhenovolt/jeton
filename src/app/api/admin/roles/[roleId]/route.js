@@ -51,7 +51,7 @@ export async function PUT(request, { params }) {
     }
 
     const { roleId } = await params;
-    const { description, permissionIds, hierarchy_level } = await request.json();
+    const { description, permissionIds, hierarchy_level, department_id, alias, responsibilities } = await request.json();
 
     const updates = [];
     const values = [];
@@ -64,9 +64,27 @@ export async function PUT(request, { params }) {
     }
 
     if (hierarchy_level !== undefined) {
-      const level = Math.max(2, Math.min(10, parseInt(hierarchy_level) || 5));
+      const level = Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5));
       updates.push(`hierarchy_level = $${idx}`);
       values.push(level);
+      idx++;
+    }
+
+    if (department_id !== undefined) {
+      updates.push(`department_id = $${idx}`);
+      values.push(department_id || null);
+      idx++;
+    }
+
+    if (alias !== undefined) {
+      updates.push(`alias = $${idx}`);
+      values.push(alias || null);
+      idx++;
+    }
+
+    if (responsibilities !== undefined) {
+      updates.push(`responsibilities = $${idx}`);
+      values.push(responsibilities || null);
       idx++;
     }
 

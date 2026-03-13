@@ -6,15 +6,18 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Shield, Plus, X, Check, Trash2, ChevronRight, Lock, Layers } from 'lucide-react';
+import { Shield, Plus, X, Check, Trash2, ChevronRight, Lock, Layers, Search, Building2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
-const HIERARCHY_LABELS = {
-  1: 'Founder / Super Admin',
-  2: 'Executive Leadership',
-  3: 'Department Manager',
-  4: 'Operational Staff',
-  5: 'Limited User',
+// Dynamic — no hardcoded hierarchy labels
+const getHierarchyLabel = (level) => {
+  if (level <= 1) return 'Founder / Super Admin';
+  if (level <= 2) return 'Executive Leadership';
+  if (level <= 3) return 'Department Lead';
+  if (level <= 5) return 'Senior Staff';
+  if (level <= 7) return 'Operational Staff';
+  if (level <= 10) return 'Limited Access';
+  return `Custom Level ${level}`;
 };
 
 export default function AdminRolesPage() {
@@ -28,9 +31,15 @@ export default function AdminRolesPage() {
   const [newRoleDescription, setNewRoleDescription] = useState('');
   const [newRoleHierarchy, setNewRoleHierarchy] = useState(4);
   const [newRolePerms, setNewRolePerms] = useState([]);
+  const [newRoleDepartment, setNewRoleDepartment] = useState('');
+  const [newRoleAlias, setNewRoleAlias] = useState('');
   const [saving, setSaving] = useState(false);
   const [editHierarchy, setEditHierarchy] = useState(null);
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editAlias, setEditAlias] = useState('');
   const [expandedModules, setExpandedModules] = useState({});
+  const [departments, setDepartments] = useState([]);
+  const [roleSearch, setRoleSearch] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -38,14 +47,17 @@ export default function AdminRolesPage() {
 
   const fetchData = async () => {
     try {
-      const [rolesRes, permsRes] = await Promise.all([
+      const [rolesRes, permsRes, deptsRes] = await Promise.all([
         fetchWithAuth('/api/admin/roles'),
         fetchWithAuth('/api/admin/permissions'),
+        fetch('/api/departments', { credentials: 'include' }),
       ]);
       const rolesData = await rolesRes.json();
       const permsData = await permsRes.json();
+      const deptsData = await deptsRes.json();
       if (rolesData.success) setRoles(rolesData.data);
       if (permsData.success) setPermissions({ flat: permsData.data, grouped: permsData.grouped });
+      if (deptsData.success) setDepartments(deptsData.data);
     } catch (err) {
       console.error('Failed to fetch roles/permissions:', err);
     } finally {
@@ -57,6 +69,8 @@ export default function AdminRolesPage() {
     setSelectedRole(role);
     setShowCreate(false);
     setEditHierarchy(role.hierarchy_level);
+    setEditDepartment(role.department_id || '');
+    setEditAlias(role.alias || '');
     try {
       const res = await fetchWithAuth(`/api/admin/roles/${role.id}`);
       const data = await res.json();
@@ -78,6 +92,8 @@ export default function AdminRolesPage() {
         body: JSON.stringify({
           permission_ids: rolePermissions,
           hierarchy_level: editHierarchy,
+          department_id: editDepartment || null,
+          alias: editAlias || null,
         }),
       });
       fetchData();
@@ -100,6 +116,8 @@ export default function AdminRolesPage() {
           description: newRoleDescription.trim() || undefined,
           permissionIds: newRolePerms,
           hierarchy_level: newRoleHierarchy,
+          department_id: newRoleDepartment || null,
+          alias: newRoleAlias || null,
         }),
       });
       const data = await res.json();
@@ -109,6 +127,8 @@ export default function AdminRolesPage() {
         setNewRoleDescription('');
         setNewRoleHierarchy(4);
         setNewRolePerms([]);
+        setNewRoleDepartment('');
+        setNewRoleAlias('');
         fetchData();
       }
     } catch (err) {
@@ -155,35 +175,34 @@ export default function AdminRolesPage() {
   const HierarchySelector = ({ value, onChange, disabled }) => (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-foreground">Authority Level</label>
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-1.5">
-        {Object.entries(HIERARCHY_LABELS).map(([level, label]) => {
-          const lvl = parseInt(level);
-          const isSelected = value === lvl;
-          const isDisabled = disabled || lvl === 1;
-          return (
-            <button
-              key={level}
-              onClick={() => !isDisabled && onChange(lvl)}
-              disabled={isDisabled}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed ${
-                isSelected
-                  ? 'bg-muted dark:bg-white/[0.08] border border-border dark:border-white/20'
-                  : 'hover:bg-muted/50 dark:hover:bg-white/[0.04] border border-transparent'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                  isSelected ? 'text-white' : 'text-muted-foreground'
-                }`}
-                style={isSelected ? { background: 'var(--theme-primary, #3b82f6)' } : { background: 'var(--muted)' }}
-              >
-                {level}
-              </div>
-              <span className={`truncate ${isSelected ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-3">
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={value || 5}
+          onChange={e => !disabled && onChange(parseInt(e.target.value) || 5)}
+          disabled={disabled}
+          className="w-20 px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground text-sm focus:outline-none disabled:opacity-50"
+        />
+        <span className="text-sm text-muted-foreground">{getHierarchyLabel(value || 5)}</span>
+        <span className="text-[10px] text-muted-foreground">(1 = highest authority, higher numbers = less authority)</span>
       </div>
+    </div>
+  );
+
+  const DepartmentSelector = ({ value, onChange, disabled }) => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-foreground">Department</label>
+      <select
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground text-sm focus:outline-none disabled:opacity-50"
+      >
+        <option value="">No department</option>
+        {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.alias ? ` (${d.alias})` : ''}</option>)}
+      </select>
     </div>
   );
 
@@ -292,7 +311,12 @@ export default function AdminRolesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
         {/* Role List */}
         <div className="space-y-2">
-          {roles.map((role) => (
+          <div className="relative mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input value={roleSearch} onChange={e => setRoleSearch(e.target.value)} placeholder="Search roles..."
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none" />
+          </div>
+          {roles.filter(r => !roleSearch || r.name.includes(roleSearch.toLowerCase()) || r.alias?.toLowerCase().includes(roleSearch.toLowerCase()) || r.department_name?.toLowerCase().includes(roleSearch.toLowerCase())).map((role) => (
             <button
               key={role.id}
               onClick={() => selectRole(role)}
@@ -314,9 +338,9 @@ export default function AdminRolesPage() {
                   {role.is_system ? <Lock size={14} className="text-white" /> : <Shield size={14} className="text-white" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground capitalize truncate">{role.name.replace(/_/g, ' ')}</p>
+                  <p className="text-sm font-medium text-foreground capitalize truncate">{role.name.replace(/_/g, ' ')}{role.alias ? ` (${role.alias})` : ''}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Lvl {role.hierarchy_level || '?'} &middot; {role.permission_count || 0} perms &middot; {role.user_count || 0} users
+                    Lvl {role.hierarchy_level || '?'} &middot; {role.permission_count || 0} perms &middot; {role.user_count || 0} users{role.department_name ? ` · ${role.department_name}` : ''}
                   </p>
                 </div>
               </div>
@@ -368,6 +392,14 @@ export default function AdminRolesPage() {
                 </div>
               </div>
               <HierarchySelector value={newRoleHierarchy} onChange={setNewRoleHierarchy} />
+              <div className="grid grid-cols-2 gap-4">
+                <DepartmentSelector value={newRoleDepartment} onChange={setNewRoleDepartment} />
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-1">Alias (optional)</label>
+                  <input value={newRoleAlias} onChange={e => setNewRoleAlias(e.target.value)} placeholder="e.g. Emperor, Prince..."
+                    className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none text-sm" />
+                </div>
+              </div>
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-3">Module Permissions</h3>
                 <PermissionGrid permList={newRolePerms} setPerm={setNewRolePerms} isSystem={false} />
@@ -391,10 +423,12 @@ export default function AdminRolesPage() {
                   <h2 className="text-lg font-semibold text-foreground capitalize">{selectedRole.name.replace(/_/g, ' ')}</h2>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     {selectedRole.description || 'No description'}
+                    {selectedRole.alias && ` · Alias: ${selectedRole.alias}`}
+                    {selectedRole.department_name && ` · Dept: ${selectedRole.department_name}`}
                     {' · '}
                     <span className="inline-flex items-center gap-1">
                       <Layers size={11} />
-                      Level {selectedRole.hierarchy_level || '?'} — {HIERARCHY_LABELS[selectedRole.hierarchy_level] || 'Custom'}
+                      Level {selectedRole.hierarchy_level || '?'} — {getHierarchyLabel(selectedRole.hierarchy_level)}
                     </span>
                   </p>
                   {selectedRole.is_system && (
@@ -417,6 +451,20 @@ export default function AdminRolesPage() {
               </div>
               {!selectedRole.is_system && (
                 <HierarchySelector value={editHierarchy} onChange={setEditHierarchy} disabled={selectedRole.is_system} />
+              )}
+              {!selectedRole.is_system && (
+                <div className="grid grid-cols-2 gap-4">
+                  <DepartmentSelector value={editDepartment} onChange={setEditDepartment} disabled={selectedRole.is_system} />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">Alias (optional)</label>
+                    <input
+                      value={editAlias}
+                      onChange={e => setEditAlias(e.target.value)}
+                      placeholder="e.g. Emperor, Prince..."
+                      className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground text-sm focus:outline-none"
+                    />
+                  </div>
+                </div>
               )}
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-3">Module Permissions</h3>

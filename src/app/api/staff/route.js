@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
+import { dispatch } from '@/lib/system-events.js';
 
 // GET /api/staff
 export async function GET(request) {
@@ -14,13 +15,17 @@ export async function GET(request) {
     const department = searchParams.get('department');
     const status = searchParams.get('status');
 
-    let sql = `SELECT s.*, m.name as manager_name, a.name as salary_account_name
+    let sql = `SELECT s.*, m.name as manager_name, a.name as salary_account_name,
+                      r.name as role_name, r.hierarchy_level, r.alias as role_alias,
+                      d.name as dept_name
                FROM staff s
                LEFT JOIN staff m ON s.manager_id = m.id
                LEFT JOIN accounts a ON s.salary_account_id = a.id
+               LEFT JOIN roles r ON s.role_id = r.id
+               LEFT JOIN departments d ON s.department_id = d.id
                WHERE 1=1`;
     const params = [];
-    if (department) { params.push(department); sql += ` AND s.department = $${params.length}`; }
+    if (department) { params.push(department); sql += ` AND (s.department = $${params.length} OR d.name = $${params.length})`; }
     if (status) { params.push(status); sql += ` AND s.status = $${params.length}`; }
     sql += ` ORDER BY s.joined_at DESC NULLS LAST, s.created_at DESC`;
 
@@ -39,21 +44,32 @@ export async function POST(request) {
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json();
-    const { name, role, status, joined_at, notes, email, phone, department, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url } = body;
+    const { name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url } = body;
 
     if (!name) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO staff (name, role, status, joined_at, notes, email, phone, department, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
-      [name, role || null, status || 'active', joined_at || null, notes || null,
-       email || null, phone || null, department || null, position || null,
+      `INSERT INTO staff (name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+      [name, role || null, role_id || null, status || 'active', joined_at || null, notes || null,
+       email || null, phone || null, department || null, department_id || null, position || null,
        salary || null, salary_currency || 'UGX', salary_account_id || null,
        manager_id || null, hire_date || null, photo_url || null]
     );
 
+    // Log the hire action
+    await query(`INSERT INTO staff_actions (staff_id, action_type, new_role_id, new_role_name, new_authority_level, performed_by)
+      VALUES ($1, 'hire', $2, $3, $4, $5)`,
+      [result.rows[0].id, role_id || null, role || null, null, auth.userId]);
+
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'staff', result.rows[0].id, JSON.stringify({ name, department, position })]);
+
+    dispatch('staff_created', {
+      entityType: 'staff', entityId: result.rows[0].id,
+      description: `Staff member "${name}" was added`, actorId: auth.userId,
+      metadata: { name, department: department || null, position: position || null },
+    });
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
@@ -72,7 +88,7 @@ export async function PATCH(request) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
 
-    const allowed = ['name','role','status','joined_at','notes','email','phone','department','position','salary','salary_currency','salary_account_id','manager_id','hire_date','photo_url'];
+    const allowed = ['name','role','role_id','status','joined_at','notes','email','phone','department','department_id','position','salary','salary_currency','salary_account_id','manager_id','hire_date','photo_url','is_active'];
     const updates = [];
     const values = [];
     allowed.forEach(f => {

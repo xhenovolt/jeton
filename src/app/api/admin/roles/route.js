@@ -16,10 +16,12 @@ export async function GET(request) {
     }
 
     const result = await query(`
-      SELECT r.id, r.name, r.description, r.is_system, r.hierarchy_level, r.created_at,
+      SELECT r.id, r.name, r.description, r.is_system, r.hierarchy_level, r.department_id, r.alias, r.responsibilities, r.created_at,
+        d.name AS department_name,
         (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
         (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
       FROM roles r
+      LEFT JOIN departments d ON r.department_id = d.id
       ORDER BY r.hierarchy_level ASC, r.name ASC
     `);
 
@@ -37,19 +39,20 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
     }
 
-    const { name, description, permissionIds, hierarchy_level } = await request.json();
+    const { name, description, permissionIds, hierarchy_level, department_id, alias, responsibilities } = await request.json();
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ success: false, error: 'Role name is required' }, { status: 400 });
     }
 
     const sanitizedName = name.toLowerCase().trim().replace(/[^a-z0-9_]/g, '_');
-    const level = Math.max(2, Math.min(10, parseInt(hierarchy_level) || 5));
+    const level = Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5));
 
     // Create role
     const roleResult = await query(
-      'INSERT INTO roles (name, description, is_system, hierarchy_level) VALUES ($1, $2, false, $3) RETURNING id, name, description, hierarchy_level',
-      [sanitizedName, description || '', level]
+      `INSERT INTO roles (name, description, is_system, hierarchy_level, department_id, alias, responsibilities)
+       VALUES ($1, $2, false, $3, $4, $5, $6) RETURNING id, name, description, hierarchy_level, department_id, alias`,
+      [sanitizedName, description || '', level, department_id || null, alias || null, responsibilities || null]
     );
 
     const role = roleResult.rows[0];

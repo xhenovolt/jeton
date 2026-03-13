@@ -5,6 +5,7 @@ import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Pal
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 /**
  * Top Navigation Bar - Futuristic Design
@@ -51,6 +52,15 @@ export function Navbar() {
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  // Real-time SSE — when a notification arrives, prepend it
+  useRealtimeNotifications({
+    onNotification: useCallback((notif) => {
+      setNotifications(prev => [notif, ...prev].slice(0, 15));
+      setUnreadCount(prev => prev + 1);
+    }, []),
+    enabled: true,
+  });
 
   const markAllRead = async () => {
     try {

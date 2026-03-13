@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
 const STATUS_STYLES = {
@@ -11,33 +11,56 @@ const STATUS_STYLES = {
   probation: 'bg-yellow-100 text-yellow-700',
 };
 
-const DEPARTMENTS = ['Engineering', 'Sales', 'Support', 'Operations', 'Management', 'Marketing', 'Finance', 'HR'];
-
 export default function StaffPage() {
   const [staff, setStaff] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [roleSearch, setRoleSearch] = useState('');
+  const [roleResults, setRoleResults] = useState([]);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [tab, setTab] = useState('list'); // list | hierarchy
   const [deptFilter, setDeptFilter] = useState('');
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', role: '', department: '', position: '',
+    name: '', email: '', phone: '', role: '', department: '', department_id: '', role_id: '', position: '',
     salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '',
     hire_date: '', status: 'active', notes: '',
   });
   const [saving, setSaving] = useState(false);
 
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth('/api/departments');
+      const j = await res.json();
+      if (j.success) setDepartments(j.data || []);
+    } catch {}
+  }, []);
+
+  const searchRoles = useCallback(async (q) => {
+    if (!q || q.length < 1) { setRoleResults([]); return; }
+    try {
+      const params = new URLSearchParams({ q, limit: '10' });
+      if (form.department_id) params.set('department_id', form.department_id);
+      const res = await fetchWithAuth(`/api/roles/search?${params}`);
+      const j = await res.json();
+      if (j.success) setRoleResults(j.data || []);
+    } catch {}
+  }, [form.department_id]);
+
   useEffect(() => {
     fetchStaff();
+    fetchDepartments();
     fetchWithAuth('/api/accounts').then(r => r.json()).then(j => { if (j.success) setAccounts(j.data || []); }).catch(() => {});
-  }, []);
+  }, [fetchDepartments]);
 
   const fetchStaff = async () => {
     try { const res = await fetchWithAuth('/api/staff'); const j = await res.json(); if (j.success) setStaff(j.data || []); } catch {} finally { setLoading(false); }
   };
 
-  const resetForm = () => setForm({ name: '', email: '', phone: '', role: '', department: '', position: '', salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '', hire_date: '', status: 'active', notes: '' });
+  const resetForm = () => { setForm({ name: '', email: '', phone: '', role: '', department: '', department_id: '', role_id: '', position: '', salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '', hire_date: '', status: 'active', notes: '' }); setRoleSearch(''); setRoleResults([]); };
 
   const submit = async (e) => {
     e.preventDefault(); setSaving(true);
@@ -58,10 +81,12 @@ export default function StaffPage() {
   const startEdit = (s) => {
     setForm({
       name: s.name || '', email: s.email || '', phone: s.phone || '', role: s.role || '',
-      department: s.department || '', position: s.position || '', salary: s.salary?.toString() || '',
+      department: s.department || s.dept_name || '', department_id: s.department_id || '', role_id: s.role_id || '',
+      position: s.position || '', salary: s.salary?.toString() || '',
       salary_currency: s.salary_currency || 'UGX', salary_account_id: s.salary_account_id || '',
       manager_id: s.manager_id || '', hire_date: s.hire_date?.split('T')[0] || '', status: s.status || 'active', notes: s.notes || '',
     });
+    setRoleSearch(s.role_name || s.role || '');
     setEditId(s.id); setShowForm(true);
   };
 
@@ -70,7 +95,8 @@ export default function StaffPage() {
     try { await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' }); fetchStaff(); } catch {}
   };
 
-  const filtered = deptFilter ? staff.filter(s => s.department === deptFilter) : staff;
+  const deptNames = departments.map(d => d.name);
+  const filtered = deptFilter ? staff.filter(s => (s.department === deptFilter || s.dept_name === deptFilter)) : staff;
 
   // Build hierarchy tree
   const buildTree = () => {
@@ -137,13 +163,52 @@ export default function StaffPage() {
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Department</label>
-              <select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
-                <option value="">Select...</option>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              <select value={form.department_id} onChange={e => {
+                const dept = departments.find(d => d.id === e.target.value);
+                setForm(f => ({ ...f, department_id: e.target.value, department: dept?.name || '' }));
+              }} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
+                <option value="">Select department...</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
+            <div className="relative">
+              <label className="block text-sm text-muted-foreground mb-1">Role</label>
+              <div className="relative">
+                <input
+                  value={roleSearch}
+                  onChange={e => { setRoleSearch(e.target.value); searchRoles(e.target.value); setShowRoleDropdown(true); }}
+                  onFocus={() => { if (roleSearch) { searchRoles(roleSearch); setShowRoleDropdown(true); } }}
+                  placeholder="Search roles..."
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground pr-8"
+                />
+                <Search className="w-4 h-4 absolute right-2.5 top-2.5 text-muted-foreground" />
+              </div>
+              {showRoleDropdown && roleResults.length > 0 && (
+                <div className="absolute z-20 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {roleResults.map(r => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => {
+                        setForm(f => ({ ...f, role_id: r.id, role: r.name }));
+                        setRoleSearch(r.name);
+                        setShowRoleDropdown(false);
+                        if (r.department_id && !form.department_id) {
+                          const dept = departments.find(d => d.id === r.department_id);
+                          if (dept) setForm(f => ({ ...f, department_id: dept.id, department: dept.name }));
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-muted/50 text-sm flex items-center justify-between"
+                    >
+                      <span className="text-foreground">{r.name}</span>
+                      {r.department_name && <span className="text-xs text-muted-foreground">{r.department_name}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-1">Position / Role</label>
+              <label className="block text-sm text-muted-foreground mb-1">Position Title</label>
               <input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="e.g. Software Engineer" className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
             <div>
@@ -192,10 +257,10 @@ export default function StaffPage() {
       {tab === 'list' && (
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setDeptFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!deptFilter ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>All</button>
-          {DEPARTMENTS.map(d => {
-            const count = staff.filter(s => s.department === d).length;
+          {departments.map(d => {
+            const count = staff.filter(s => s.department === d.name || s.dept_name === d.name).length;
             if (count === 0) return null;
-            return <button key={d} onClick={() => setDeptFilter(d)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${deptFilter === d ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>{d} ({count})</button>;
+            return <button key={d.id} onClick={() => setDeptFilter(d.name)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${deptFilter === d.name ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>{d.name} ({count})</button>;
           })}
         </div>
       )}
@@ -223,8 +288,8 @@ export default function StaffPage() {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[s.status] || 'bg-muted text-foreground'}`}>{s.status}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {s.position || s.role || 'No role'}
-                    {s.department && ` · ${s.department}`}
+                    {s.position || s.role_name || s.role || 'No role'}
+                    {(s.dept_name || s.department) && ` · ${s.dept_name || s.department}`}
                     {s.email && ` · ${s.email}`}
                     {s.manager_name && ` · Reports to: ${s.manager_name}`}
                   </div>

@@ -37,6 +37,7 @@ import {
   Bug,
   Zap,
   Code2,
+  BookMarked,
 } from 'lucide-react';
 
 /**
@@ -51,6 +52,13 @@ export const menuItems = [
     icon: Home,
     category: 'primary',
     // Dashboard visible to all authenticated users
+  },
+  {
+    label: 'Command Center',
+    href: '/app/command-center',
+    icon: Zap,
+    category: 'primary',
+    minHierarchy: 3,
   },
   {
     label: 'Activity',
@@ -129,6 +137,7 @@ export const menuItems = [
     category: 'sections',
     submenu: [
       { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'employees.view' },
+      { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'employees.view' },
       { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
       { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts', permission: 'finance.view' },
@@ -171,9 +180,11 @@ export const menuItems = [
     submenu: [
       { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview', permission: 'intelligence.view' },
       { label: 'Engineering', href: '/app/tech-intelligence', description: 'Bugs, features & tech stack', permission: 'bug_tracking.view' },
+      { label: 'Issue Intelligence', href: '/app/issue-intelligence', description: 'Root causes & resolutions', permission: 'issue_intelligence.view' },
       { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue', permission: 'finance.view' },
       { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
       { label: 'Documents', href: '/app/documents', description: 'Document center', permission: 'documents.view' },
+      { label: 'Decision Log', href: '/app/decision-log', description: 'Key decisions & rationale', permission: 'decision_logs.view' },
     ],
   },
 
@@ -196,7 +207,10 @@ export const menuItems = [
     submenu: [
       { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles', permission: 'users.view' },
       { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.view' },
+      { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
       { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'roles.approve' },
+      { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'roles.approve' },
+      { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'activity_logs.view' },
     ],
   },
