@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 import { Key, Search, AlertCircle, AlertTriangle, Plus } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -77,6 +78,7 @@ export default function LicensesPage() {
   const [showWarning, setShowWarning]     = useState(false);
   const [warningDisabled, setWarningDisabled] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  const toast = useToast();
 
   const load = () => {
     setLoading(true);
@@ -115,6 +117,7 @@ export default function LicensesPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Failed to create license');
+      toast.success('License issued');
       setForm(BLANK_FORM);
       setShowForm(false);
       setPendingSubmit(false);

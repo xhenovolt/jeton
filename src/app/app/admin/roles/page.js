@@ -8,6 +8,8 @@
 import { useEffect, useState } from 'react';
 import { Shield, Plus, X, Check, Trash2, ChevronRight, Lock, Layers, Search, Building2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDangerous } from '@/lib/confirm';
 
 // Dynamic — no hardcoded hierarchy labels
 const getHierarchyLabel = (level) => {
@@ -40,6 +42,7 @@ export default function AdminRolesPage() {
   const [expandedModules, setExpandedModules] = useState({});
   const [departments, setDepartments] = useState([]);
   const [roleSearch, setRoleSearch] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     fetchData();
@@ -139,12 +142,12 @@ export default function AdminRolesPage() {
   };
 
   const deleteRole = async (roleId) => {
-    if (!confirm('Delete this role? Users with this role will lose associated permissions.')) return;
+    if (!await confirmDangerous('Users with this role will lose associated permissions.', 'Delete Role')) return;
     try {
       const res = await fetchWithAuth(`/api/admin/roles/${roleId}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) {
-        alert(data.error);
+        toast.error(data.error);
         return;
       }
       if (selectedRole?.id === roleId) setSelectedRole(null);

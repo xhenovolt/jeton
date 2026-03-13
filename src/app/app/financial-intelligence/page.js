@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, Plus, PieChart, TrendingUp, AlertCircle, X, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const CATEGORY_COLORS = {
   emergency_fund: { bg: 'bg-red-100 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-400', bar: 'bg-red-500' },
@@ -20,6 +21,7 @@ export default function FinancialIntelligencePage() {
   const [loading, setLoading] = useState(true);
   const [showRevenueForm, setShowRevenueForm] = useState(false);
   const [revForm, setRevForm] = useState({ source_type: 'deal_payment', source_reference: '', amount: '', description: '' });
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -45,6 +47,7 @@ export default function FinancialIntelligencePage() {
       const res = await fetchWithAuth('/api/revenue-events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...revForm, amount: parseFloat(revForm.amount) }) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Revenue event recorded');
         setShowRevenueForm(false);
         setRevForm({ source_type: 'deal_payment', source_reference: '', amount: '', description: '' });
         fetchData();

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, PieChart, Wallet, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const CATEGORIES = [
   { value: 'data', label: 'Data', color: 'bg-blue-100 text-blue-700' },
@@ -35,6 +36,7 @@ export default function AllocationsPage() {
   const [form, setForm] = useState({
     payment_id: '', category: 'operations', amount: '', currency: 'UGX', notes: '',
   });
+  const toast = useToast();
 
   useEffect(() => {
     fetchAllocations();
@@ -63,6 +65,7 @@ export default function AllocationsPage() {
       });
       const json = await res.json();
       if (json.success) {
+        toast.success('Allocation recorded');
         setAllocations(prev => [json.data, ...prev]);
         setForm({ payment_id: '', category: 'operations', amount: '', currency: 'UGX', notes: '' });
         setShowForm(false);

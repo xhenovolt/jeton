@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDangerous } from '@/lib/confirm';
 
 export default function UserDetailPage({ params }) {
   const { userId } = params;
@@ -16,6 +18,7 @@ export default function UserDetailPage({ params }) {
   const [error, setError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({});
+  const toast = useToast();
 
   useEffect(() => {
     fetchData();
@@ -83,7 +86,7 @@ export default function UserDetailPage({ params }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure? This will suspend the user.')) return;
+    if (!await confirmDangerous('This will suspend the user.', 'Suspend User')) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {

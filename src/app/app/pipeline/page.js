@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const STAGE_COLORS = [
   'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-600',
@@ -37,6 +39,7 @@ export default function PipelinePage() {
     estimated_value: '', currency: 'UGX', notes: '',
   };
   const [form, setForm] = useState(emptyForm);
+  const toast = useToast();
 
   const fetchPipeline = useCallback(async () => {
     try {
@@ -75,8 +78,8 @@ export default function PipelinePage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (res.success) { setShowForm(false); setForm(emptyForm); fetchPipeline(); }
-      else alert(res.error || 'Failed');
+      if (res.success) { setShowForm(false); setForm(emptyForm); toast.success('Pipeline entry created'); fetchPipeline(); }
+      else toast.error(res.error || 'Failed');
     } catch (err) { console.error(err); }
     setSaving(false);
   };
@@ -92,8 +95,9 @@ export default function PipelinePage() {
   };
 
   const deleteEntry = async (id) => {
-    if (!confirm('Remove from pipeline?')) return;
+    if (!await confirmDelete('pipeline entry')) return;
     await fetchWithAuth(`/api/pipeline?id=${id}`, { method: 'DELETE' });
+    toast.success('Removed from pipeline');
     fetchPipeline();
   };
 

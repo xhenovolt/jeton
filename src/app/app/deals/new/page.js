@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Monitor, Layers, Users, Plus, CreditCard, DollarSign, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
-function fmt(amount, currency = 'UGX') {
+function fmtCurrency(amount, currency = 'UGX') {
   return `${currency} ${Math.round(parseFloat(amount || 0)).toLocaleString()}`;
 }
 
@@ -26,6 +27,7 @@ export default function NewDealPage() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
+  const toast = useToast();
 
   const [form, setForm] = useState({
     client_id: '', system_id: prefillSystemId || '', service_id: '', plan_id: '',
@@ -100,6 +102,7 @@ export default function NewDealPage() {
       });
       const json = await res.json();
       if (json.success) {
+        toast.success('Client created');
         setClients(prev => [json.data, ...prev]);
         setForm(f => ({ ...f, client_id: json.data.id }));
         setClientMode('select'); setNewClientName(''); setNewClientPhone('');
@@ -148,7 +151,7 @@ export default function NewDealPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       const json = res.json ? await res.json() : res;
-      if (json.success) router.push(`/app/deals/${json.data.id}`);
+      if (json.success) { toast.success('Deal created'); router.push(`/app/deals/${json.data.id}`); }
       else setError(json.error || 'Failed to create deal');
     } catch (err) { console.error(err); setError(err.message || 'Network error'); } finally { setSaving(false); }
   };

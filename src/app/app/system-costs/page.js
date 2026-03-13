@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const COST_TYPES = [
   { value: 'developer_time', label: 'Developer Time' },
@@ -31,6 +33,7 @@ export default function SystemCostsPage() {
     system_id: '', cost_type: 'developer_time', amount: '', currency: 'UGX',
     cost_date: new Date().toISOString().split('T')[0], description: '', notes: '',
   });
+  const toast = useToast();
 
   const fetchCosts = useCallback(async () => {
     try {
@@ -73,11 +76,12 @@ export default function SystemCostsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this cost entry?')) return;
+    if (!await confirmDelete('cost entry')) return;
     try {
       await fetchWithAuth(`/api/system-costs?id=${id}`, { method: 'DELETE' });
+      toast.success('Cost entry deleted');
       fetchCosts();
-    } catch (e) { console.error('Failed to delete:', e); }
+    } catch (e) { console.error('Failed to delete:', e); toast.error('Failed to delete'); }
   };
 
   const totalCost = summary.reduce((acc, s) => acc + Number(s.total_cost || 0), 0);

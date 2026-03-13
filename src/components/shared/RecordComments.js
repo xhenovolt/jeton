@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { MessageSquare, Send, Reply, Pencil, Trash2, CheckCircle2, CornerDownRight, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { confirmDelete } from '@/lib/confirm';
 
 /**
  * RecordComments — Reusable threaded comments component
@@ -79,7 +80,7 @@ export default function RecordComments({ entityType, entityId }) {
   };
 
   const deleteComment = async (id) => {
-    if (!confirm('Delete this comment?')) return;
+    if (!await confirmDelete('comment')) return;
     try {
       const res = await fetchWithAuth(`/api/comments?id=${id}`, { method: 'DELETE' });
       if ((await res.json()).success) fetchComments();

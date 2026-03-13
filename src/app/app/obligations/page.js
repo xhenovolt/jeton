@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const PRIORITY_COLORS = {
   critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -36,6 +38,7 @@ export default function ObligationsPage() {
   };
   const [form, setForm] = useState(emptyForm);
   const [templateForm, setTemplateForm] = useState({ deal_id: '', client_id: '', system_id: '' });
+  const toast = useToast();
 
   const fetchObligations = useCallback(async () => {
     try {
@@ -75,15 +78,15 @@ export default function ObligationsPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (res.success) { setShowForm(false); setForm(emptyForm); fetchObligations(); }
-      else alert(res.error || 'Failed');
+      if (res.success) { setShowForm(false); setForm(emptyForm); fetchObligations(); toast.success('Obligation created'); }
+      else toast.error(res.error || 'Failed');
     } catch (err) { console.error(err); }
     setSaving(false);
   };
 
   const submitTemplate = async (e) => {
     e.preventDefault();
-    if (!templateForm.system_id) { alert('Select a system'); return; }
+    if (!templateForm.system_id) { toast.error('Select a system'); return; }
     setSaving(true);
     try {
       const res = await fetchWithAuth('/api/obligations', {
@@ -94,8 +97,8 @@ export default function ObligationsPage() {
         setShowTemplate(false);
         setTemplateForm({ deal_id: '', client_id: '', system_id: '' });
         fetchObligations();
-        alert(`Created ${res.count} obligations from template`);
-      } else alert(res.error || 'Failed');
+        toast.success(`Created ${res.count} obligations from template`);
+      } else toast.error(res.error || 'Failed');
     } catch (err) { console.error(err); }
     setSaving(false);
   };
@@ -111,8 +114,9 @@ export default function ObligationsPage() {
   };
 
   const deleteObligation = async (id) => {
-    if (!confirm('Delete this obligation?')) return;
+    if (!await confirmDelete('obligation')) return;
     await fetchWithAuth(`/api/obligations?id=${id}`, { method: 'DELETE' });
+    toast.success('Obligation deleted');
     fetchObligations();
   };
 

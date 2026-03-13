@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, AlertCircle, Trash2, TrendingDown } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 function formatCurr(amount, currency) {
   return `${currency || 'UGX'} ${Math.round(parseFloat(amount || 0)).toLocaleString()}`;
@@ -14,6 +16,7 @@ export default function LiabilitiesPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '', currency: 'UGX', description: '' });
+  const toast = useToast();
 
   useEffect(() => { fetchLiabilities(); }, []);
 
@@ -41,11 +44,12 @@ export default function LiabilitiesPage() {
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this liability?')) return;
+    if (!await confirmDelete('liability')) return;
     try {
       await fetchWithAuth(`/api/liabilities?id=${id}`, { method: 'DELETE' });
+      toast.success('Liability deleted');
       setLiabilities(prev => prev.filter(l => l.id !== id));
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); toast.error('Failed to delete'); }
   };
 
   const total = liabilities.reduce((s, l) => s + parseFloat(l.amount || 0), 0);

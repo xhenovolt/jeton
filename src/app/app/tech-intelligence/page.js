@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Bug, Plus, AlertTriangle, CheckCircle, Clock, Search, X, ChevronDown, Filter, Code2, Zap } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const SEVERITY_COLORS = {
   critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -30,6 +31,7 @@ export default function TechIntelligencePage() {
   const [form, setForm] = useState({ system_id: '', title: '', description: '', severity: 'medium', module_affected: '', assigned_developer: '' });
   const [featureForm, setFeatureForm] = useState({ system_id: '', feature_title: '', description: '', priority: 'medium', assigned_developer: '' });
   const [showFeatureForm, setShowFeatureForm] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     Promise.all([
@@ -53,6 +55,7 @@ export default function TechIntelligencePage() {
       const res = await fetchWithAuth('/api/bug-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Bug report submitted');
         setBugs(prev => [json.data, ...prev]);
         setShowForm(false);
         setForm({ system_id: '', title: '', description: '', severity: 'medium', module_affected: '', assigned_developer: '' });
@@ -66,6 +69,7 @@ export default function TechIntelligencePage() {
       const res = await fetchWithAuth('/api/feature-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(featureForm) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Feature request submitted');
         setFeatures(prev => [json.data, ...prev]);
         setShowFeatureForm(false);
         setFeatureForm({ system_id: '', feature_title: '', description: '', priority: 'medium', assigned_developer: '' });
@@ -77,7 +81,7 @@ export default function TechIntelligencePage() {
     try {
       const res = await fetchWithAuth('/api/bug-reports', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
       const json = res.json ? await res.json() : res;
-      if (json.success) setBugs(prev => prev.map(b => b.id === id ? json.data : b));
+      if (json.success) { toast.success('Bug status updated'); setBugs(prev => prev.map(b => b.id === id ? json.data : b)); }
     } catch {}
   };
 
@@ -85,7 +89,7 @@ export default function TechIntelligencePage() {
     try {
       const res = await fetchWithAuth('/api/feature-requests', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
       const json = res.json ? await res.json() : res;
-      if (json.success) setFeatures(prev => prev.map(f => f.id === id ? json.data : f));
+      if (json.success) { toast.success('Feature status updated'); setFeatures(prev => prev.map(f => f.id === id ? json.data : f)); }
     } catch {}
   };
 

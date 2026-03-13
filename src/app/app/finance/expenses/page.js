@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const CATEGORIES = ['office','software','marketing','travel','meals','equipment','professional_services','utilities','rent','insurance','taxes','payroll','other'];
 
@@ -15,6 +17,7 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     fetchExpenses();
@@ -33,13 +36,13 @@ export default function ExpensesPage() {
       if (!body.budget_id) delete body.budget_id;
       if (!body.vendor) delete body.vendor;
       const res = await fetchWithAuth('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setForm({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' }); fetchExpenses(); }
+      if ((await res.json()).success) { toast.success('Expense recorded'); setShowForm(false); setForm({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' }); fetchExpenses(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
   const deleteExpense = async (id) => {
-    if (!confirm('Delete this expense? A reverse ledger entry will be created.')) return;
-    try { await fetchWithAuth(`/api/expenses/${id}`, { method: 'DELETE' }); fetchExpenses(); } catch {}
+    if (!await confirmDelete('expense')) return;
+    try { await fetchWithAuth(`/api/expenses/${id}`, { method: 'DELETE' }); toast.success('Expense deleted'); fetchExpenses(); } catch { toast.error('Failed to delete'); }
   };
 
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);

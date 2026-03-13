@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Package, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const TYPES = ['product', 'service', 'subscription', 'package'];
 
@@ -14,6 +16,7 @@ export default function OfferingsPage() {
   const [form, setForm] = useState({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => { fetchOfferings(); }, []);
 
@@ -31,7 +34,7 @@ export default function OfferingsPage() {
       const url = editId ? `/api/offerings/${editId}` : '/api/offerings';
       const method = editId ? 'PUT' : 'POST';
       const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' }); fetchOfferings(); }
+      if ((await res.json()).success) { toast.success(editId ? 'Offering updated' : 'Offering created'); setShowForm(false); setEditId(null); setForm({ name: '', type: 'service', description: '', default_price: '', currency: 'UGX' }); fetchOfferings(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -41,13 +44,14 @@ export default function OfferingsPage() {
   };
 
   const deleteOffering = async (id) => {
-    if (!confirm('Delete this offering?')) return;
+    if (!await confirmDelete('offering')) return;
     try {
       const res = await fetchWithAuth(`/api/offerings/${id}`, { method: 'DELETE' });
       const j = await res.json();
-      if (!j.success) alert(j.error || 'Cannot delete');
+      if (!j.success) toast.error(j.error || 'Cannot delete');
+      else toast.success('Offering deleted');
       fetchOfferings();
-    } catch {}
+    } catch { toast.error('Failed to delete'); }
   };
 
 

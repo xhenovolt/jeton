@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Wallet, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 
 const TYPE_COLORS = { bank: 'bg-blue-100 text-blue-700', savings: 'bg-emerald-100 text-emerald-700', cash: 'bg-yellow-100 text-yellow-700', mobile_money: 'bg-purple-100 text-purple-700', credit_card: 'bg-pink-100 text-pink-700', investment: 'bg-cyan-100 text-cyan-700', internal: 'bg-orange-100 text-orange-700', salary: 'bg-teal-100 text-teal-700', escrow: 'bg-indigo-100 text-indigo-700', other: 'bg-muted text-foreground' };
@@ -15,6 +16,7 @@ export default function AccountsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'cash', currency: 'UGX', initial_balance: '', institution: '', account_number: '', description: '' });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => { fetchAccounts(); }, []);
 
@@ -33,7 +35,7 @@ export default function AccountsPage() {
       if (body.initial_balance) body.initial_balance = parseFloat(body.initial_balance);
       else delete body.initial_balance;
       const res = await fetchWithAuth('/api/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setForm({ name: '', type: 'cash', currency: 'UGX', initial_balance: '', institution: '', account_number: '', description: '' }); fetchAccounts(); }
+      if ((await res.json()).success) { toast.success('Account created'); setShowForm(false); setForm({ name: '', type: 'cash', currency: 'UGX', initial_balance: '', institution: '', account_number: '', description: '' }); fetchAccounts(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 

@@ -4,12 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, Plus, Edit2, Trash2, Eye, DollarSign, TrendingUp } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency, getStatusColor, getStatusBgColor, calculatePaymentProgress } from '@/lib/sales';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 export default function SalesPage() {
   const [sales, setSales] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const toast = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -195,7 +198,7 @@ export default function SalesPage() {
 
   // Delete sale
   const handleDeleteSale = async (id) => {
-    if (!confirm('Are you sure you want to delete this sale?')) return;
+    if (!await confirmDelete('sale')) return;
 
     try {
       const response = await fetchWithAuth(`/api/sales/${id}`, {

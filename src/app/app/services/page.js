@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Package, RefreshCw, Zap, TrendingUp, Briefcase } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const TYPE_STYLES = {
   one_time: 'bg-blue-100 text-blue-700',
@@ -21,6 +22,7 @@ export default function ServicesPage() {
   const [form, setForm] = useState({
     name: '', description: '', service_type: 'one_time', price: '', currency: 'UGX',
   });
+  const toast = useToast();
 
   useEffect(() => { fetchServices(); }, []);
 
@@ -43,6 +45,7 @@ export default function ServicesPage() {
       });
       const json = await res.json();
       if (json.success) {
+        toast.success('Service created');
         setServices(prev => [json.data, ...prev]);
         setForm({ name: '', description: '', service_type: 'one_time', price: '', currency: 'UGX' });
         setShowForm(false);

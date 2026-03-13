@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const CATEGORIES = [
   { value: 'hardware', label: 'Hardware' },
@@ -182,8 +183,9 @@ export default function ItemsPage() {
   };
 
   const deleteItem = async (id) => {
-    if (!confirm('Delete this item?')) return;
+    if (!await confirmDelete('item')) return;
     await fetchWithAuth(`/api/items?id=${id}`, { method: 'DELETE' });
+    toast.success('Item deleted');
     fetchItems();
   };
 

@@ -363,11 +363,11 @@ export function Navbar() {
                 {notifications.length > 0 && (
                   <div className="px-4 py-2 text-center" style={{ borderTop: '1px solid var(--navbar-border)' }}>
                     <button
-                      onClick={() => { window.location.href = '/app/activity'; setNotifOpen(false); }}
+                      onClick={() => { window.location.href = '/app/notifications'; setNotifOpen(false); }}
                       className="text-xs font-medium hover:underline"
                       style={{ color: 'var(--theme-primary, #3b82f6)' }}
                     >
-                      View all activity →
+                      View all notifications →
                     </button>
                   </div>
                 )}

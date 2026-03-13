@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Users, Shield, ShieldCheck, Edit, X, Check, UserX, UserCheck, Search, ChevronDown, MoreVertical } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
@@ -27,6 +28,7 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const toast = useToast();
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -48,7 +50,7 @@ export default function AdminUsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
       });
-      if ((await res.json()).success) { setEditUser(null); fetchUsers(); }
+      if ((await res.json()).success) { toast.success('User updated'); setEditUser(null); fetchUsers(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 

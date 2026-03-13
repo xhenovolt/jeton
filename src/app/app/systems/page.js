@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Monitor, CheckCircle, Clock, AlertTriangle, TrendingUp, Key } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 
 const STATUS_STYLES = {
@@ -22,6 +23,7 @@ export default function SystemsPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', version: '', status: 'active' });
+  const toast = useToast();
 
   useEffect(() => { fetchSystems(); }, []);
 
@@ -44,6 +46,7 @@ export default function SystemsPage() {
       });
       const json = await res.json();
       if (json.success) {
+        toast.success('System created');
         setSystems(prev => [json.data, ...prev]);
         setForm({ name: '', description: '', version: '', status: 'active' });
         setShowForm(false);

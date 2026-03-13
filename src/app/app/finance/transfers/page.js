@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRightLeft, Plus, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
 
 export default function TransfersPage() {
   const [transfers, setTransfers] = useState([]);
@@ -12,6 +13,7 @@ export default function TransfersPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ from_account_id: '', to_account_id: '', amount: '', description: '' });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     fetchTransfers();
@@ -24,13 +26,13 @@ export default function TransfersPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.from_account_id === form.to_account_id) { alert('Source and destination must be different'); return; }
+    if (form.from_account_id === form.to_account_id) { toast.error('Source and destination must be different'); return; }
     setSaving(true);
     try {
       const body = { ...form, amount: parseFloat(form.amount) };
       if (!body.description) delete body.description;
       const res = await fetchWithAuth('/api/transfers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setForm({ from_account_id: '', to_account_id: '', amount: '', description: '' }); fetchTransfers(); }
+      if ((await res.json()).success) { toast.success('Transfer completed'); setShowForm(false); setForm({ from_account_id: '', to_account_id: '', amount: '', description: '' }); fetchTransfers(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -41,6 +43,7 @@ export default function KnowledgePage() {
     visibility: 'internal', content: '', status: 'draft', tags: '',
   };
   const [form, setForm] = useState(emptyForm);
+  const toast = useToast();
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -69,14 +72,14 @@ export default function KnowledgePage() {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editId, ...body }),
         });
-        if (res.success) { setShowForm(false); setEditId(null); setForm(emptyForm); fetchAssets(); }
+        if (res.success) { setShowForm(false); setEditId(null); setForm(emptyForm); toast.success('Knowledge asset updated'); fetchAssets(); }
       } else {
         const res = await fetchWithAuth('/api/knowledge', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        if (res.success) { setShowForm(false); setForm(emptyForm); fetchAssets(); }
-        else alert(res.error || 'Failed');
+        if (res.success) { setShowForm(false); setForm(emptyForm); toast.success('Knowledge asset created'); fetchAssets(); }
+        else toast.error(res.error || 'Failed');
       }
     } catch (err) { console.error(err); }
     setSaving(false);
@@ -94,8 +97,9 @@ export default function KnowledgePage() {
   };
 
   const deleteAsset = async (id) => {
-    if (!confirm('Delete this knowledge asset?')) return;
+    if (!await confirmDelete('knowledge asset')) return;
     await fetchWithAuth(`/api/knowledge?id=${id}`, { method: 'DELETE' });
+    toast.success('Knowledge asset deleted');
     fetchAssets();
   };
 

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, Package, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 function formatCurr(amount, currency) {
   return `${currency || 'UGX'} ${Math.round(parseFloat(amount || 0)).toLocaleString()}`;
@@ -16,6 +18,7 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', price: '', currency: 'UGX', category: '', status: 'active' });
+  const toast = useToast();
 
   useEffect(() => { fetchProducts(); }, []);
 
@@ -44,11 +47,12 @@ export default function ProductsPage() {
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this product?')) return;
+    if (!await confirmDelete('product')) return;
     try {
       await fetchWithAuth(`/api/products?id=${id}`, { method: 'DELETE' });
+      toast.success('Product deleted');
       setProducts(prev => prev.filter(p => p.id !== id));
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); toast.error('Failed to delete'); }
   };
 
   return (

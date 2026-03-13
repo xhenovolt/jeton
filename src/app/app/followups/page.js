@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Calendar, Plus, Check, Clock, Phone, Mail, Users, Video, FileText, Filter } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 
 const TYPE_ICONS = { call: Phone, email: Mail, meeting: Users, demo: Video, proposal: FileText, site_visit: Users, social: Mail, other: Calendar };
@@ -18,6 +19,7 @@ export default function FollowupsPage() {
   const [showForm, setShowForm] = useState(false);
   const [prospects, setProspects] = useState([]);
   const [form, setForm] = useState({ prospect_id: '', type: 'call', scheduled_date: '', scheduled_time: '', summary: '', next_action: '' });
+  const toast = useToast();
 
   useEffect(() => { fetchFollowups(); fetchProspects(); }, [filter]);
 
@@ -56,7 +58,7 @@ export default function FollowupsPage() {
       }),
       });
       const json = await res.json();
-      if (json.success) { setShowForm(false); setForm({ prospect_id: '', type: 'call', scheduled_date: '', scheduled_time: '', summary: '', next_action: '' }); fetchFollowups(); }
+      if (json.success) { toast.success('Follow-up scheduled'); setShowForm(false); setForm({ prospect_id: '', type: 'call', scheduled_date: '', scheduled_time: '', summary: '', next_action: '' }); fetchFollowups(); }
     } catch (err) { console.error(err); }
   };
 
@@ -66,7 +68,7 @@ export default function FollowupsPage() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' }),
       });
-      if ((await res.json()).success) fetchFollowups();
+      if ((await res.json()).success) { toast.success('Marked as complete'); fetchFollowups(); }
     } catch (err) { console.error(err); }
   };
 

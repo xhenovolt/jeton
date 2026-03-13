@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Building2, Plus, X, Edit3, Trash2, Users, FileText, Target, Workflow, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 export default function AdminDepartmentsPage() {
   const [departments, setDepartments] = useState([]);
@@ -69,7 +70,7 @@ export default function AdminDepartmentsPage() {
   };
 
   const deleteDepartment = async (id, name) => {
-    if (!confirm(`Delete department "${name}"?`)) return;
+    if (!await confirmDelete(name)) return;
     try {
       const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();

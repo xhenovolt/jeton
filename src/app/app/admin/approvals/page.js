@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock, ChevronDown, AlertTriangle, Shield, User, FileText } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const STATUS_CONFIG = {
   pending: { label: 'Pending', color: 'text-amber-400', bg: 'bg-amber-400/10', icon: Clock },
@@ -23,6 +24,7 @@ export default function ApprovalsPage() {
   const [processing, setProcessing] = useState(null);
   const [rejectNotes, setRejectNotes] = useState({});
   const [showRejectInput, setShowRejectInput] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchApprovals();
@@ -59,6 +61,7 @@ export default function ApprovalsPage() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success(status === 'approved' ? 'Request approved' : 'Request rejected');
         setShowRejectInput(null);
         setRejectNotes(prev => { const n = { ...prev }; delete n[id]; return n; });
         fetchApprovals();

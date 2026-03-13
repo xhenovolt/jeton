@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Users, Building2, Plus, Mail, Phone, X, ChevronRight, UserPlus, Briefcase, Award } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const STATUS_COLORS = {
   active: 'bg-emerald-100 text-emerald-700', on_leave: 'bg-yellow-100 text-yellow-700',
@@ -19,6 +20,7 @@ export default function HRMPage() {
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [empForm, setEmpForm] = useState({ first_name: '', last_name: '', email: '', phone: '', position: '', department_id: '', employment_type: 'full_time', salary: '', hire_date: new Date().toISOString().split('T')[0] });
   const [deptForm, setDeptForm] = useState({ name: '', description: '', head_employee_id: '' });
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -45,6 +47,7 @@ export default function HRMPage() {
       const res = await fetchWithAuth('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Employee added');
         setShowForm(false);
         setEmpForm({ first_name: '', last_name: '', email: '', phone: '', position: '', department_id: '', employment_type: 'full_time', salary: '', hire_date: new Date().toISOString().split('T')[0] });
         fetchData();
@@ -58,6 +61,7 @@ export default function HRMPage() {
       const res = await fetchWithAuth('/api/departments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(deptForm) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Department created');
         setShowDeptForm(false);
         setDeptForm({ name: '', description: '', head_employee_id: '' });
         fetchData();

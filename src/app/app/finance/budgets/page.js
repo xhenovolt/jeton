@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { PiggyBank, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const CATEGORIES = ['office','software','marketing','travel','meals','equipment','professional_services','utilities','rent','insurance','taxes','payroll','other'];
 
@@ -14,8 +16,7 @@ export default function BudgetsPage() {
   const [form, setForm] = useState({ name: '', amount: '', category: '', period_start: '', period_end: '' });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => { fetchBudgets(); }, []);
+  const toast = useToast();
 
   const fetchBudgets = async () => {
     try { const res = await fetchWithAuth('/api/budgets'); const j = await res.json(); if (j.success) setBudgets(j.data); } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -35,7 +36,7 @@ export default function BudgetsPage() {
       const url = editId ? `/api/budgets/${editId}` : '/api/budgets';
       const method = editId ? 'PUT' : 'POST';
       const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setEditId(null); setForm({ name: '', amount: '', category: '', period_start: '', period_end: '' }); fetchBudgets(); }
+      if ((await res.json()).success) { toast.success(editId ? 'Budget updated' : 'Budget created'); setShowForm(false); setEditId(null); setForm({ name: '', amount: '', category: '', period_start: '', period_end: '' }); fetchBudgets(); }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -45,8 +46,8 @@ export default function BudgetsPage() {
   };
 
   const deleteBudget = async (id) => {
-    if (!confirm('Delete this budget?')) return;
-    try { await fetchWithAuth(`/api/budgets/${id}`, { method: 'DELETE' }); fetchBudgets(); } catch {}
+    if (!await confirmDelete('budget')) return;
+    try { await fetchWithAuth(`/api/budgets/${id}`, { method: 'DELETE' }); toast.success('Budget deleted'); fetchBudgets(); } catch { toast.error('Failed to delete'); }
   };
 
 

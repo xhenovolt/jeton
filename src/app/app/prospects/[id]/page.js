@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, UserCheck, Trash2, Check, Clock, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete, confirmDangerous } from '@/lib/confirm';
 import Link from 'next/link';
 
 const STAGES = ['new','contacted','qualified','proposal','negotiation','won','lost','dormant'];
@@ -55,6 +57,7 @@ export default function ProspectDetailPage() {
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle'|'saving'|'saved'
   const [showCustomFollowup, setShowCustomFollowup] = useState(false);
   const saveTimer = useRef(null);
+  const toast = useToast();
 
   useEffect(() => { fetchProspect(); }, [id]);
 
@@ -120,26 +123,26 @@ export default function ProspectDetailPage() {
   };
 
   const convertToClient = async () => {
-    if (!confirm('Convert this prospect to a client?')) return;
+    if (!await confirmDangerous('Convert this prospect to a client?', 'Convert Prospect')) return;
     try {
       const res = await fetchWithAuth(`/api/prospects/${id}/convert`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
       });
       const json = await res.json();
       if (json.success) {
-        alert('Prospect converted to client!');
+        toast.success('Prospect converted to client!');
         router.push(`/app/clients/${json.data.id}`);
-      } else alert(json.error);
-    } catch (err) { console.error(err); }
+      } else toast.error(json.error);
+    } catch (err) { console.error(err); toast.error('Conversion failed'); }
   };
 
   const deleteProspect = async () => {
-    if (!confirm('Delete this prospect? This cannot be undone.')) return;
+    if (!await confirmDelete('prospect')) return;
     try {
       const res = await fetchWithAuth(`/api/prospects/${id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) router.push('/app/prospects');
-    } catch (err) { console.error(err); }
+      if (json.success) { toast.success('Prospect deleted'); router.push('/app/prospects'); }
+    } catch (err) { console.error(err); toast.error('Failed to delete'); }
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;

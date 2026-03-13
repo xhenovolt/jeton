@@ -7,8 +7,9 @@ import {
   FileText, X, Edit2, Server, Settings, User, Trash2, Save, AlertTriangle, Eye, Download,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
-const STATUS_COLORS = {
+const DEAL_STATUS = {
   draft: 'bg-muted text-foreground', sent: 'bg-blue-100 text-blue-700', accepted: 'bg-cyan-100 text-cyan-700',
   in_progress: 'bg-purple-100 text-purple-700', completed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-700', disputed: 'bg-orange-100 text-orange-700',
@@ -46,6 +47,7 @@ export default function DealDetailPage() {
   // Delete state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const toast = useToast();
 
   useEffect(() => { fetchDeal(); fetchAccounts(); fetchTimeline(); fetchInvoices(); }, [id]);
 
@@ -80,7 +82,7 @@ export default function DealDetailPage() {
   const updateStatus = async (newStatus) => {
     try {
       const res = await fetchWithAuth(`/api/deals/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
-      if ((await res.json()).success) fetchDeal();
+      if ((await res.json()).success) { toast.success(`Status updated to ${newStatus}`); fetchDeal(); }
     } catch (err) { console.error(err); }
   };
 
@@ -119,7 +121,7 @@ export default function DealDetailPage() {
 
       const res = await fetchWithAuth(`/api/deals/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
-      if (json.success) { setEditing(false); fetchDeal(); }
+      if (json.success) { toast.success('Deal updated'); setEditing(false); fetchDeal(); }
       else setEditError(json.error || 'Failed to update deal');
     } catch { setEditError('Network error'); } finally { setEditSaving(false); }
   };
@@ -129,7 +131,7 @@ export default function DealDetailPage() {
     try {
       const res = await fetchWithAuth(`/api/deals/${id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) router.push('/app/deals');
+      if (json.success) { toast.success('Deal deleted'); router.push('/app/deals'); }
       else setEditError(json.error || 'Cannot delete deal');
     } catch { setEditError('Failed to delete'); } finally { setDeleting(false); setShowDeleteConfirm(false); }
   };
@@ -150,6 +152,7 @@ export default function DealDetailPage() {
       };
       const res = await fetchWithAuth('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if ((await res.json()).success) {
+        toast.success('Payment recorded');
         setShowPayForm(false);
         setPayForm({ amount: '', account_id: '', method: 'mobile_money', reference: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
         fetchDeal(); fetchTimeline(); fetchInvoices();

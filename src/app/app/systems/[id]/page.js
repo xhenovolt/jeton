@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -62,6 +63,7 @@ export default function SystemDetailPage() {
   const [editForm, setEditForm] = useState({});
   const [opForm, setOpForm] = useState({ operation_type: 'development', description: '', status: 'completed' });
   const [planForm, setPlanForm] = useState({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
+  const toast = useToast();
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [operations, setOperations] = useState([]);
@@ -138,7 +140,7 @@ export default function SystemDetailPage() {
         setPlanForm({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
         setShowPlanForm(false);
       } else {
-        alert(json.error || 'Failed to create plan');
+        toast.error(json.error || 'Failed to create plan');
       }
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };

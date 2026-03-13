@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -30,6 +32,7 @@ export default function StaffPage() {
     hire_date: '', status: 'active', notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -74,8 +77,8 @@ export default function StaffPage() {
       const url = editId ? '/api/staff' : '/api/staff';
       const method = editId ? 'PATCH' : 'POST';
       const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { setShowForm(false); setEditId(null); resetForm(); fetchStaff(); }
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+      if ((await res.json()).success) { toast.success(editId ? 'Staff updated' : 'Staff member added'); setShowForm(false); setEditId(null); resetForm(); fetchStaff(); }
+    } catch (err) { toast.error('Failed to save'); console.error(err); } finally { setSaving(false); }
   };
 
   const startEdit = (s) => {
@@ -91,8 +94,8 @@ export default function StaffPage() {
   };
 
   const deleteStaff = async (id) => {
-    if (!confirm('Delete this team member?')) return;
-    try { await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' }); fetchStaff(); } catch {}
+    if (!await confirmDelete('team member')) return;
+    try { await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' }); toast.success('Team member removed'); fetchStaff(); } catch { toast.error('Failed to delete'); }
   };
 
   const deptNames = departments.map(d => d.name);

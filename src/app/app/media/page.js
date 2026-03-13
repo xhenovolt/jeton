@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const ENTITY_TYPES = [
   { value: '', label: 'All' },
@@ -39,6 +41,7 @@ export default function MediaPage() {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState(null);
   const fileRef = useRef(null);
+  const toast = useToast();
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -71,22 +74,24 @@ export default function MediaPage() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success('File uploaded');
         setShowUpload(false);
         setUploadForm({ entity_type: 'general', entity_id: '', tags: '', quality: 'original' });
         fetchMedia();
       } else {
-        alert(data.error || 'Upload failed');
+        toast.error(data.error || 'Upload failed');
       }
-    } catch (e) { console.error('Upload error:', e); alert('Upload failed'); }
+    } catch (e) { console.error('Upload error:', e); toast.error('Upload failed'); }
     setUploading(false);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this media file?')) return;
+    if (!await confirmDelete('media file')) return;
     try {
       await fetchWithAuth(`/api/media?id=${id}`, { method: 'DELETE' });
+      toast.success('File deleted');
       fetchMedia();
-    } catch (e) { console.error('Delete error:', e); }
+    } catch (e) { console.error('Delete error:', e); toast.error('Failed to delete'); }
   };
 
   const handleDrop = (e) => {

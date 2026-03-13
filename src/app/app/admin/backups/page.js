@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Database, Plus, Trash2, Download, RotateCcw, Clock, HardDrive, Table2, Rows3, CloudUpload, AlertTriangle, CheckCircle2, Loader2, Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { confirmDelete, confirmDangerous } from '@/lib/confirm';
 
 const STATUS_BADGE = {
   completed: 'bg-emerald-100 text-emerald-700',
@@ -87,7 +88,7 @@ export default function AdminBackupsPage() {
   };
 
   const deleteBackup = async (id, name) => {
-    if (!confirm(`Delete backup "${name}"? This cannot be undone.`)) return;
+    if (!await confirmDelete(name)) return;
     try {
       const res = await fetch(`/api/backups?id=${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
@@ -99,7 +100,7 @@ export default function AdminBackupsPage() {
   };
 
   const requestRestore = async (backupId, backupName) => {
-    if (!confirm(`Request restoration of "${backupName}"? This will create a restore request.`)) return;
+    if (!await confirmDangerous(`Request restoration of "${backupName}"? This will create a restore request.`, 'Restore Backup')) return;
     try {
       const res = await fetch('/api/backups/restore', {
         method: 'POST',

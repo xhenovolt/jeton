@@ -38,6 +38,7 @@ import {
   Zap,
   Code2,
   BookMarked,
+  Bell,
 } from 'lucide-react';
 
 /**
@@ -66,6 +67,12 @@ export const menuItems = [
     icon: Activity,
     category: 'primary',
     module: 'activity_logs',
+  },
+  {
+    label: 'Notifications',
+    href: '/app/notifications',
+    icon: Bell,
+    category: 'primary',
   },
 
   // === SYSTEMS (core IP) ===

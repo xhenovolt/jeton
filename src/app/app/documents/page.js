@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Search, Filter, Download, Eye, Folder, Plus, X, File, Image, FileSpreadsheet } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const CATEGORY_ICONS = {
   invoice: FileText, contract: File, receipt: FileSpreadsheet,
@@ -21,6 +22,7 @@ export default function DocumentCenterPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', category: 'other', description: '', entity_type: '', entity_id: '', file_url: '' });
+  const toast = useToast();
 
   const fetchDocuments = async () => {
     try {
@@ -50,6 +52,7 @@ export default function DocumentCenterPage() {
       const res = await fetchWithAuth('/api/documents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
+        toast.success('Document added');
         setShowForm(false);
         setForm({ title: '', category: 'other', description: '', entity_type: '', entity_id: '', file_url: '' });
         fetchDocuments();

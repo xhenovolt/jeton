@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Search, Building2, ChevronRight, Handshake } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 
 const STATUS_COLORS = {
@@ -17,6 +18,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ company_name: '', contact_name: '', email: '', phone: '', industry: '', payment_terms: 30 });
+  const toast = useToast();
 
   useEffect(() => { fetchClients(); }, []);
 
@@ -37,7 +39,7 @@ export default function ClientsPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if ((await res.json()).success) { setShowForm(false); fetchClients(); }
+      if ((await res.json()).success) { toast.success('Client created'); setShowForm(false); fetchClients(); }
     } catch (err) { console.error(err); }
   };
 

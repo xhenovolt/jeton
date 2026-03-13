@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BookMarked, Plus, X, Edit3, Trash2, Search, Filter, ChevronRight, Calendar, Tag, MessageSquare, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 import RecordComments from '@/components/shared/RecordComments';
 
 const CATEGORIES = ['general', 'technical', 'financial', 'operational', 'strategic', 'hiring', 'product', 'legal'];
@@ -122,7 +123,7 @@ export default function DecisionLogPage() {
   };
 
   const deleteDecision = async (id) => {
-    if (!confirm('Delete this decision log entry?')) return;
+    if (!await confirmDelete('decision log entry')) return;
     try {
       const res = await fetch(`/api/decision-logs/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();

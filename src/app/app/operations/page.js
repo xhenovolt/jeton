@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Activity, Truck, Search, Wifi, Megaphone, Wrench, DollarSign, Pencil, Trash2, AlertCircle, Link } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
+import { confirmDelete } from '@/lib/confirm';
 
 const CATEGORIES = [
   { value: 'transport', label: 'Transport', icon: Truck, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
@@ -51,6 +53,7 @@ export default function OperationsPage() {
   const [catFilter, setCatFilter] = useState('');
   const [expenseFilter, setExpenseFilter] = useState(''); // '' | 'with' | 'without'
   const [form, setForm] = useState(emptyForm);
+  const toast = useToast();
 
   const fetchOps = useCallback(async () => {
     setLoading(true);
@@ -110,9 +113,10 @@ export default function OperationsPage() {
         setForm(emptyForm);
         setShowForm(false);
         setEditId(null);
+        toast.success(editId ? 'Operation updated' : 'Operation logged');
         fetchOps();
       } else {
-        alert(res.error || 'Failed');
+        toast.error(res.error || 'Failed');
       }
     } catch (err) { console.error(err); }
     setSaving(false);
@@ -135,8 +139,9 @@ export default function OperationsPage() {
   };
 
   const deleteOp = async (id) => {
-    if (!confirm('Delete this operation? (Ledger entry will be reversed)')) return;
+    if (!await confirmDelete('operation')) return;
     await fetchWithAuth(`/api/operations?id=${id}`, { method: 'DELETE' });
+    toast.success('Operation deleted');
     fetchOps();
   };
 
