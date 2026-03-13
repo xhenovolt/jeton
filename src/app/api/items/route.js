@@ -152,33 +152,35 @@ export async function POST(request) {
       ]
     );
 
-    // If cost provided with account — create ledger deduction
-    if (effectiveCost && account_deducted_from) {
+    const item = result.rows[0];
+
+    // Fire-and-forget: secondary logging (don't block the response)
+    const bgWork = async () => {
       try {
-        const ledgerResult = await query(
-          `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
-           VALUES ($1,$2,$3,'expense',$4,$5,'item_acquisition',COALESCE($6, CURRENT_DATE),$7) RETURNING id`,
-          [account_deducted_from, -Math.abs(effectiveCost), currency || 'UGX',
-           result.rows[0].id, `Item acquisition: ${name}`, acquisition_date, auth.userId]
+        if (effectiveCost && account_deducted_from) {
+          const ledgerResult = await query(
+            `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
+             VALUES ($1,$2,$3,'expense',$4,$5,'item_acquisition',COALESCE($6, CURRENT_DATE),$7) RETURNING id`,
+            [account_deducted_from, -Math.abs(effectiveCost), currency || 'UGX',
+             item.id, `Item acquisition: ${name}`, acquisition_date, auth.userId]
+          );
+          await query(`UPDATE items SET ledger_entry_id=$1 WHERE id=$2`, [ledgerResult.rows[0].id, item.id]);
+        }
+        await query(
+          `INSERT INTO item_activity_log (item_id, user_id, action, details) VALUES ($1,$2,'created',$3)`,
+          [item.id, auth.userId, JSON.stringify({ name, category, type })]
         );
-        await query(`UPDATE items SET ledger_entry_id=$1 WHERE id=$2`, [ledgerResult.rows[0].id, result.rows[0].id]);
-      } catch (ledgerErr) {
-        console.error('[Items] Ledger entry failed:', ledgerErr.message);
+        await query(
+          `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+          [auth.userId, 'CREATE', 'item', item.id, JSON.stringify({ name, category, type, financial_class })]
+        );
+      } catch (bgErr) {
+        console.error('[Items] Background logging error:', bgErr.message);
       }
-    }
+    };
+    bgWork();
 
-    // Activity log
-    await query(
-      `INSERT INTO item_activity_log (item_id, user_id, action, details) VALUES ($1,$2,'created',$3)`,
-      [result.rows[0].id, auth.userId, JSON.stringify({ name, category, type })]
-    );
-
-    await query(
-      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
-      [auth.userId, 'CREATE', 'item', result.rows[0].id, JSON.stringify({ name, category, type, financial_class })]
-    );
-
-    return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
+    return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (error) {
     console.error('[Items] POST error:', error);
     return NextResponse.json({ success: false, error: 'Failed to create item: ' + error.message }, { status: 500 });
@@ -221,15 +223,14 @@ export async function PATCH(request) {
     const result = await query(`UPDATE items SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
 
-    // Determine action type for activity log
+    // Fire-and-forget: activity log
     let action = 'edited';
     if (changes.status) action = 'status_changed';
     if (changes.assigned_to) action = 'assigned';
-
-    await query(
+    query(
       `INSERT INTO item_activity_log (item_id, user_id, action, details) VALUES ($1,$2,$3,$4)`,
       [id, auth.userId, action, JSON.stringify(changes)]
-    );
+    ).catch(e => console.error('[Items] Activity log error:', e.message));
 
     return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -251,10 +252,11 @@ export async function DELETE(request) {
     const result = await query(`DELETE FROM items WHERE id=$1 RETURNING id, name`, [id]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
 
-    await query(
+    // Fire-and-forget: audit log
+    query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'DELETE', 'item', id, JSON.stringify({ name: result.rows[0].name })]
-    );
+    ).catch(e => console.error('[Items] Audit log error:', e.message));
 
     return NextResponse.json({ success: true });
   } catch (error) {

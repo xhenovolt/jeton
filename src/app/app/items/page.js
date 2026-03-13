@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { useToast } from '@/components/ui/Toast';
 
 const CATEGORIES = [
   { value: 'hardware', label: 'Hardware' },
@@ -62,6 +63,7 @@ export default function ItemsPage() {
   const [staff, setStaff] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const { addToast } = useToast();
 
   const emptyForm = {
     name: '', description: '', category: 'hardware', type: 'development_tool',
@@ -119,8 +121,11 @@ export default function ItemsPage() {
           setShowForm(false);
           setEditId(null);
           setForm(emptyForm);
+          addToast('Item updated successfully', 'success');
           fetchItems();
-        } else { alert(res.error || 'Failed'); }
+        } else {
+          addToast(res.error || 'Failed to update item', 'error');
+        }
       } else {
         // Create
         const res = await fetchWithAuth('/api/items', {
@@ -131,14 +136,18 @@ export default function ItemsPage() {
         if (res.success) {
           setShowForm(false);
           setForm(emptyForm);
+          addToast('Item added successfully', 'success');
           fetchItems();
         } else if (res.error === 'duplicate_detected') {
           setDuplicateWarning(res);
         } else {
-          alert(res.error || res.message || 'Failed');
+          addToast(res.error || res.message || 'Failed to add item', 'error');
         }
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      addToast('Network error — please try again', 'error');
+    }
     setSaving(false);
   };
 

@@ -62,8 +62,8 @@ export async function getSession(sessionId) {
 
     const sessionRow = result.rows[0];
     
-    // Update last activity
-    await updateSessionActivity(sessionId);
+    // Update last activity in the background (don't block auth)
+    updateSessionActivity(sessionId).catch(() => {});
 
     return {
       id: sessionRow.id,

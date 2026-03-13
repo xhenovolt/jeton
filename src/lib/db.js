@@ -67,16 +67,6 @@ export async function query(query, params = [], retries = 2) {
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Reset pool if this is a retry and pool is in bad state
-      if (attempt > 0 && pool) {
-        try {
-          await pool.end();
-        } catch (e) {
-          // Ignore pool end errors
-        }
-        pool = null;
-      }
-
       const client = await getPool().connect();
       try {
         return await client.query(query, params);
