@@ -26,7 +26,7 @@ export async function GET(request) {
       SELECT i.*,
         st.name as assigned_to_name,
         sys.name as system_name,
-        u.full_name as created_by_name
+        u.name as created_by_name
       FROM items i
       LEFT JOIN staff st ON i.assigned_to = st.id
       LEFT JOIN systems sys ON i.linked_system = sys.id
