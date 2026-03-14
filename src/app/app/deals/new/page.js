@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 function fmtCurrency(amount, currency = 'UGX') {
   return `${currency} ${Math.round(parseFloat(amount || 0)).toLocaleString()}`;
 }
+const fmt = fmtCurrency;
 
 export default function NewDealPage() {
   const router = useRouter();

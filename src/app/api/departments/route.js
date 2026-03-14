@@ -15,14 +15,15 @@ export async function GET(request) {
 
     let sql = `
       SELECT d.*,
-        (SELECT COUNT(*) FROM staff s WHERE (s.department_id = d.id OR s.department = d.name) AND s.is_active = true) AS staff_count,
+        COALESCE(d.name, d.department_name) AS display_name,
+        (SELECT COUNT(*) FROM staff s WHERE (s.department_id = d.id OR s.department = COALESCE(d.name, d.department_name)) AND s.status = 'active') AS staff_count,
         (SELECT COUNT(*) FROM roles r WHERE r.department_id = d.id) AS role_count,
         (SELECT COUNT(*) FROM department_policies dp WHERE dp.department_id = d.id AND dp.is_active = true) AS policy_count,
         (SELECT COUNT(*) FROM department_kpis dk WHERE dk.department_id = d.id AND dk.is_active = true) AS kpi_count,
         (SELECT COUNT(*) FROM department_processes dpr WHERE dpr.department_id = d.id AND dpr.status = 'active') AS process_count,
         (SELECT COUNT(*) FROM department_documents dd WHERE dd.department_id = d.id) AS document_count,
         p.name AS parent_name,
-        hu.full_name AS head_name
+        COALESCE(hu.full_name, hu.name) AS head_name
       FROM departments d
       LEFT JOIN departments p ON d.parent_department_id = p.id
       LEFT JOIN users hu ON d.head_user_id = hu.id
@@ -30,8 +31,8 @@ export async function GET(request) {
     `;
     const params = [];
     if (active_only) { sql += ` AND d.is_active = true`; }
-    if (search) { params.push(`%${search}%`); sql += ` AND (d.name ILIKE $${params.length} OR d.alias ILIKE $${params.length})`; }
-    sql += ` ORDER BY d.name ASC`;
+    if (search) { params.push(`%${search}%`); sql += ` AND (COALESCE(d.name, d.department_name) ILIKE $${params.length} OR d.alias ILIKE $${params.length})`; }
+    sql += ` ORDER BY COALESCE(d.name, d.department_name) ASC`;
 
     const result = await query(sql, params);
     return NextResponse.json({ success: true, data: result.rows });
@@ -52,8 +53,8 @@ export async function POST(request) {
     if (!name?.trim()) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO departments (name, description, alias, parent_department_id, head_user_id, color, icon)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO departments (name, department_name, description, alias, parent_department_id, head_user_id, color, icon)
+       VALUES ($1,$1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [name.trim(), description || null, alias || null, parent_department_id || null, head_user_id || null, color || '#3b82f6', icon || null]
     );
 

@@ -28,16 +28,24 @@ export default function DealsPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const totalValue = deals.reduce((s, d) => s + parseFloat(d.total_amount || 0), 0);
-  const totalPaid = deals.reduce((s, d) => s + parseFloat(d.paid_amount || 0), 0);
-  const totalRemaining = totalValue - totalPaid;
+  // Group totals by currency
+  const byCurrency = {};
+  deals.forEach(d => {
+    const cur = d.currency || 'UGX';
+    if (!byCurrency[cur]) byCurrency[cur] = { total: 0, paid: 0 };
+    byCurrency[cur].total += parseFloat(d.total_amount || 0);
+    byCurrency[cur].paid += parseFloat(d.paid_amount || 0);
+  });
+  const summaryParts = Object.entries(byCurrency).map(([cur, v]) =>
+    `${cur} ${Math.round(v.total).toLocaleString()} (${Math.round(v.paid).toLocaleString()} paid)`
+  );
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Deals</h1>
-          <p className="text-sm text-muted-foreground mt-1">{deals.length} deals · UGX {Math.round(totalValue).toLocaleString()} total · UGX {Math.round(totalPaid).toLocaleString()} collected · UGX {Math.round(totalRemaining).toLocaleString()} outstanding</p>
+          <p className="text-sm text-muted-foreground mt-1">{deals.length} deals · {summaryParts.join(' · ')}</p>
         </div>
         <Link href="/app/deals/new" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Deal

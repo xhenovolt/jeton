@@ -12,7 +12,8 @@ export async function GET(request, { params }) {
     const { id } = await params;
 
     const dept = await query(
-      `SELECT d.*, p.name AS parent_name, hu.full_name AS head_name
+      `SELECT d.*, COALESCE(d.name, d.department_name) AS display_name,
+              p.name AS parent_name, COALESCE(hu.full_name, hu.name) AS head_name
        FROM departments d
        LEFT JOIN departments p ON d.parent_department_id = p.id
        LEFT JOIN users hu ON d.head_user_id = hu.id
@@ -31,7 +32,7 @@ export async function GET(request, { params }) {
          FROM department_roles dr
          JOIN roles r ON dr.role_id = r.id
          WHERE dr.department_id = $1
-         ORDER BY r.hierarchy_level ASC`,
+         ORDER BY r.name ASC`,
         [id]
       ),
       query(
@@ -55,9 +56,9 @@ export async function GET(request, { params }) {
         [id]
       ),
       query(
-        `SELECT s.id, s.name, s.position, s.role, s.status, s.is_active
+        `SELECT s.id, s.name, s.position, s.role, s.status
          FROM staff s
-         WHERE (s.department_id = $1 OR s.department = (SELECT name FROM departments WHERE id = $1))
+         WHERE (s.department_id = $1 OR s.department = (SELECT COALESCE(name, department_name) FROM departments WHERE id = $1))
          ORDER BY s.name ASC`,
         [id]
       ),
@@ -99,7 +100,7 @@ export async function PUT(request, { params }) {
     const values = [];
     let idx = 1;
 
-    if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name.trim()); }
+    if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name.trim()); fields.push(`department_name = $${idx++}`); values.push(name.trim()); }
     if (description !== undefined) { fields.push(`description = $${idx++}`); values.push(description); }
     if (alias !== undefined) { fields.push(`alias = $${idx++}`); values.push(alias); }
     if (parent_department_id !== undefined) { fields.push(`parent_department_id = $${idx++}`); values.push(parent_department_id || null); }
