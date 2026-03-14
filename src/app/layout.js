@@ -21,6 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.API_URL || 'http://localhost:3000'),
   title: 'Jeton — Founder Operating System',
   description: 'Institutional intelligence platform by Xhenvolt. Systems, deals, payments, invoices, and organizational intelligence.',
   keywords: ['jeton', 'founder os', 'business intelligence', 'xhenvolt'],

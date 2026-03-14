@@ -46,10 +46,19 @@ export async function logAuthEvent(actionOrOpts, userId, details = {}, metadata 
 /**
  * Log a route access event
  */
-export async function logRouteAccess(route, userId, metadata = {}) {
-  // Route access logging is optional/lightweight - just log to console in dev
+export async function logRouteAccess(routeOrOpts, userId, metadata = {}) {
+  let route, resolvedUserId;
+
+  if (typeof routeOrOpts === 'object' && routeOrOpts !== null) {
+    route = routeOrOpts.route || 'unknown';
+    resolvedUserId = routeOrOpts.userId || userId || undefined;
+  } else {
+    route = routeOrOpts;
+    resolvedUserId = userId;
+  }
+
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[AUDIT] Route access: ${route} by user ${userId}`);
+    console.log(`[AUDIT] Route access: ${route} by user ${resolvedUserId}`);
   }
 }
 

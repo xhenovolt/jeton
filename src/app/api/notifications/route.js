@@ -23,7 +23,7 @@ export async function GET(request) {
 
     const [rows, countResult, unreadResult] = await Promise.all([
       query(
-        `SELECT n.*, u.name as actor_name, u.full_name as actor_full_name
+        `SELECT n.*, u.name as actor_name
          FROM notifications n
          LEFT JOIN users u ON n.actor_user_id = u.id
          ${where}

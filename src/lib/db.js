@@ -35,6 +35,9 @@ function initializePool() {
     idleTimeoutMillis: 60000, // 60 seconds (increased)
     connectionTimeoutMillis: 10000, // 10 seconds (increased)
     maxUses: 7500, // Recycle connections
+    ssl: connectionString.includes('neon.tech') || connectionString.includes('sslmode=')
+      ? { rejectUnauthorized: true }
+      : false,
   });
 
   // Handle pool errors

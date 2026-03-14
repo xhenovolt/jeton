@@ -18,6 +18,27 @@ export async function GET(request) {
     const auth = await verifyAuth(request);
     if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
+    // Check if required tables exist before querying
+    const tableCheck = await query(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bug_reports') as has_bugs,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'issue_root_causes') as has_root_causes,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'issue_resolutions') as has_resolutions`
+    );
+    const { has_bugs, has_root_causes, has_resolutions } = tableCheck.rows[0];
+
+    if (!has_bugs || !has_root_causes || !has_resolutions) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          metrics: { open_bugs: 0, critical_bugs: 0, total_root_causes: 0, total_resolutions: 0, avg_resolve_hours: null, verified_fixes: 0 },
+          top_root_cause_categories: [],
+          recent_resolutions: [],
+        },
+        setup_required: true,
+        message: 'Issue intelligence tables not yet created. Run migration 910_issue_intelligence_tables.sql.',
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const bugId = searchParams.get('bug_id');
 
