@@ -1,13 +1,14 @@
 /**
- * GET /api/admin/roles/[roleId] - Get role with permissions and hierarchy
- * PUT /api/admin/roles/[roleId] - Update role permissions and hierarchy
- * DELETE /api/admin/roles/[roleId] - Delete custom role
+ * GET /api/admin/roles/[roleId] - Get role with permissions, hierarchy, and authority
+ * PUT /api/admin/roles/[roleId] - Update role and permissions
+ * DELETE /api/admin/roles/[roleId] - Soft-delete custom role
  */
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
+import { dispatch } from '@/lib/system-events.js';
 
 export async function GET(request, { params }) {
   try {
@@ -18,14 +19,18 @@ export async function GET(request, { params }) {
 
     const { roleId } = await params;
 
-    const roleResult = await query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    const roleResult = await query(
+      `SELECT r.*, COALESCE(d.name, d.department_name) AS department_name
+       FROM roles r LEFT JOIN departments d ON r.department_id = d.id
+       WHERE r.id = $1`,
+      [roleId]
+    );
     if (!roleResult.rows[0]) {
       return NextResponse.json({ success: false, error: 'Role not found' }, { status: 404 });
     }
 
-    // Get assigned permissions
     const permsResult = await query(
-      `SELECT p.id, p.module, p.action, p.description
+      `SELECT p.id, p.module, p.action, p.description, p.name AS perm_name, p.route_path, p.method
        FROM role_permissions rp
        JOIN permissions p ON rp.permission_id = p.id
        WHERE rp.role_id = $1
@@ -33,9 +38,14 @@ export async function GET(request, { params }) {
       [roleId]
     );
 
+    const usersResult = await query(
+      `SELECT u.id, u.name, u.email FROM user_roles ur JOIN users u ON ur.user_id = u.id WHERE ur.role_id = $1`,
+      [roleId]
+    );
+
     return NextResponse.json({
       success: true,
-      data: { ...roleResult.rows[0], permissions: permsResult.rows },
+      data: { ...roleResult.rows[0], permissions: permsResult.rows, assigned_users: usersResult.rows },
     });
   } catch (error) {
     console.error('Failed to fetch role:', error);
@@ -51,41 +61,36 @@ export async function PUT(request, { params }) {
     }
 
     const { roleId } = await params;
-    const { description, permissionIds, hierarchy_level, department_id, alias, responsibilities } = await request.json();
+    const body = await request.json();
+    const { description, hierarchy_level, authority_level, department_id, alias, responsibilities } = body;
+    // Accept both permissionIds and permission_ids
+    const permissionIds = body.permissionIds || body.permission_ids;
 
     const updates = [];
     const values = [];
     let idx = 1;
 
     if (description !== undefined) {
-      updates.push(`description = $${idx}`);
-      values.push(description);
-      idx++;
+      updates.push(`description = $${idx}`); values.push(description); idx++;
     }
-
     if (hierarchy_level !== undefined) {
-      const level = Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5));
       updates.push(`hierarchy_level = $${idx}`);
-      values.push(level);
+      values.push(Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5)));
       idx++;
     }
-
+    if (authority_level !== undefined) {
+      updates.push(`authority_level = $${idx}`);
+      values.push(Math.max(1, Math.min(100, parseInt(authority_level) || 20)));
+      idx++;
+    }
     if (department_id !== undefined) {
-      updates.push(`department_id = $${idx}`);
-      values.push(department_id || null);
-      idx++;
+      updates.push(`department_id = $${idx}`); values.push(department_id || null); idx++;
     }
-
     if (alias !== undefined) {
-      updates.push(`alias = $${idx}`);
-      values.push(alias || null);
-      idx++;
+      updates.push(`alias = $${idx}`); values.push(alias || null); idx++;
     }
-
     if (responsibilities !== undefined) {
-      updates.push(`responsibilities = $${idx}`);
-      values.push(responsibilities || null);
-      idx++;
+      updates.push(`responsibilities = $${idx}`); values.push(responsibilities || null); idx++;
     }
 
     if (updates.length > 0) {
@@ -98,27 +103,32 @@ export async function PUT(request, { params }) {
     if (Array.isArray(permissionIds)) {
       await query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
       if (permissionIds.length > 0) {
-        const permValues = permissionIds.map((permId, i) => `($1, $${i + 2})`).join(', ');
-        const permParams = [roleId, ...permissionIds];
+        const permValues = permissionIds.map((_, i) => `($1, $${i + 2})`).join(', ');
         await query(
           `INSERT INTO role_permissions (role_id, permission_id) VALUES ${permValues} ON CONFLICT DO NOTHING`,
-          permParams
+          [roleId, ...permissionIds]
         );
       }
     }
 
-    // Audit log
     const meta = extractRbacMetadata(request);
     await logRbacEvent({
       userId: auth.userId,
-      action: 'role_permissions_updated',
+      action: 'role_updated',
       entityType: 'role',
       entityId: roleId,
-      details: { permissionCount: permissionIds?.length, hierarchyLevel: hierarchy_level },
+      details: { permissionCount: permissionIds?.length, hierarchyLevel: hierarchy_level, authorityLevel: authority_level },
       ...meta,
     });
 
     invalidateAllPermissionCaches();
+
+    dispatch('role_updated', {
+      entityType: 'role', entityId: roleId,
+      description: `Role was updated`,
+      metadata: { hierarchy_level, authority_level },
+      actorId: auth.userId,
+    });
 
     return NextResponse.json({ success: true, message: 'Role updated' });
   } catch (error) {
@@ -136,7 +146,6 @@ export async function DELETE(request, { params }) {
 
     const { roleId } = await params;
 
-    // Prevent deleting system roles
     const roleResult = await query('SELECT name, is_system FROM roles WHERE id = $1', [roleId]);
     if (!roleResult.rows[0]) {
       return NextResponse.json({ success: false, error: 'Role not found' }, { status: 404 });
@@ -145,15 +154,14 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, error: 'Cannot delete system roles' }, { status: 400 });
     }
 
-    // Check if role has assigned users
     const usersResult = await query('SELECT COUNT(*) AS cnt FROM user_roles WHERE role_id = $1', [roleId]);
     if (parseInt(usersResult.rows[0].cnt) > 0) {
       return NextResponse.json({ success: false, error: 'Cannot delete role with assigned users. Remove user assignments first.' }, { status: 400 });
     }
 
-    await query('DELETE FROM roles WHERE id = $1', [roleId]);
+    // Soft-delete: mark is_active = false
+    await query('UPDATE roles SET is_active = false, updated_at = NOW() WHERE id = $1', [roleId]);
 
-    // Audit log
     const meta = extractRbacMetadata(request);
     await logRbacEvent({
       userId: auth.userId,
@@ -166,7 +174,14 @@ export async function DELETE(request, { params }) {
 
     invalidateAllPermissionCaches();
 
-    return NextResponse.json({ success: true, message: 'Role deleted' });
+    dispatch('role_deleted', {
+      entityType: 'role', entityId: roleId,
+      description: `Role "${roleResult.rows[0].name}" was deactivated`,
+      metadata: { name: roleResult.rows[0].name },
+      actorId: auth.userId,
+    });
+
+    return NextResponse.json({ success: true, message: 'Role deactivated' });
   } catch (error) {
     console.error('Failed to delete role:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete role' }, { status: 500 });

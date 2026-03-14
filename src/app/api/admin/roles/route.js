@@ -1,6 +1,6 @@
 /**
- * GET /api/admin/roles - List all roles with permission counts and hierarchy
- * POST /api/admin/roles - Create a new custom role with hierarchy level
+ * GET /api/admin/roles - List all roles with permission counts, hierarchy, and authority
+ * POST /api/admin/roles - Create a new custom role
  */
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
@@ -17,13 +17,16 @@ export async function GET(request) {
     }
 
     const result = await query(`
-      SELECT r.id, r.name, r.description, r.is_system, r.hierarchy_level, r.department_id, r.alias, r.responsibilities, r.created_at,
-        d.name AS department_name,
+      SELECT r.id, r.name, r.description, r.is_system, r.is_active,
+        r.hierarchy_level, r.authority_level, r.department_id, r.alias,
+        r.responsibilities, r.created_by, r.created_at, r.updated_at,
+        COALESCE(d.name, d.department_name) AS department_name,
         (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
         (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
       FROM roles r
       LEFT JOIN departments d ON r.department_id = d.id
-      ORDER BY r.hierarchy_level ASC, r.name ASC
+      WHERE r.is_active = true
+      ORDER BY r.authority_level DESC, r.hierarchy_level ASC, r.name ASC
     `);
 
     return NextResponse.json({ success: true, data: result.rows });
@@ -40,42 +43,44 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
     }
 
-    const { name, description, permissionIds, hierarchy_level, department_id, alias, responsibilities } = await request.json();
+    const body = await request.json();
+    const { name, description, hierarchy_level, authority_level, department_id, alias, responsibilities } = body;
+    // Accept both permissionIds and permission_ids for backward compatibility
+    const permissionIds = body.permissionIds || body.permission_ids || [];
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ success: false, error: 'Role name is required' }, { status: 400 });
     }
 
     const sanitizedName = name.toLowerCase().trim().replace(/[^a-z0-9_]/g, '_');
-    const level = Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5));
+    const hLevel = Math.max(1, Math.min(100, parseInt(hierarchy_level) || 5));
+    const aLevel = Math.max(1, Math.min(100, parseInt(authority_level) || 20));
 
-    // Create role
     const roleResult = await query(
-      `INSERT INTO roles (name, description, is_system, hierarchy_level, department_id, alias, responsibilities)
-       VALUES ($1, $2, false, $3, $4, $5, $6) RETURNING id, name, description, hierarchy_level, department_id, alias`,
-      [sanitizedName, description || '', level, department_id || null, alias || null, responsibilities || null]
+      `INSERT INTO roles (name, description, is_system, hierarchy_level, authority_level, department_id, alias, responsibilities, created_by)
+       VALUES ($1, $2, false, $3, $4, $5, $6, $7, $8)
+       RETURNING id, name, description, hierarchy_level, authority_level, department_id, alias, is_active`,
+      [sanitizedName, description || '', hLevel, aLevel, department_id || null, alias || null, responsibilities || null, auth.userId]
     );
 
     const role = roleResult.rows[0];
 
     // Assign permissions if provided
-    if (permissionIds && permissionIds.length > 0) {
-      const values = permissionIds.map((permId, i) => `($1, $${i + 2})`).join(', ');
-      const params = [role.id, ...permissionIds];
+    if (permissionIds.length > 0) {
+      const values = permissionIds.map((_, i) => `($1, $${i + 2})`).join(', ');
       await query(
         `INSERT INTO role_permissions (role_id, permission_id) VALUES ${values} ON CONFLICT DO NOTHING`,
-        params
+        [role.id, ...permissionIds]
       );
     }
 
-    // Audit log
     const meta = extractRbacMetadata(request);
     await logRbacEvent({
       userId: auth.userId,
       action: 'role_created',
       entityType: 'role',
       entityId: role.id,
-      details: { roleName: role.name, hierarchyLevel: level, permissionCount: permissionIds?.length || 0 },
+      details: { roleName: role.name, hierarchyLevel: hLevel, authorityLevel: aLevel, permissionCount: permissionIds.length },
       ...meta,
     });
 
@@ -83,8 +88,8 @@ export async function POST(request) {
 
     dispatch('role_created', {
       entityType: 'role', entityId: role.id,
-      description: `Role "${role.name}" was created`,
-      metadata: { name: role.name, hierarchy_level: level },
+      description: `Role "${role.name}" was created (authority: ${aLevel})`,
+      metadata: { name: role.name, hierarchy_level: hLevel, authority_level: aLevel },
       actorId: auth.userId,
     });
 

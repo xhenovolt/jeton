@@ -35,8 +35,10 @@ export default function AdminRolesPage() {
   const [newRolePerms, setNewRolePerms] = useState([]);
   const [newRoleDepartment, setNewRoleDepartment] = useState('');
   const [newRoleAlias, setNewRoleAlias] = useState('');
+  const [newRoleAuthority, setNewRoleAuthority] = useState(20);
   const [saving, setSaving] = useState(false);
   const [editHierarchy, setEditHierarchy] = useState(null);
+  const [editAuthority, setEditAuthority] = useState(null);
   const [editDepartment, setEditDepartment] = useState('');
   const [editAlias, setEditAlias] = useState('');
   const [expandedModules, setExpandedModules] = useState({});
@@ -72,6 +74,7 @@ export default function AdminRolesPage() {
     setSelectedRole(role);
     setShowCreate(false);
     setEditHierarchy(role.hierarchy_level);
+    setEditAuthority(role.authority_level ?? 20);
     setEditDepartment(role.department_id || '');
     setEditAlias(role.alias || '');
     try {
@@ -95,6 +98,7 @@ export default function AdminRolesPage() {
         body: JSON.stringify({
           permission_ids: rolePermissions,
           hierarchy_level: editHierarchy,
+          authority_level: editAuthority,
           department_id: editDepartment || null,
           alias: editAlias || null,
         }),
@@ -119,6 +123,7 @@ export default function AdminRolesPage() {
           description: newRoleDescription.trim() || undefined,
           permissionIds: newRolePerms,
           hierarchy_level: newRoleHierarchy,
+          authority_level: newRoleAuthority,
           department_id: newRoleDepartment || null,
           alias: newRoleAlias || null,
         }),
@@ -132,6 +137,7 @@ export default function AdminRolesPage() {
         setNewRolePerms([]);
         setNewRoleDepartment('');
         setNewRoleAlias('');
+        setNewRoleAuthority(20);
         fetchData();
       }
     } catch (err) {
@@ -177,7 +183,7 @@ export default function AdminRolesPage() {
 
   const HierarchySelector = ({ value, onChange, disabled }) => (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-foreground">Authority Level</label>
+      <label className="block text-sm font-medium text-foreground">Hierarchy Level</label>
       <div className="flex items-center gap-3">
         <input
           type="number"
@@ -189,7 +195,28 @@ export default function AdminRolesPage() {
           className="w-20 px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground text-sm focus:outline-none disabled:opacity-50"
         />
         <span className="text-sm text-muted-foreground">{getHierarchyLabel(value || 5)}</span>
-        <span className="text-[10px] text-muted-foreground">(1 = highest authority, higher numbers = less authority)</span>
+        <span className="text-[10px] text-muted-foreground">(1 = highest, used for approval chains)</span>
+      </div>
+    </div>
+  );
+
+  const AuthorityLevelInput = ({ value, onChange, disabled }) => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-foreground">Authority Level</label>
+      <div className="flex items-center gap-3">
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={value || 20}
+          onChange={e => !disabled && onChange(parseInt(e.target.value) || 20)}
+          disabled={disabled}
+          className="w-20 px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground text-sm focus:outline-none disabled:opacity-50"
+        />
+        <span className="text-sm text-muted-foreground">
+          {value >= 90 ? 'Superadmin' : value >= 70 ? 'Admin' : value >= 50 ? 'Manager' : value >= 30 ? 'Staff' : 'Viewer'}
+        </span>
+        <span className="text-[10px] text-muted-foreground">(higher = more authority, controls role assignment)</span>
       </div>
     </div>
   );
@@ -343,7 +370,7 @@ export default function AdminRolesPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground capitalize truncate">{role.name.replace(/_/g, ' ')}{role.alias ? ` (${role.alias})` : ''}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Lvl {role.hierarchy_level || '?'} &middot; {role.permission_count || 0} perms &middot; {role.user_count || 0} users{role.department_name ? ` · ${role.department_name}` : ''}
+                    Auth {role.authority_level ?? '?'} &middot; Lvl {role.hierarchy_level || '?'} &middot; {role.permission_count || 0} perms &middot; {role.user_count || 0} users{role.department_name ? ` · ${role.department_name}` : ''}
                   </p>
                 </div>
               </div>
@@ -395,6 +422,7 @@ export default function AdminRolesPage() {
                 </div>
               </div>
               <HierarchySelector value={newRoleHierarchy} onChange={setNewRoleHierarchy} />
+              <AuthorityLevelInput value={newRoleAuthority} onChange={setNewRoleAuthority} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DepartmentSelector value={newRoleDepartment} onChange={setNewRoleDepartment} />
                 <div>
@@ -431,7 +459,7 @@ export default function AdminRolesPage() {
                     {' · '}
                     <span className="inline-flex items-center gap-1">
                       <Layers size={11} />
-                      Level {selectedRole.hierarchy_level || '?'} — {getHierarchyLabel(selectedRole.hierarchy_level)}
+                      Authority {selectedRole.authority_level ?? '?'} · Hierarchy {selectedRole.hierarchy_level || '?'} — {getHierarchyLabel(selectedRole.hierarchy_level)}
                     </span>
                   </p>
                   {selectedRole.is_system && (
@@ -454,6 +482,9 @@ export default function AdminRolesPage() {
               </div>
               {!selectedRole.is_system && (
                 <HierarchySelector value={editHierarchy} onChange={setEditHierarchy} disabled={selectedRole.is_system} />
+              )}
+              {!selectedRole.is_system && (
+                <AuthorityLevelInput value={editAuthority} onChange={setEditAuthority} disabled={selectedRole.is_system} />
               )}
               {!selectedRole.is_system && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

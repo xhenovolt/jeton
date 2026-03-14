@@ -20,7 +20,7 @@ import { NextResponse } from 'next/server';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-/** @type {Map<string, { permissions: string[], hierarchyLevel: number, expiry: number }>} */
+/** @type {Map<string, { permissions: string[], hierarchyLevel: number, authorityLevel: number, expiry: number }>} */
 const permissionCache = new Map();
 
 /**
@@ -32,9 +32,12 @@ async function getCachedPermissions(userId) {
     return cached;
   }
   // Load from DB
-  const permissions = await loadUserPermissionsFromDB(userId);
-  const hierarchyLevel = await getUserHierarchyLevel(userId);
-  const entry = { permissions, hierarchyLevel, expiry: Date.now() + CACHE_TTL_MS };
+  const [permissions, hierarchyLevel, authorityLevel] = await Promise.all([
+    loadUserPermissionsFromDB(userId),
+    getUserHierarchyLevel(userId),
+    getUserAuthorityLevel(userId),
+  ]);
+  const entry = { permissions, hierarchyLevel, authorityLevel, expiry: Date.now() + CACHE_TTL_MS };
   permissionCache.set(userId, entry);
   return entry;
 }
@@ -153,6 +156,26 @@ export async function getUserHierarchyLevel(userId) {
   } catch (error) {
     console.error('[RBAC] getUserHierarchyLevel failed:', error.message);
     return 5;
+  }
+}
+
+/**
+ * Get the effective authority level for a user (higher number = more authority)
+ * Uses the best (highest) authority_level among all assigned roles
+ */
+export async function getUserAuthorityLevel(userId) {
+  try {
+    const result = await query(
+      `SELECT MAX(r.authority_level) AS authority_level
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.authority_level ?? 10; // Default to viewer-level
+  } catch (error) {
+    console.error('[RBAC] getUserAuthorityLevel failed:', error.message);
+    return 10;
   }
 }
 
