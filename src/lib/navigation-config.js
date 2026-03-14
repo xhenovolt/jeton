@@ -36,6 +36,7 @@ import {
   FileText,
   Bug,
   Zap,
+  Crown,
   Code2,
   BookMarked,
   Bell,
@@ -145,6 +146,7 @@ export const menuItems = [
     submenu: [
       { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'employees.view' },
       { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'employees.view' },
+      { label: 'Control Tower', href: '/app/control-tower', description: 'Authority & structural health', permission: 'employees.view' },
       { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
       { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts', permission: 'finance.view' },
