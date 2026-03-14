@@ -7,6 +7,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
+import { dispatch } from '@/lib/system-events.js';
 
 export async function GET(request) {
   try {
@@ -79,6 +80,13 @@ export async function POST(request) {
     });
 
     invalidateAllPermissionCaches();
+
+    dispatch('role_created', {
+      entityType: 'role', entityId: role.id,
+      description: `Role "${role.name}" was created`,
+      metadata: { name: role.name, hierarchy_level: level },
+      actorId: auth.userId,
+    });
 
     return NextResponse.json({ success: true, data: role }, { status: 201 });
   } catch (error) {

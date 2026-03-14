@@ -94,18 +94,26 @@ export default function AdminDepartmentsPage() {
     { id: 'staff', label: 'Staff', icon: Users },
   ];
 
+  // Mobile: back to list
+  const [mobileView, setMobileView] = useState('list'); // 'list' | 'detail' | 'create'
+
+  const selectDeptMobile = async (dept) => {
+    await selectDept(dept);
+    setMobileView('detail');
+  };
+
   if (loading) return <div className="p-8 text-muted-foreground">Loading departments...</div>;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Sidebar — Department List */}
-      <div className="w-80 border-r border-border dark:border-white/[0.08] flex flex-col bg-background">
+    <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-4rem)]">
+      {/* Sidebar — Department List (always visible on desktop, conditional on mobile) */}
+      <div className={`w-full md:w-80 border-b md:border-b-0 md:border-r border-border dark:border-white/[0.08] flex flex-col bg-background ${mobileView !== 'list' ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border dark:border-white/[0.08]">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Building2 size={18} /> Departments
             </h1>
-            <button onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', description: '', alias: '', color: '#3b82f6' }); }}
+            <button onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', description: '', alias: '', color: '#3b82f6' }); setMobileView('create'); }}
               className="p-1.5 rounded-lg text-white" style={{ background: 'var(--theme-primary, #3b82f6)' }}>
               <Plus size={14} />
             </button>
@@ -118,14 +126,14 @@ export default function AdminDepartmentsPage() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {departments.map(dept => (
-            <div key={dept.id} onClick={() => selectDept(dept)}
+            <div key={dept.id} onClick={() => { if (window.innerWidth < 768) selectDeptMobile(dept); else selectDept(dept); }}
               className={`group px-4 py-3 border-b border-border/50 dark:border-white/[0.04] cursor-pointer hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors ${selected?.id === dept.id ? 'bg-muted dark:bg-white/[0.06]' : ''}`}>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ background: dept.color || '#3b82f6' }} />
                 <span className="font-medium text-sm text-foreground flex-1">{dept.name}</span>
                 {!dept.is_active && <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 rounded">Inactive</span>}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={e => { e.stopPropagation(); startEdit(dept); }} className="p-1 rounded hover:bg-muted dark:hover:bg-white/[0.06]"><Edit3 size={12} className="text-muted-foreground" /></button>
+                <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                  <button onClick={e => { e.stopPropagation(); startEdit(dept); if (window.innerWidth < 768) setMobileView('create'); }} className="p-1 rounded hover:bg-muted dark:hover:bg-white/[0.06]"><Edit3 size={12} className="text-muted-foreground" /></button>
                   <button onClick={e => { e.stopPropagation(); deleteDepartment(dept.id, dept.name); }} className="p-1 rounded hover:bg-red-500/10"><Trash2 size={12} className="text-red-400" /></button>
                 </div>
               </div>
@@ -142,9 +150,12 @@ export default function AdminDepartmentsPage() {
       </div>
 
       {/* Main — Detail / Create */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto ${mobileView === 'list' ? 'hidden md:block' : 'block'}`}>
         {showCreate ? (
-          <div className="max-w-2xl mx-auto p-8">
+          <div className="max-w-2xl mx-auto p-4 sm:p-8">
+            <button onClick={() => { setShowCreate(false); setMobileView('list'); }} className="md:hidden flex items-center gap-1 text-sm text-muted-foreground mb-4 hover:text-foreground">
+              ← Back to list
+            </button>
             <h2 className="text-xl font-bold text-foreground mb-6">{editingId ? 'Edit Department' : 'Create Department'}</h2>
             <div className="space-y-4">
               <div>
@@ -157,7 +168,7 @@ export default function AdminDepartmentsPage() {
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4}
                   className="w-full px-4 py-2.5 rounded-xl bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/[0.10] text-foreground text-sm focus:outline-none resize-none" placeholder="Department responsibilities, roles, and brief explanation..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Alias (optional)</label>
                   <input value={form.alias} onChange={e => setForm(f => ({ ...f, alias: e.target.value }))}
@@ -174,13 +185,17 @@ export default function AdminDepartmentsPage() {
                   className="px-6 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50" style={{ background: 'var(--theme-primary, #3b82f6)' }}>
                   {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                 </button>
-                <button onClick={() => { setShowCreate(false); setEditingId(null); }}
+                <button onClick={() => { setShowCreate(false); setEditingId(null); setMobileView('list'); }}
                   className="px-6 py-2.5 rounded-xl bg-muted dark:bg-white/[0.06] text-foreground text-sm">Cancel</button>
               </div>
             </div>
           </div>
         ) : selected && detail ? (
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
+            {/* Mobile back button */}
+            <button onClick={() => { setSelected(null); setDetail(null); setMobileView('list'); }} className="md:hidden flex items-center gap-1 text-sm text-muted-foreground mb-4 hover:text-foreground">
+              ← Back to list
+            </button>
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-bold" style={{ background: detail.color || '#3b82f6' }}>
@@ -192,12 +207,12 @@ export default function AdminDepartmentsPage() {
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 mb-6 border-b border-border dark:border-white/[0.08]">
+            {/* Tabs — scrollable on mobile */}
+            <div className="flex gap-1 mb-6 border-b border-border dark:border-white/[0.08] overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               {tabs.map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.id ? 'border-[var(--theme-primary,#3b82f6)] text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-                  <tab.icon size={12} /> {tab.label}
+                  <tab.icon size={12} /> <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -209,7 +224,7 @@ export default function AdminDepartmentsPage() {
                   <h3 className="text-sm font-semibold text-foreground mb-2">Description</h3>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detail.description || 'No description yet.'}</p>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
                     { label: 'Staff', value: detail.staff?.length || 0, color: '#3b82f6' },
                     { label: 'Roles', value: detail.roles?.length || 0, color: '#8b5cf6' },

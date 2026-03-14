@@ -310,7 +310,7 @@ export function Navbar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl shadow-2xl z-50 overflow-hidden"
+                className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-96 rounded-xl shadow-2xl z-50 overflow-hidden"
                 style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}
               >
                 {/* Header */}

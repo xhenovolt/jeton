@@ -57,16 +57,19 @@ export default function HRMPage() {
 
   const submitDepartment = async (e) => {
     e.preventDefault();
+    if (!deptForm.name.trim()) { toast.error('Department name is required'); return; }
     try {
       const res = await fetchWithAuth('/api/departments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(deptForm) });
       const json = res.json ? await res.json() : res;
       if (json.success) {
-        toast.success('Department created');
+        toast.success(`Department "${deptForm.name}" created`);
         setShowDeptForm(false);
         setDeptForm({ name: '', description: '', head_employee_id: '' });
         fetchData();
+      } else {
+        toast.error(json.error || 'Failed to create department');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { toast.error('Failed to create department'); console.error(err); }
   };
 
   const formatSalary = (v) => v ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(v) : '—';
@@ -141,24 +144,24 @@ export default function HRMPage() {
               <div className="p-8 text-center text-muted-foreground"><Users className="w-10 h-10 mx-auto mb-2 opacity-30" /><p>No employees yet</p></div>
             ) : employees.map(emp => (
               <div key={emp.id} className="p-4 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-medium text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-medium text-sm shrink-0">
                       {emp.first_name?.[0]}{emp.last_name?.[0]}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-foreground">{emp.first_name} {emp.last_name}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[emp.status] || 'bg-gray-100 text-gray-600'}`}>{emp.status}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-medium text-foreground truncate">{emp.first_name} {emp.last_name}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${STATUS_COLORS[emp.status] || 'bg-gray-100 text-gray-600'}`}>{emp.status}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                         <span>{emp.position}</span>
                         {emp.department_name && <span>• {emp.department_name}</span>}
-                        {emp.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{emp.email}</span>}
+                        {emp.email && <span className="hidden sm:flex items-center gap-1"><Mail className="w-3 h-3" />{emp.email}</span>}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right ml-13 sm:ml-0 shrink-0">
                     <div className="text-sm font-medium text-foreground">{formatSalary(emp.salary)}</div>
                     <div className="text-xs text-muted-foreground">{emp.employment_type?.replace(/_/g, ' ')}</div>
                   </div>

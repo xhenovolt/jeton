@@ -300,3 +300,33 @@ body {
   background:           rgba(255, 255, 255, 0.5);
   border:               1px solid rgba(255, 255, 255, 0.6);
 }
+
+/* ── Mobile Responsiveness Utilities ── */
+
+/* Ensure modals don't overflow on mobile */
+@media (max-width: 640px) {
+  .swal2-popup {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    padding: 1rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  /* Mobile-friendly scrollable containers */
+  .mobile-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+/* Hide scrollbar on mobile for horizontal scroll containers */
+@media (max-width: 768px) {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

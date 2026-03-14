@@ -296,7 +296,7 @@ export default function AdminRolesPage() {
   return (
     <div className="p-6 space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Roles & Permissions</h1>
           <p className="text-sm text-muted-foreground mt-1">{roles.length} roles configured &middot; Enterprise RBAC with hierarchy enforcement</p>
@@ -395,7 +395,7 @@ export default function AdminRolesPage() {
                 </div>
               </div>
               <HierarchySelector value={newRoleHierarchy} onChange={setNewRoleHierarchy} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DepartmentSelector value={newRoleDepartment} onChange={setNewRoleDepartment} />
                 <div>
                   <label className="block text-sm text-muted-foreground mb-1">Alias (optional)</label>
@@ -456,7 +456,7 @@ export default function AdminRolesPage() {
                 <HierarchySelector value={editHierarchy} onChange={setEditHierarchy} disabled={selectedRole.is_system} />
               )}
               {!selectedRole.is_system && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DepartmentSelector value={editDepartment} onChange={setEditDepartment} disabled={selectedRole.is_system} />
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-foreground">Alias (optional)</label>

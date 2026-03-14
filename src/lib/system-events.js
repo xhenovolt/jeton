@@ -62,10 +62,10 @@ async function generateNotifications(eventId, eventName, { entityType, entityId,
     const message = description || config.message(actorName, metadata || {});
     const type = config.type || 'info';
 
-    // Notify all active users except the actor (founder visibility)
+    // Notify all active users — include the actor for founder/single-user setups
     const recipients = await query(
-      `SELECT id FROM users WHERE id != $1 AND is_active = true LIMIT 50`,
-      [actorId || '00000000-0000-0000-0000-000000000000']
+      `SELECT id FROM users WHERE is_active = true LIMIT 50`,
+      []
     );
 
     if (recipients.rows.length === 0) return;
@@ -174,6 +174,11 @@ const NOTIFICATION_MAP = {
     title: (actor) => `Staff Added`,
     message: (actor, m) => `${actor} added staff: ${m.name || ''} (${m.role || ''})`,
   },
+  staff_created: {
+    type: 'info',
+    title: (actor) => `Staff Added`,
+    message: (actor, m) => `${actor} added staff member: ${m.name || ''} (${m.position || m.role || ''})`,
+  },
   client_created: {
     type: 'info',
     title: (actor) => `New Client`,
@@ -223,6 +228,51 @@ const NOTIFICATION_MAP = {
     type: 'info',
     title: (actor) => `Employee Added`,
     message: (actor, m) => `${actor} added ${m.first_name || ''} ${m.last_name || ''} as ${m.position || 'employee'}`,
+  },
+  department_created: {
+    type: 'success',
+    title: (actor) => `Department Created`,
+    message: (actor, m) => `${actor} created department: ${m.name || 'Unknown'}`,
+  },
+  department_updated: {
+    type: 'info',
+    title: (actor) => `Department Updated`,
+    message: (actor, m) => `${actor} updated department: ${m.name || 'Unknown'}`,
+  },
+  department_deleted: {
+    type: 'warning',
+    title: (actor) => `Department Deactivated`,
+    message: (actor, m) => `${actor} deactivated department: ${m.name || ''}`,
+  },
+  role_created: {
+    type: 'info',
+    title: (actor) => `Role Created`,
+    message: (actor, m) => `${actor} created role: ${m.name || 'Unknown'}`,
+  },
+  role_updated: {
+    type: 'info',
+    title: (actor) => `Role Updated`,
+    message: (actor, m) => `${actor} updated role: ${m.name || 'Unknown'}`,
+  },
+  approval_requested: {
+    type: 'warning',
+    title: (actor) => `Approval Requested`,
+    message: (actor, m) => `${actor} requested approval for ${m.type || 'item'}: ${m.title || ''}`,
+  },
+  approval_granted: {
+    type: 'success',
+    title: (actor) => `Approval Granted`,
+    message: (actor, m) => `${actor} approved ${m.type || 'item'}: ${m.title || ''}`,
+  },
+  staff_fired: {
+    type: 'warning',
+    title: (actor) => `Staff Terminated`,
+    message: (actor, m) => `${actor} terminated staff member: ${m.name || ''}`,
+  },
+  backup_completed: {
+    type: 'success',
+    title: (actor) => `Backup Completed`,
+    message: (actor, m) => `System backup completed successfully${m.size ? ` (${m.size})` : ''}`,
   },
 };
 

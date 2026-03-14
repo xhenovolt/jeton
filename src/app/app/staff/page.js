@@ -114,8 +114,8 @@ export default function StaffPage() {
   };
 
   const TreeNode = ({ node, depth = 0 }) => (
-    <div style={{ marginLeft: depth * 24 }} className="py-2">
-      <div className="flex items-center gap-2 text-sm">
+    <div style={{ marginLeft: Math.min(depth * 24, 120) }} className="py-2">
+      <div className="flex items-center gap-2 text-sm flex-wrap">
         {depth > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
         <span className="font-medium text-foreground">{node.name}</span>
         {node.position && <span className="text-muted-foreground">— {node.position}</span>}
@@ -128,7 +128,7 @@ export default function StaffPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Team</h1>
           <p className="text-sm text-muted-foreground mt-1">{staff.length} members · {staff.filter(s => s.status === 'active').length} active</p>
@@ -282,24 +282,24 @@ export default function StaffPage() {
       ) : (
         <div className="bg-card rounded-xl border divide-y divide-border">
           {filtered.map(s => (
-            <div key={s.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">{s.name?.charAt(0)}</div>
-                <div>
-                  <div className="flex items-center gap-2">
+            <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition gap-2">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">{s.name?.charAt(0)}</div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-foreground">{s.name}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[s.status] || 'bg-muted text-foreground'}`}>{s.status}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5 truncate">
                     {s.position || s.role_name || s.role || 'No role'}
                     {(s.dept_name || s.department) && ` · ${s.dept_name || s.department}`}
-                    {s.email && ` · ${s.email}`}
-                    {s.manager_name && ` · Reports to: ${s.manager_name}`}
+                    {s.email && <span className="hidden sm:inline"> · {s.email}</span>}
+                    {s.manager_name && <span className="hidden md:inline"> · Reports to: {s.manager_name}</span>}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {s.salary && <span className="text-sm font-medium text-foreground">{s.salary_currency || 'UGX'} {Math.round(parseFloat(s.salary)).toLocaleString()}/mo</span>}
+              <div className="flex items-center gap-2 ml-13 sm:ml-0 shrink-0">
+                {s.salary && <span className="text-sm font-medium text-foreground whitespace-nowrap">{s.salary_currency || 'UGX'} {Math.round(parseFloat(s.salary)).toLocaleString()}/mo</span>}
                 <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
                 <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>

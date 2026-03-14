@@ -97,7 +97,7 @@ export default function SettingsPage() {
             <label className="block text-sm text-muted-foreground mb-1">Current Password</label>
             <input type="password" value={passwordForm.current} onChange={e => setPasswordForm(f => ({ ...f, current: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-1">New Password</label>
               <input type="password" value={passwordForm.newPass} onChange={e => setPasswordForm(f => ({ ...f, newPass: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />

@@ -61,8 +61,8 @@ export default function AuditLogsPage() {
       ) : logs.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No audit logs found</div>
       ) : (
-        <div className="bg-card rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-card rounded-xl border overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-muted border-b">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Time</th>
