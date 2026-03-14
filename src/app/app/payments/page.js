@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Search, Filter, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { CreditCard, Search, Filter, DollarSign, CheckCircle, Clock, Plus } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
+import NewPaymentModal from '@/components/modals/NewPaymentModal';
 
 const PAY_STATUS = { pending: 'bg-yellow-100 text-yellow-700', completed: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700', refunded: 'bg-muted text-foreground' };
 
@@ -11,6 +12,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [showNewPayment, setShowNewPayment] = useState(false);
 
   useEffect(() => { fetchPayments(); }, [statusFilter]);
 
@@ -28,10 +30,17 @@ export default function PaymentsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-        <p className="text-sm text-muted-foreground mt-1">{payments.length} payments &middot; UGX {Math.round(totalCompleted).toLocaleString()} completed</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Payments</h1>
+          <p className="text-sm text-muted-foreground mt-1">{payments.length} payments &middot; UGX {Math.round(totalCompleted).toLocaleString()} completed</p>
+        </div>
+        <button onClick={() => setShowNewPayment(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+          <Plus className="w-4 h-4" /> Record Payment
+        </button>
       </div>
+
+      <NewPaymentModal isOpen={showNewPayment} onClose={() => setShowNewPayment(false)} onCreated={() => { setLoading(true); fetchPayments(); }} />
 
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => { setStatusFilter(''); setLoading(true); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!statusFilter ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>All</button>

@@ -6,6 +6,7 @@ import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
+import NewClientModal from '@/components/modals/NewClientModal';
 
 const STATUS_COLORS = {
   active: 'bg-emerald-100 text-emerald-700', inactive: 'bg-muted text-muted-foreground',
@@ -16,8 +17,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ company_name: '', contact_name: '', email: '', phone: '', industry: '', payment_terms: 30 });
+  const [showNewClient, setShowNewClient] = useState(false);
   const toast = useToast();
 
   useEffect(() => { fetchClients(); }, []);
@@ -32,17 +32,6 @@ export default function ClientsPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const createClient = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetchWithAuth('/api/clients', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if ((await res.json()).success) { toast.success('Client created'); setShowForm(false); fetchClients(); }
-    } catch (err) { console.error(err); }
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -50,28 +39,12 @@ export default function ClientsPage() {
           <h1 className="text-2xl font-bold text-foreground">Clients</h1>
           <p className="text-sm text-muted-foreground mt-1">{clients.length} clients</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={() => setShowNewClient(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Client
         </button>
       </div>
 
-      {showForm && (
-        <form onSubmit={createClient} className="bg-card border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-foreground">New Client</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} placeholder="Company Name *" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-            <input value={form.contact_name} onChange={e => setForm({...form, contact_name: e.target.value})} placeholder="Contact Name" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-            <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Phone" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-            <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} placeholder="Industry" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-            <input type="number" value={form.payment_terms} onChange={e => setForm({...form, payment_terms: parseInt(e.target.value)})} placeholder="Payment Terms (days)" className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted">Cancel</button>
-          </div>
-        </form>
-      )}
+      <NewClientModal isOpen={showNewClient} onClose={() => setShowNewClient(false)} onCreated={() => { setLoading(true); fetchClients(); }} />
 
       <form onSubmit={e => { e.preventDefault(); setLoading(true); fetchClients(); }} className="relative w-64">
         <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />

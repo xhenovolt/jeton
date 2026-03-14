@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Search, ChevronRight, DollarSign, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
+import NewDealModal from '@/components/modals/NewDealModal';
 
 const STATUS_COLORS = {
   draft: 'bg-muted text-foreground', sent: 'bg-blue-100 text-blue-700', accepted: 'bg-cyan-100 text-cyan-700',
@@ -15,6 +16,7 @@ export default function DealsPage() {
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [showNewDeal, setShowNewDeal] = useState(false);
 
   useEffect(() => { fetchDeals(); }, [statusFilter]);
 
@@ -47,9 +49,9 @@ export default function DealsPage() {
           <h1 className="text-2xl font-bold text-foreground">Deals</h1>
           <p className="text-sm text-muted-foreground mt-1">{deals.length} deals · {summaryParts.join(' · ')}</p>
         </div>
-        <Link href="/app/deals/new" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={() => setShowNewDeal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Deal
-        </Link>
+        </button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -98,6 +100,8 @@ export default function DealsPage() {
           })}
         </div>
       )}
+
+      <NewDealModal isOpen={showNewDeal} onClose={() => setShowNewDeal(false)} onCreated={() => { setLoading(true); fetchDeals(); }} />
     </div>
   );
 }
