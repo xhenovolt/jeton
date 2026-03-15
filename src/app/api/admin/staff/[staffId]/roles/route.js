@@ -1,12 +1,13 @@
 /**
- * GET /api/admin/staff/[staffId]/roles - List roles assigned to a user
- * POST /api/admin/staff/[staffId]/roles - Assign roles to a user (with authority check)
- * DELETE /api/admin/staff/[staffId]/roles - Remove a role from a user
+ * GET  /api/admin/staff/[staffId]/roles - List roles assigned to a staff member
+ * POST /api/admin/staff/[staffId]/roles - Replace all role assignments for a staff member
+ * DELETE /api/admin/staff/[staffId]/roles - Remove a single role from a staff member
+ *
+ * Uses the staff_roles table for staff-level role assignments.
  */
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { invalidatePermissionCache } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { dispatch } from '@/lib/system-events.js';
 
@@ -20,10 +21,14 @@ export async function GET(request, { params }) {
     const { staffId } = await params;
 
     const result = await query(
-      `SELECT r.id, r.name, r.description, r.hierarchy_level, r.authority_level, r.is_system, ur.assigned_by, ur.created_at AS assigned_at
-       FROM user_roles ur
-       JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1
+      `SELECT r.id, r.name, r.description, r.hierarchy_level, r.authority_level,
+              r.is_system, r.department_id,
+              COALESCE(d.name, d.department_name) AS department_name,
+              sr.assigned_by, sr.assigned_at
+       FROM staff_roles sr
+       JOIN roles r ON sr.role_id = r.id
+       LEFT JOIN departments d ON r.department_id = d.id
+       WHERE sr.staff_id = $1
        ORDER BY r.authority_level DESC`,
       [staffId]
     );
@@ -44,23 +49,23 @@ export async function POST(request, { params }) {
 
     const { staffId } = await params;
     const body = await request.json();
-    const roleIds = body.role_ids || body.roleIds;
+    const roleIds = body.role_ids || body.roleIds || [];
 
-    if (!Array.isArray(roleIds) || roleIds.length === 0) {
-      return NextResponse.json({ success: false, error: 'role_ids array is required' }, { status: 400 });
+    if (!Array.isArray(roleIds)) {
+      return NextResponse.json({ success: false, error: 'role_ids must be an array' }, { status: 400 });
     }
 
-    // Get the assigner's authority level
-    const assignerAuth = await query(
-      `SELECT MAX(r.authority_level) AS max_authority
-       FROM user_roles ur JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1`,
-      [auth.userId]
-    );
-    const assignerAuthority = assignerAuth.rows[0]?.max_authority || 0;
+    // Authority check — non-superadmin can't assign roles at or above their own authority
+    if (auth.role !== 'superadmin' && roleIds.length > 0) {
+      const assignerAuth = await query(
+        `SELECT MAX(r.authority_level) AS max_authority
+         FROM staff_roles sr JOIN roles r ON sr.role_id = r.id
+         JOIN staff s ON sr.staff_id = s.id
+         WHERE s.user_id = $1`,
+        [auth.userId]
+      );
+      const assignerAuthority = assignerAuth.rows[0]?.max_authority || 0;
 
-    // Check target roles' authority levels — can't assign roles with authority >= own (unless superadmin)
-    if (auth.role !== 'superadmin') {
       const targetRoles = await query(
         `SELECT id, name, authority_level FROM roles WHERE id = ANY($1)`,
         [roleIds]
@@ -75,33 +80,48 @@ export async function POST(request, { params }) {
       }
     }
 
-    // Assign roles
+    // Get previous roles for logging
+    const prevRoles = await query(
+      `SELECT role_id FROM staff_roles WHERE staff_id = $1`,
+      [staffId]
+    );
+    const previousRoleIds = prevRoles.rows.map(r => r.role_id);
+
+    // Remove all previous assignments
+    await query('DELETE FROM staff_roles WHERE staff_id = $1', [staffId]);
+
+    // Insert new assignments
     let assigned = 0;
     for (const roleId of roleIds) {
-      const result = await query(
-        `INSERT INTO user_roles (user_id, role_id, assigned_by)
+      await query(
+        `INSERT INTO staff_roles (staff_id, role_id, assigned_by)
          VALUES ($1, $2, $3)
-         ON CONFLICT (user_id, role_id) DO NOTHING`,
+         ON CONFLICT (staff_id, role_id) DO NOTHING`,
         [staffId, roleId, auth.userId]
       );
-      assigned += result.rowCount;
+      assigned++;
     }
 
-    invalidatePermissionCache(staffId);
+    // Also update the primary role_id on staff record (first role)
+    if (roleIds.length > 0) {
+      await query('UPDATE staff SET role_id = $1, updated_at = NOW() WHERE id = $2', [roleIds[0], staffId]);
+    } else {
+      await query('UPDATE staff SET role_id = NULL, updated_at = NOW() WHERE id = $1', [staffId]);
+    }
 
     const meta = extractRbacMetadata(request);
     await logRbacEvent({
       userId: auth.userId,
-      action: 'staff_roles_assigned',
-      entityType: 'user',
+      action: 'staff_roles_replaced',
+      entityType: 'staff',
       entityId: staffId,
-      details: { roleIds, assigned },
+      details: { previousRoleIds, newRoleIds: roleIds, assigned },
       ...meta,
     });
 
     dispatch('role_assigned', {
-      entityType: 'user', entityId: staffId,
-      description: `${assigned} role(s) assigned to staff member`,
+      entityType: 'staff', entityId: staffId,
+      description: `Role assignments updated for staff member (${assigned} role(s))`,
       metadata: { roleIds, assignedBy: auth.userId },
       actorId: auth.userId,
     });
@@ -127,22 +147,20 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, error: 'role_id is required' }, { status: 400 });
     }
 
-    await query('DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2', [staffId, role_id]);
-
-    invalidatePermissionCache(staffId);
+    await query('DELETE FROM staff_roles WHERE staff_id = $1 AND role_id = $2', [staffId, role_id]);
 
     const meta = extractRbacMetadata(request);
     await logRbacEvent({
       userId: auth.userId,
       action: 'staff_role_removed',
-      entityType: 'user',
+      entityType: 'staff',
       entityId: staffId,
       details: { roleId: role_id },
       ...meta,
     });
 
     dispatch('role_removed', {
-      entityType: 'user', entityId: staffId,
+      entityType: 'staff', entityId: staffId,
       description: `Role removed from staff member`,
       metadata: { roleId: role_id, removedBy: auth.userId },
       actorId: auth.userId,

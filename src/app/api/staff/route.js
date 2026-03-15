@@ -17,12 +17,29 @@ export async function GET(request) {
 
     let sql = `SELECT s.*, m.name as manager_name, a.name as salary_account_name,
                       r.name as role_name, r.hierarchy_level, r.alias as role_alias,
-                      d.name as dept_name
+                      d.name as dept_name,
+                      CASE
+                        WHEN up.last_ping > NOW() - INTERVAL '60 seconds' THEN 'online'
+                        WHEN up.last_ping > NOW() - INTERVAL '5 minutes' THEN 'away'
+                        ELSE 'offline'
+                      END AS presence_status,
+                      up.last_ping AS last_seen_at,
+                      (SELECT COALESCE(json_agg(json_build_object(
+                        'id', sr_r.id, 'name', sr_r.name,
+                        'authority_level', sr_r.authority_level,
+                        'department_name', COALESCE(sr_d.name, sr_d.department_name)
+                      )), '[]'::json)
+                       FROM staff_roles sr2
+                       JOIN roles sr_r ON sr2.role_id = sr_r.id
+                       LEFT JOIN departments sr_d ON sr_r.department_id = sr_d.id
+                       WHERE sr2.staff_id = s.id) AS assigned_roles
                FROM staff s
                LEFT JOIN staff m ON s.manager_id = m.id
                LEFT JOIN accounts a ON s.salary_account_id = a.id
                LEFT JOIN roles r ON s.role_id = r.id
                LEFT JOIN departments d ON s.department_id = d.id
+               LEFT JOIN users u ON s.user_id = u.id OR (s.email IS NOT NULL AND s.email = u.email)
+               LEFT JOIN user_presence up ON u.id = up.user_id
                WHERE 1=1`;
     const params = [];
     if (department) { params.push(department); sql += ` AND (s.department = $${params.length} OR d.name = $${params.length})`; }
@@ -88,7 +105,7 @@ export async function PATCH(request) {
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
 
-    const allowed = ['name','role','role_id','status','joined_at','notes','email','phone','department','department_id','position','salary','salary_currency','salary_account_id','manager_id','hire_date','photo_url','is_active'];
+    const allowed = ['name','role','role_id','status','joined_at','notes','email','phone','department','department_id','position','salary','salary_currency','salary_account_id','manager_id','hire_date','photo_url','is_active','account_status','user_id'];
     const updates = [];
     const values = [];
     allowed.forEach(f => {

@@ -22,6 +22,7 @@ const ROLE_STYLES = {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({ role: '', status: '' });
@@ -30,7 +31,10 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const toast = useToast();
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    fetchWithAuth('/api/admin/roles').then(r => r.json()).then(j => { if (j.success) setRoles(j.data || []); }).catch(() => {});
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -141,8 +145,11 @@ export default function AdminUsersPage() {
                 onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
                 className="w-full px-3 py-2 bg-muted dark:bg-white/[0.06] border border-border dark:border-white/[0.10] rounded-xl text-foreground focus:outline-none focus:border-border dark:border-white/[0.10] [&>option]:bg-background [&>option]:text-foreground"
               >
-                {['user', 'admin', 'superadmin'].map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+                <option value="superadmin">superadmin</option>
+                {roles.filter(r => !['user','admin','superadmin'].includes(r.name)).map((r) => (
+                  <option key={r.id} value={r.name}>{r.name}{r.department_name ? ` (${r.department_name})` : ''}</option>
                 ))}
               </select>
             </div>

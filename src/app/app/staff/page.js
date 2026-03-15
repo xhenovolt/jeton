@@ -1,38 +1,65 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
 
-const STATUS_STYLES = {
+const ACCOUNT_STATUS_STYLES = {
+  active: 'bg-emerald-100 text-emerald-700',
+  suspended: 'bg-amber-100 text-amber-700',
+  terminated: 'bg-red-100 text-red-700',
+};
+
+const WORK_STATUS_STYLES = {
   active: 'bg-emerald-100 text-emerald-700',
   inactive: 'bg-muted text-muted-foreground',
   contractor: 'bg-blue-100 text-blue-700',
   probation: 'bg-yellow-100 text-yellow-700',
 };
 
+const PRESENCE_DOT = {
+  online: 'bg-emerald-500',
+  away: 'bg-amber-400',
+  offline: 'bg-gray-400',
+};
+
+const PRESENCE_LABEL = { online: 'Online', away: 'Away', offline: 'Offline' };
+
 export default function StaffPage() {
   const [staff, setStaff] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [roleSearch, setRoleSearch] = useState('');
-  const [roleResults, setRoleResults] = useState([]);
-  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [allRoles, setAllRoles] = useState([]);
+  const [presenceMap, setPresenceMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [tab, setTab] = useState('list'); // list | hierarchy
+  const [tab, setTab] = useState('list');
   const [deptFilter, setDeptFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRoleIds, setSelectedRoleIds] = useState([]);
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [roleFilterText, setRoleFilterText] = useState('');
+  const roleDropdownRef = useRef(null);
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', role: '', department: '', department_id: '', role_id: '', position: '',
+    name: '', email: '', phone: '', department: '', department_id: '', position: '',
     salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '',
-    hire_date: '', status: 'active', notes: '',
+    hire_date: '', status: 'active', account_status: 'active', notes: '',
   });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const presenceInterval = useRef(null);
+
+  // Fetch all RBAC roles dynamically
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth('/api/admin/roles');
+      const j = await res.json();
+      if (j.success) setAllRoles(j.data || []);
+    } catch {}
+  }, []);
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -42,64 +69,143 @@ export default function StaffPage() {
     } catch {}
   }, []);
 
-  const searchRoles = useCallback(async (q) => {
-    if (!q || q.length < 1) { setRoleResults([]); return; }
+  const fetchStaff = async () => {
     try {
-      const params = new URLSearchParams({ q, limit: '10' });
-      if (form.department_id) params.set('department_id', form.department_id);
-      const res = await fetchWithAuth(`/api/roles/search?${params}`);
+      const res = await fetchWithAuth('/api/staff');
       const j = await res.json();
-      if (j.success) setRoleResults(j.data || []);
+      if (j.success) {
+        const data = j.data || [];
+        // Build presence map from staff data (presence_status is included)
+        const pMap = {};
+        data.forEach(s => {
+          if (s.email) pMap[s.email] = { status: s.presence_status || 'offline', last_seen_at: s.last_seen_at };
+        });
+        setPresenceMap(prev => ({ ...prev, ...pMap }));
+        setStaff(data);
+      }
+    } catch {} finally { setLoading(false); }
+  };
+
+  // Lightweight presence refresh (only presence data, not full staff)
+  const refreshPresence = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth('/api/users/presence');
+      const j = await res.json();
+      if (j.success && j.data) {
+        const pMap = {};
+        j.data.forEach(p => { if (p.email) pMap[p.email] = { status: p.status, last_seen_at: p.last_seen }; });
+        setPresenceMap(pMap);
+      }
     } catch {}
-  }, [form.department_id]);
+  }, []);
 
   useEffect(() => {
     fetchStaff();
     fetchDepartments();
+    fetchRoles();
     fetchWithAuth('/api/accounts').then(r => r.json()).then(j => { if (j.success) setAccounts(j.data || []); }).catch(() => {});
-  }, [fetchDepartments]);
 
-  const fetchStaff = async () => {
-    try { const res = await fetchWithAuth('/api/staff'); const j = await res.json(); if (j.success) setStaff(j.data || []); } catch {} finally { setLoading(false); }
+    // Refresh presence every 30 seconds
+    presenceInterval.current = setInterval(refreshPresence, 30000);
+    return () => { if (presenceInterval.current) clearInterval(presenceInterval.current); };
+  }, [fetchDepartments, fetchRoles, refreshPresence]);
+
+  // Close role dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target)) setRoleDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const resetForm = () => {
+    setForm({ name: '', email: '', phone: '', department: '', department_id: '', position: '', salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '', hire_date: '', status: 'active', account_status: 'active', notes: '' });
+    setSelectedRoleIds([]);
+    setRoleFilterText('');
   };
 
-  const resetForm = () => { setForm({ name: '', email: '', phone: '', role: '', department: '', department_id: '', role_id: '', position: '', salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '', hire_date: '', status: 'active', notes: '' }); setRoleSearch(''); setRoleResults([]); };
-
   const submit = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    setSaving(true);
     try {
       const body = { ...form };
+      // Set role_id to first selected role for backward compat
+      if (selectedRoleIds.length > 0) body.role_id = selectedRoleIds[0];
       if (body.salary) body.salary = parseFloat(body.salary);
       else delete body.salary;
       Object.keys(body).forEach(k => { if (body[k] === '') delete body[k]; });
       if (editId) body.id = editId;
 
-      const url = editId ? '/api/staff' : '/api/staff';
       const method = editId ? 'PATCH' : 'POST';
-      const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { toast.success(editId ? 'Staff updated' : 'Staff member added'); setShowForm(false); setEditId(null); resetForm(); fetchStaff(); }
+      const res = await fetchWithAuth('/api/staff', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const result = await res.json();
+      if (result.success) {
+        const staffId = editId || result.data?.id;
+        // Assign roles via staff_roles
+        if (staffId && selectedRoleIds.length >= 0) {
+          try {
+            await fetchWithAuth(`/api/admin/staff/${staffId}/roles`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role_ids: selectedRoleIds }),
+            });
+          } catch {}
+        }
+        toast.success(editId ? 'Staff updated' : 'Staff member added');
+        setShowForm(false);
+        setEditId(null);
+        resetForm();
+        fetchStaff();
+      } else {
+        toast.error(result.error || 'Failed to save');
+      }
     } catch (err) { toast.error('Failed to save'); console.error(err); } finally { setSaving(false); }
   };
 
-  const startEdit = (s) => {
+  const startEdit = async (s) => {
     setForm({
-      name: s.name || '', email: s.email || '', phone: s.phone || '', role: s.role || '',
-      department: s.department || s.dept_name || '', department_id: s.department_id || '', role_id: s.role_id || '',
+      name: s.name || '', email: s.email || '', phone: s.phone || '',
+      department: s.department || s.dept_name || '', department_id: s.department_id || '',
       position: s.position || '', salary: s.salary?.toString() || '',
       salary_currency: s.salary_currency || 'UGX', salary_account_id: s.salary_account_id || '',
-      manager_id: s.manager_id || '', hire_date: s.hire_date?.split('T')[0] || '', status: s.status || 'active', notes: s.notes || '',
+      manager_id: s.manager_id || '', hire_date: s.hire_date?.split('T')[0] || '',
+      status: s.status || 'active', account_status: s.account_status || 'active', notes: s.notes || '',
     });
-    setRoleSearch(s.role_name || s.role || '');
-    setEditId(s.id); setShowForm(true);
+    // Load assigned roles
+    const roles = s.assigned_roles || [];
+    setSelectedRoleIds(roles.map(r => r.id));
+    setEditId(s.id);
+    setShowForm(true);
   };
 
   const deleteStaff = async (id) => {
     if (!await confirmDelete('team member')) return;
-    try { await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' }); toast.success('Team member removed'); fetchStaff(); } catch { toast.error('Failed to delete'); }
+    try {
+      await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' });
+      toast.success('Team member removed');
+      fetchStaff();
+    } catch { toast.error('Failed to delete'); }
   };
 
-  const deptNames = departments.map(d => d.name);
-  const filtered = deptFilter ? staff.filter(s => (s.department === deptFilter || s.dept_name === deptFilter)) : staff;
+  const getPresence = (s) => {
+    if (s.email && presenceMap[s.email]) return presenceMap[s.email].status;
+    return s.presence_status || 'offline';
+  };
+
+  // Filtering
+  const filtered = staff.filter(s => {
+    if (deptFilter && s.department !== deptFilter && s.dept_name !== deptFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = s.name?.toLowerCase().includes(q);
+      const emailMatch = s.email?.toLowerCase().includes(q);
+      const roleMatch = (s.assigned_roles || []).some(r => r.name?.toLowerCase().includes(q));
+      const deptMatch = (s.dept_name || s.department || '').toLowerCase().includes(q);
+      if (!nameMatch && !emailMatch && !roleMatch && !deptMatch) return false;
+    }
+    return true;
+  });
 
   // Build hierarchy tree
   const buildTree = () => {
@@ -113,25 +219,56 @@ export default function StaffPage() {
     return roots;
   };
 
-  const TreeNode = ({ node, depth = 0 }) => (
-    <div style={{ marginLeft: Math.min(depth * 24, 120) }} className="py-2">
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        {depth > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
-        <span className="font-medium text-foreground">{node.name}</span>
-        {node.position && <span className="text-muted-foreground">— {node.position}</span>}
-        {node.department && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{node.department}</span>}
-        <span className={`px-1.5 py-0.5 rounded-full text-xs ${STATUS_STYLES[node.status] || 'bg-muted text-foreground'}`}>{node.status}</span>
-      </div>
-      {node.children.map(c => <TreeNode key={c.id} node={c} depth={depth + 1} />)}
-    </div>
+  const PresenceDot = ({ status, size = 'w-2.5 h-2.5' }) => (
+    <span className={`${size} rounded-full inline-block shrink-0 ${PRESENCE_DOT[status] || PRESENCE_DOT.offline}`}
+      title={PRESENCE_LABEL[status] || 'Offline'} />
   );
 
+  const TreeNode = ({ node, depth = 0 }) => {
+    const presence = getPresence(node);
+    return (
+      <div style={{ marginLeft: Math.min(depth * 24, 120) }} className="py-2">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          {depth > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+          <PresenceDot status={presence} />
+          <span className="font-medium text-foreground">{node.name}</span>
+          {node.position && <span className="text-muted-foreground">— {node.position}</span>}
+          {node.department && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{node.department}</span>}
+          <span className={`px-1.5 py-0.5 rounded-full text-xs ${WORK_STATUS_STYLES[node.status] || 'bg-muted text-foreground'}`}>{node.status}</span>
+        </div>
+        {node.children.map(c => <TreeNode key={c.id} node={c} depth={depth + 1} />)}
+      </div>
+    );
+  };
+
+  // Role multi-select helpers
+  const filteredRoles = allRoles.filter(r =>
+    !roleFilterText || r.name?.toLowerCase().includes(roleFilterText.toLowerCase()) ||
+    r.department_name?.toLowerCase().includes(roleFilterText.toLowerCase())
+  );
+
+  const toggleRole = (roleId) => {
+    setSelectedRoleIds(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+  };
+
+  const selectedRoleNames = allRoles.filter(r => selectedRoleIds.includes(r.id)).map(r => r.name);
+
+  // Presence counts
+  const onlineCount = staff.filter(s => getPresence(s) === 'online').length;
+  const awayCount = staff.filter(s => getPresence(s) === 'away').length;
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Team</h1>
-          <p className="text-sm text-muted-foreground mt-1">{staff.length} members · {staff.filter(s => s.status === 'active').length} active</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {staff.length} members · {staff.filter(s => s.status === 'active').length} active
+            {onlineCount > 0 && <> · <span className="text-emerald-600">{onlineCount} online</span></>}
+            {awayCount > 0 && <> · <span className="text-amber-600">{awayCount} away</span></>}
+          </p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setEditId(null); resetForm(); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {showForm ? 'Cancel' : 'Add Member'}
@@ -174,42 +311,57 @@ export default function StaffPage() {
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
-            <div className="relative">
-              <label className="block text-sm text-muted-foreground mb-1">Role</label>
-              <div className="relative">
-                <input
-                  value={roleSearch}
-                  onChange={e => { setRoleSearch(e.target.value); searchRoles(e.target.value); setShowRoleDropdown(true); }}
-                  onFocus={() => { if (roleSearch) { searchRoles(roleSearch); setShowRoleDropdown(true); } }}
-                  placeholder="Search roles..."
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground pr-8"
-                />
-                <Search className="w-4 h-4 absolute right-2.5 top-2.5 text-muted-foreground" />
+
+            {/* Multi-role searchable dropdown */}
+            <div className="relative md:col-span-2" ref={roleDropdownRef}>
+              <label className="block text-sm text-muted-foreground mb-1">
+                Roles <span className="text-xs text-muted-foreground">(from RBAC)</span>
+              </label>
+              <div
+                className="w-full min-h-[42px] px-3 py-2 border border-border rounded-lg bg-background text-foreground cursor-pointer flex flex-wrap gap-1 items-center"
+                onClick={() => setRoleDropdownOpen(true)}
+              >
+                {selectedRoleNames.length === 0 && <span className="text-muted-foreground text-sm">Select roles...</span>}
+                {selectedRoleNames.map(name => (
+                  <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                    {name}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); const r = allRoles.find(rl => rl.name === name); if (r) toggleRole(r.id); }}
+                      className="hover:text-red-500">×</button>
+                  </span>
+                ))}
               </div>
-              {showRoleDropdown && roleResults.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {roleResults.map(r => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => {
-                        setForm(f => ({ ...f, role_id: r.id, role: r.name }));
-                        setRoleSearch(r.name);
-                        setShowRoleDropdown(false);
-                        if (r.department_id && !form.department_id) {
-                          const dept = departments.find(d => d.id === r.department_id);
-                          if (dept) setForm(f => ({ ...f, department_id: dept.id, department: dept.name }));
-                        }
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-muted/50 text-sm flex items-center justify-between"
-                    >
-                      <span className="text-foreground">{r.name}</span>
-                      {r.department_name && <span className="text-xs text-muted-foreground">{r.department_name}</span>}
-                    </button>
-                  ))}
+              {roleDropdownOpen && (
+                <div className="absolute z-30 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-56 overflow-hidden flex flex-col">
+                  <div className="p-2 border-b border-border">
+                    <div className="relative">
+                      <input value={roleFilterText} onChange={e => setRoleFilterText(e.target.value)}
+                        placeholder="Search roles..." autoFocus
+                        className="w-full px-3 py-1.5 border border-border rounded bg-background text-foreground text-sm pr-8" />
+                      <Search className="w-4 h-4 absolute right-2 top-2 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto flex-1">
+                    {filteredRoles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground p-3 text-center">No roles found</p>
+                    ) : filteredRoles.map(r => (
+                      <button key={r.id} type="button" onClick={() => toggleRole(r.id)}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-muted/50 ${selectedRoleIds.includes(r.id) ? 'bg-blue-50' : ''}`}>
+                        <span className="flex items-center gap-2">
+                          <input type="checkbox" checked={selectedRoleIds.includes(r.id)} readOnly className="rounded border-border" />
+                          <span className="text-foreground">{r.name}</span>
+                          {r.alias && <span className="text-xs text-muted-foreground">({r.alias})</span>}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.department_name && <>{r.department_name} · </>}
+                          L{r.authority_level || 0}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
+
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Position Title</label>
               <input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="e.g. Software Engineer" className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
@@ -242,9 +394,15 @@ export default function StaffPage() {
               <input type="date" value={form.hire_date} onChange={e => setForm(f => ({ ...f, hire_date: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-1">Status</label>
+              <label className="block text-sm text-muted-foreground mb-1">Work Status</label>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
-                {['active','inactive','contractor','probation'].map(s => <option key={s} value={s}>{s}</option>)}
+                {['active', 'inactive', 'contractor', 'probation'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Account Status</label>
+              <select value={form.account_status} onChange={e => setForm(f => ({ ...f, account_status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
+                {['active', 'suspended', 'terminated'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
               </select>
             </div>
             <div className="md:col-span-2">
@@ -256,15 +414,23 @@ export default function StaffPage() {
         </form>
       )}
 
-      {/* Department filter */}
+      {/* Filters & Search */}
       {tab === 'list' && (
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setDeptFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!deptFilter ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>All</button>
-          {departments.map(d => {
-            const count = staff.filter(s => s.department === d.name || s.dept_name === d.name).length;
-            if (count === 0) return null;
-            return <button key={d.id} onClick={() => setDeptFilter(d.name)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${deptFilter === d.name ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>{d.name} ({count})</button>;
-          })}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search name, email, role, dept..."
+              className="w-full px-3 py-2 pl-9 border border-border rounded-lg bg-background text-foreground text-sm" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setDeptFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!deptFilter ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>All</button>
+            {departments.map(d => {
+              const count = staff.filter(s => s.department === d.name || s.dept_name === d.name).length;
+              if (count === 0) return null;
+              return <button key={d.id} onClick={() => setDeptFilter(d.name)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${deptFilter === d.name ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>{d.name} ({count})</button>;
+            })}
+          </div>
         </div>
       )}
 
@@ -281,30 +447,54 @@ export default function StaffPage() {
         <div className="text-center py-16 text-muted-foreground">No team members found.</div>
       ) : (
         <div className="bg-card rounded-xl border divide-y divide-border">
-          {filtered.map(s => (
-            <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition gap-2">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">{s.name?.charAt(0)}</div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-foreground">{s.name}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[s.status] || 'bg-muted text-foreground'}`}>{s.status}</span>
+          {filtered.map(s => {
+            const presence = getPresence(s);
+            const roles = s.assigned_roles || [];
+            return (
+              <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition gap-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                      {s.name?.charAt(0)}
+                    </div>
+                    {/* Presence dot overlay */}
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${PRESENCE_DOT[presence]}`}
+                      title={PRESENCE_LABEL[presence]} />
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {s.position || s.role_name || s.role || 'No role'}
-                    {(s.dept_name || s.department) && ` · ${s.dept_name || s.department}`}
-                    {s.email && <span className="hidden sm:inline"> · {s.email}</span>}
-                    {s.manager_name && <span className="hidden md:inline"> · Reports to: {s.manager_name}</span>}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${WORK_STATUS_STYLES[s.status] || 'bg-muted text-foreground'}`}>{s.status}</span>
+                      {s.account_status && s.account_status !== 'active' && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACCOUNT_STATUS_STYLES[s.account_status]}`}>{s.account_status}</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {s.position || s.role_name || (roles.length > 0 ? roles.map(r => r.name).join(', ') : 'No role')}
+                      {(s.dept_name || s.department) && ` · ${s.dept_name || s.department}`}
+                      {s.email && <span className="hidden sm:inline"> · {s.email}</span>}
+                      {s.manager_name && <span className="hidden md:inline"> · Reports to: {s.manager_name}</span>}
+                    </div>
+                    {/* Role badges */}
+                    {roles.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {roles.map(r => (
+                          <span key={r.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-[10px] font-medium">
+                            <Shield className="w-2.5 h-2.5" />{r.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
+                <div className="flex items-center gap-2 ml-13 sm:ml-0 shrink-0">
+                  {s.salary && <span className="text-sm font-medium text-foreground whitespace-nowrap">{s.salary_currency || 'UGX'} {Math.round(parseFloat(s.salary)).toLocaleString()}/mo</span>}
+                  <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
+                  <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 ml-13 sm:ml-0 shrink-0">
-                {s.salary && <span className="text-sm font-medium text-foreground whitespace-nowrap">{s.salary_currency || 'UGX'} {Math.round(parseFloat(s.salary)).toLocaleString()}/mo</span>}
-                <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
-                <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500"><Trash2 className="w-4 h-4" /></button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
