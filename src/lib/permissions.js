@@ -3,23 +3,7 @@
  * Usage: await requirePermission(request, 'module.action')
  * Returns NextResponse with 403 if forbidden, or { userId, authorityLevel, permissions } if allowed
  */
-export async function requirePermission(request, permissionKey) {
-  const auth = await verifyAuth(request);
-  if (!auth) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const { userId, role } = auth;
-  // Superadmin override (authority_level >= 100)
-  const authorityLevel = await getUserAuthorityLevel(userId);
-  if (authorityLevel >= 100 || role === 'superadmin') {
-    return { userId, authorityLevel, permissions: ['*'] };
-  }
-  const permissions = await getUserPermissions(userId);
-  if (permissions.includes(permissionKey) || permissions.includes('*')) {
-    return { userId, authorityLevel, permissions };
-  }
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-}
+// (removed duplicate requirePermission definition)
 /**
  * Enterprise RBAC Permission System
  * Database-backed role-based access control with:
