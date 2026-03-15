@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
 import { dispatch } from '@/lib/system-events.js';
 import { createInvoiceForPayment } from '@/lib/invoice-engine.js';
 
-// GET /api/payments
+// GET /api/payments — payments.view
 export async function GET(request) {
+  const perm = await requirePermission(request, 'payments.view');
+  if (perm instanceof NextResponse) return perm;
   try {
-    const perm = await requirePermission(request, 'payments', 'view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-
     const { searchParams } = new URL(request.url);
     const deal_id = searchParams.get('deal_id');
     const status = searchParams.get('status');
@@ -35,13 +32,11 @@ export async function GET(request) {
   }
 }
 
-// POST /api/payments - Create payment WITH automatic ledger entry
+// POST /api/payments — payments.create
 export async function POST(request) {
+  const perm = await requirePermission(request, 'payments.create');
+  if (perm instanceof NextResponse) return perm;
   try {
-    const perm = await requirePermission(request, 'payments', 'create');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-
     const body = await request.json();
     const { deal_id, account_id, amount, currency, method, reference, status, payment_date, notes } = body;
     

@@ -4,13 +4,11 @@ import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
 
-// GET /api/staff
+// GET /api/staff — staff.view
 export async function GET(request) {
+  const perm = await requirePermission(request, 'staff.view');
+  if (perm instanceof NextResponse) return perm;
   try {
-    const perm = await requirePermission(request, 'employees', 'view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-
     const { searchParams } = new URL(request.url);
     const department = searchParams.get('department');
     const status = searchParams.get('status');
@@ -45,7 +43,6 @@ export async function GET(request) {
     if (department) { params.push(department); sql += ` AND (s.department = $${params.length} OR d.name = $${params.length})`; }
     if (status) { params.push(status); sql += ` AND s.status = $${params.length}`; }
     sql += ` ORDER BY s.joined_at DESC NULLS LAST, s.created_at DESC`;
-
     const result = await query(sql, params);
     return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {
@@ -54,17 +51,15 @@ export async function GET(request) {
   }
 }
 
-// POST /api/staff
+// POST /api/staff — staff.create
 export async function POST(request) {
+  const perm = await requirePermission(request, 'staff.create');
+  if (perm instanceof NextResponse) return perm;
   try {
     const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-
     const body = await request.json();
     const { name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url } = body;
-
     if (!name) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
-
     const result = await query(
       `INSERT INTO staff (name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
@@ -73,21 +68,17 @@ export async function POST(request) {
        salary || null, salary_currency || 'UGX', salary_account_id || null,
        manager_id || null, hire_date || null, photo_url || null]
     );
-
     // Log the hire action
     await query(`INSERT INTO staff_actions (staff_id, action_type, new_role_id, new_role_name, new_authority_level, performed_by)
       VALUES ($1, 'hire', $2, $3, $4, $5)`,
       [result.rows[0].id, role_id || null, role || null, null, auth.userId]);
-
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'staff', result.rows[0].id, JSON.stringify({ name, department, position })]);
-
     dispatch('staff_created', {
       entityType: 'staff', entityId: result.rows[0].id,
       description: `Staff member "${name}" was added`, actorId: auth.userId,
       metadata: { name, department: department || null, position: position || null },
     });
-
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
   } catch (error) {
     console.error('[Staff] POST error:', error);
@@ -95,16 +86,15 @@ export async function POST(request) {
   }
 }
 
-// PATCH /api/staff — update any fields
+// PATCH /api/staff — staff.update
 export async function PATCH(request) {
+  const perm = await requirePermission(request, 'staff.update');
+  if (perm instanceof NextResponse) return perm;
   try {
     const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-
     const body = await request.json();
     const { id, ...fields } = body;
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
-
     const allowed = ['name','role','role_id','status','joined_at','notes','email','phone','department','department_id','position','salary','salary_currency','salary_account_id','manager_id','hire_date','photo_url','is_active','account_status','user_id'];
     const updates = [];
     const values = [];
@@ -114,13 +104,10 @@ export async function PATCH(request) {
     if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
     updates.push('updated_at = NOW()');
     values.push(id);
-
     const result = await query(`UPDATE staff SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Staff not found' }, { status: 404 });
-
     await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'UPDATE', 'staff', id, JSON.stringify(fields)]);
-
     return NextResponse.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('[Staff] PATCH error:', error);
@@ -128,21 +115,19 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE /api/staff?id=xxx
+// DELETE /api/staff — staff.delete
 export async function DELETE(request) {
+  const perm = await requirePermission(request, 'staff.delete');
+  if (perm instanceof NextResponse) return perm;
   try {
     const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
-
     const reports = await query(`SELECT COUNT(*) FROM staff WHERE manager_id = $1`, [id]);
     if (parseInt(reports.rows[0].count) > 0) {
       return NextResponse.json({ success: false, error: 'Cannot delete: other staff members report to this person' }, { status: 409 });
     }
-
     await query(`DELETE FROM staff WHERE id=$1`, [id]);
     return NextResponse.json({ success: true });
   } catch (error) {

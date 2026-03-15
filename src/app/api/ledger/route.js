@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 
-// GET /api/ledger - Read-only ledger entries
+// GET /api/ledger — finance.view
 export async function GET(request) {
+  const perm = await requirePermission(request, 'finance.view');
+  if (perm instanceof NextResponse) return perm;
   try {
-    const perm = await requirePermission(request, 'finance', 'view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-
     const { searchParams } = new URL(request.url);
     const account_id = searchParams.get('account_id');
     const source_type = searchParams.get('source_type');
@@ -18,27 +15,20 @@ export async function GET(request) {
     const to_date = searchParams.get('to_date');
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
-
     let sql = `SELECT l.*, a.name as account_name, a.type as account_type FROM ledger l JOIN accounts a ON l.account_id = a.id WHERE 1=1`;
     const params = [];
-
     if (account_id) { params.push(account_id); sql += ` AND l.account_id = $${params.length}`; }
     if (source_type) { params.push(source_type); sql += ` AND l.source_type = $${params.length}`; }
     if (category) { params.push(category); sql += ` AND l.category = $${params.length}`; }
     if (from_date) { params.push(from_date); sql += ` AND l.entry_date >= $${params.length}`; }
     if (to_date) { params.push(to_date); sql += ` AND l.entry_date <= $${params.length}`; }
-
     const countResult = await query(`SELECT COUNT(*) FROM ledger l WHERE 1=1${account_id ? ` AND l.account_id = '${account_id}'` : ''}`);
-
     sql += ` ORDER BY l.entry_date DESC, l.created_at DESC`;
     params.push(limit); sql += ` LIMIT $${params.length}`;
     params.push(offset); sql += ` OFFSET $${params.length}`;
-
     const result = await query(sql, params);
-
     // Also include summary
     const summary = await query(`SELECT * FROM v_financial_summary`);
-
     return NextResponse.json({
       success: true,
       data: result.rows,
@@ -51,9 +41,10 @@ export async function GET(request) {
   }
 }
 
-// NOTE: No POST/PUT/DELETE - ledger entries are created automatically by payments, expenses, and transfers
-// Manual adjustments can only be created via the adjustment endpoint (admin only)
+// POST /api/ledger — finance.create (admin only)
 export async function POST(request) {
+  const perm = await requirePermission(request, 'finance.create');
+  if (perm instanceof NextResponse) return perm;
   try {
     const auth = await verifyAuth(request);
     if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });

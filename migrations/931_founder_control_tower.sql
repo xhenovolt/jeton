@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS organizational_structure (
   authority_level_id uuid REFERENCES authority_levels(id) ON DELETE SET NULL,
   reports_to_node_id uuid REFERENCES organizational_structure(id) ON DELETE SET NULL,
   hierarchy_depth integer DEFAULT 0,
-  staff_assigned_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  staff_assigned_id uuid REFERENCES staff(id) ON DELETE SET NULL,
   title_alias varchar(200),
   status varchar(20) DEFAULT 'active' CHECK (status IN ('active','vacant','suspended','archived')),
   created_at timestamptz DEFAULT now(),
