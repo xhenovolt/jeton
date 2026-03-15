@@ -1,18 +1,34 @@
 /**
- * POST /api/auth/register
- * Register a new user account with session
- * 
- * SUPERADMIN BOOTSTRAP: First user in the system automatically becomes superadmin (active).
- * All subsequent users are created with status 'pending' and require admin activation.
+ * POST /api/auth/register — DISABLED
+ *
+ * Public self-registration is not permitted in Jeton.
+ * User accounts are created exclusively by a superadmin through the
+ * staff creation flow at POST /api/staff (with account details).
  */
 
 import { NextResponse } from 'next/server.js';
-import { validateRegister } from '@/lib/validation.js';
-import { createUser, findUserByEmail, hashPassword, getUserCount } from '@/lib/auth.js';
-import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
-import { createSession, getSecureCookieOptions } from '@/lib/session.js';
 
-export async function POST(request) {
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'Public registration is disabled.',
+      message:
+        'Jeton is an internal system. User accounts are created by a system administrator. ' +
+        'Contact your administrator to request access.',
+    },
+    { status: 410 }
+  );
+}
+
+// ─── DISABLED ORIGINAL LOGIC (preserved for reference) ────────────────────
+async function _disabledRegisterLogic(request) {
+  // eslint-disable-next-line no-unreachable
+  const { validateRegister } = await import('@/lib/validation.js');
+  const { createUser, findUserByEmail, hashPassword, getUserCount } = await import('@/lib/auth.js');
+  const { logAuthEvent, extractRequestMetadata } = await import('@/lib/audit.js');
+  const { createSession, getSecureCookieOptions } = await import('@/lib/session.js');
+
+  const body_disabled = request;
   try {
     const body = await request.json();
 

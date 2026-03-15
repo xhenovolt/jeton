@@ -215,12 +215,14 @@ export const menuItems = [
     minHierarchy: 3,
     submenu: [
       { label: 'Users', href: '/app/admin/users', description: 'User accounts & roles', permission: 'users.view' },
-      { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.view' },
+      { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.manage' },
+      { label: 'Permission Manager', href: '/app/admin/role-permissions', description: 'Toggle role permissions by module', permission: 'roles.manage' },
+      { label: 'Access Simulator', href: '/app/admin/access-simulator', description: 'Preview what a role can access', permission: 'roles.manage' },
       { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
-      { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'roles.approve' },
-      { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'roles.approve' },
+      { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'approvals.manage' },
+      { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },
       { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
-      { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'activity_logs.view' },
+      { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'audit.view' },
     ],
   },
 

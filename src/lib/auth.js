@@ -63,32 +63,48 @@ export async function findUserById(userId) {
  * @param {string} userData.email - User email
  * @param {string} userData.passwordHash - Hashed password
  * @param {string} userData.name - Full name
+ * @param {string} [userData.username] - Username (auto-derived from email if omitted)
  * @param {string} [userData.role] - User role (default: 'user')
  * @param {boolean} [userData.isActive] - Whether user is active
  * @param {string} [userData.status] - User status (active/pending)
+ * @param {string|null} [userData.staffId] - Linked staff record ID
+ * @param {boolean} [userData.mustResetPassword] - Force password change on first login
  * @returns {Promise<Object|null>} Created user or null on error
  */
 export async function createUser({
   email,
   passwordHash,
   name,
+  username,
   role = 'user',
   isActive = true,
   status = 'active',
+  staffId = null,
+  mustResetPassword = false,
 }) {
+  // Derive username from email if not supplied
+  const resolvedUsername =
+    username ||
+    email
+      .split('@')[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .slice(0, 100);
+
   try {
     const result = await query(
-      `INSERT INTO users (email, password_hash, name, role, is_active, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING id, email, name, role, is_active, status, created_at`,
-      [email, passwordHash, name, role, isActive, status]
+      `INSERT INTO users (email, password_hash, name, username, role, is_active, status, staff_id, must_reset_password, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       RETURNING id, email, name, username, role, is_active, status, staff_id, must_reset_password, created_at`,
+      [email, passwordHash, name, resolvedUsername, role, isActive, status, staffId, mustResetPassword]
     );
 
     return result.rows[0] || null;
   } catch (error) {
     console.error('Error creating user:', error.message);
     if (error.code === '23505') {
-      // Unique violation
+      // Unique violation — figure out which field
+      if (error.detail?.includes('username')) return { error: 'Username already taken' };
       return { error: 'Email already exists' };
     }
     return null;

@@ -37,6 +37,12 @@ export default function LoginForm() {
         return;
       }
 
+      // Redirect to forced password reset if flagged
+      if (data.requirePasswordReset) {
+        router.push('/setup-password');
+        return;
+      }
+
       router.push('/app');
     } catch (err) {
       setError('An error occurred. Please try again.');

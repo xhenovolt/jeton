@@ -82,15 +82,33 @@ export async function POST(request) {
       requestMetadata,
     });
 
-    // Create response - do NOT return user data in JSON
+    // Check if user must reset their temporary password on first login
+    const mustReset = user.must_reset_password === true;
+
+    // Create response
     const response = NextResponse.json(
-      { message: 'Logged in successfully' },
+      {
+        message: mustReset ? 'Password reset required' : 'Logged in successfully',
+        requirePasswordReset: mustReset,
+      },
       { status: 200 }
     );
 
     // Set HTTP-only session cookie
     const cookieOptions = getSecureCookieOptions();
     response.cookies.set('jeton_session', sessionId, cookieOptions);
+
+    // Set a short-lived indicator cookie when password reset is required.
+    // Middleware uses this to guard all app routes until reset is complete.
+    if (mustReset) {
+      response.cookies.set('jeton_must_reset', '1', {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        // Expires with the session
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
 
     return response;
   } catch (error) {

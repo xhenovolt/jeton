@@ -34,6 +34,9 @@ const PROTECTED_ROUTES = [
 // Routes that are only for unauthenticated users
 const AUTH_ONLY_ROUTES = ['/login', '/register'];
 
+// Route for forced first-login password reset (accessible while logged in)
+const SETUP_PASSWORD_ROUTE = '/setup-password';
+
 /**
  * Extract session ID from cookie
  * Edge-safe: only reads cookie, no parsing or verification
@@ -41,6 +44,13 @@ const AUTH_ONLY_ROUTES = ['/login', '/register'];
 function getSessionCookie(request: NextRequest): string | null {
   const sessionCookie = request.cookies.get('jeton_session')?.value;
   return sessionCookie || null;
+}
+
+/**
+ * Check if user has a pending password reset
+ */
+function hasMustResetCookie(request: NextRequest): boolean {
+  return request.cookies.get('jeton_must_reset')?.value === '1';
 }
 
 /**
@@ -68,18 +78,27 @@ export function middleware(request: NextRequest) {
   // Check if session cookie exists (don't verify contents)
   const hasSessionCookie = !!getSessionCookie(request);
 
-  // Protected routes: require session cookie to exist
-  if (isProtectedRoute(pathname)) {
-    if (!hasSessionCookie) {
-      // Redirect to login if no session cookie
-      return NextResponse.redirect(new URL('/login', request.url));
+  // ── FORCED PASSWORD RESET GUARD ──────────────────────────────────────────
+  // If the user has `jeton_must_reset=1`, block all app routes (except the
+  // setup-password page itself) until the password has been changed.
+  if (hasSessionCookie && hasMustResetCookie(request)) {
+    if (!pathname.startsWith(SETUP_PASSWORD_ROUTE) && !pathname.startsWith('/api')) {
+      return NextResponse.redirect(new URL(SETUP_PASSWORD_ROUTE, request.url));
     }
-    // Session cookie exists - allow access
-    // Full validation happens in API routes and server components
     return NextResponse.next();
   }
 
-  // Auth-only routes: redirect away if session exists
+  // ── PROTECTED ROUTES ─────────────────────────────────────────────────────
+  // Require session cookie to exist
+  if (isProtectedRoute(pathname)) {
+    if (!hasSessionCookie) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ── AUTH-ONLY ROUTES ─────────────────────────────────────────────────────
+  // Redirect away if already logged in
   if (isAuthOnlyRoute(pathname) && hasSessionCookie) {
     return NextResponse.redirect(new URL('/app/dashboard', request.url));
   }

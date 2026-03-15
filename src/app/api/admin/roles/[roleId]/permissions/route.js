@@ -91,3 +91,70 @@ export async function POST(request, { params }) {
     return NextResponse.json({ success: false, error: 'Failed to update role permissions' }, { status: 500 });
   }
 }
+
+/**
+ * PATCH /api/admin/roles/[roleId]/permissions
+ * Toggle a single permission on or off for a role.
+ * Body: { permission_id: string, enabled: boolean }
+ */
+export async function PATCH(request, { params }) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'superadmin') {
+      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
+    }
+
+    const { roleId } = await params;
+    const body = await request.json();
+    const { permission_id, enabled } = body;
+
+    if (!permission_id || typeof enabled !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: 'permission_id (string) and enabled (boolean) are required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify role exists
+    const roleCheck = await query('SELECT id, name, is_system FROM roles WHERE id = $1', [roleId]);
+    if (!roleCheck.rows[0]) {
+      return NextResponse.json({ success: false, error: 'Role not found' }, { status: 404 });
+    }
+
+    // Protect system roles from accidental permission removal
+    if (roleCheck.rows[0].is_system && !enabled) {
+      // Allow but log loudly
+      console.warn(`[RBAC] Removing permission from system role "${roleCheck.rows[0].name}"`);
+    }
+
+    if (enabled) {
+      await query(
+        `INSERT INTO role_permissions (role_id, permission_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [roleId, permission_id]
+      );
+    } else {
+      await query(
+        'DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2',
+        [roleId, permission_id]
+      );
+    }
+
+    const meta = extractRbacMetadata(request);
+    await logRbacEvent({
+      userId: auth.userId,
+      action: enabled ? 'permission_granted' : 'permission_revoked',
+      entityType: 'role',
+      entityId: roleId,
+      details: { permissionId: permission_id, roleName: roleCheck.rows[0].name },
+      ...meta,
+    });
+
+    invalidateAllPermissionCaches();
+
+    return NextResponse.json({ success: true, enabled });
+  } catch (error) {
+    console.error('Failed to toggle role permission:', error);
+    return NextResponse.json({ success: false, error: 'Failed to toggle permission' }, { status: 500 });
+  }
+}

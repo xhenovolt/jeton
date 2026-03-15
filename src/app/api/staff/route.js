@@ -3,6 +3,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import { hashPassword, createUser } from '@/lib/auth.js';
 
 // GET /api/staff — staff.view
 export async function GET(request) {
@@ -52,15 +53,63 @@ export async function GET(request) {
 }
 
 // POST /api/staff — staff.create
+// Accepts optional `account: { username, password }` to simultaneously create
+// a linked user account for the new staff member.
 export async function POST(request) {
   const perm = await requirePermission(request, 'staff.create');
   if (perm instanceof NextResponse) return perm;
   try {
-    const auth = await verifyAuth(request);
+    const auth = perm.auth;
     const body = await request.json();
-    const { name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url } = body;
+    const {
+      name, role, role_id, status, joined_at, notes, email, phone,
+      department, department_id, position, salary, salary_currency,
+      salary_account_id, manager_id, hire_date, photo_url,
+      // Optional account creation block
+      account,
+    } = body;
+
     if (!name) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
-    const result = await query(
+
+    // ── 1. Validate account details before touching the DB ──────────────────
+    if (account) {
+      if (!account.username || !account.password) {
+        return NextResponse.json(
+          { success: false, error: 'account.username and account.password are required when providing account details' },
+          { status: 400 }
+        );
+      }
+      if (account.password.length < 8) {
+        return NextResponse.json(
+          { success: false, error: 'Temporary password must be at least 8 characters.' },
+          { status: 400 }
+        );
+      }
+      if (!email) {
+        return NextResponse.json(
+          { success: false, error: 'Staff email is required when creating a linked user account.' },
+          { status: 400 }
+        );
+      }
+      // Check email uniqueness in users table up-front
+      const emailCheck = await query('SELECT id FROM users WHERE email = $1', [email]);
+      if (emailCheck.rows.length > 0) {
+        return NextResponse.json(
+          { success: false, error: 'A user account with this email already exists.' },
+          { status: 409 }
+        );
+      }
+      const usernameCheck = await query('SELECT id FROM users WHERE username = $1', [account.username]);
+      if (usernameCheck.rows.length > 0) {
+        return NextResponse.json(
+          { success: false, error: 'Username is already taken.' },
+          { status: 409 }
+        );
+      }
+    }
+
+    // ── 2. Create the staff record ───────────────────────────────────────────
+    const staffResult = await query(
       `INSERT INTO staff (name, role, role_id, status, joined_at, notes, email, phone, department, department_id, position, salary, salary_currency, salary_account_id, manager_id, hire_date, photo_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [name, role || null, role_id || null, status || 'active', joined_at || null, notes || null,
@@ -68,18 +117,71 @@ export async function POST(request) {
        salary || null, salary_currency || 'UGX', salary_account_id || null,
        manager_id || null, hire_date || null, photo_url || null]
     );
-    // Log the hire action
-    await query(`INSERT INTO staff_actions (staff_id, action_type, new_role_id, new_role_name, new_authority_level, performed_by)
-      VALUES ($1, 'hire', $2, $3, $4, $5)`,
-      [result.rows[0].id, role_id || null, role || null, null, auth.userId]);
-    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
-      [auth.userId, 'CREATE', 'staff', result.rows[0].id, JSON.stringify({ name, department, position })]);
+    const staff = staffResult.rows[0];
+
+    // ── 3. Optionally create a linked user account ───────────────────────────
+    let createdUser = null;
+    if (account) {
+      const passwordHash = await hashPassword(account.password);
+      createdUser = await createUser({
+        email,
+        passwordHash,
+        name,
+        username: account.username,
+        role: 'user',
+        isActive: true,
+        status: 'active',
+        staffId: staff.id,
+        mustResetPassword: true, // force password change on first login
+      });
+
+      if (!createdUser || createdUser.error) {
+        // Roll back the staff record to keep the system consistent
+        await query('DELETE FROM staff WHERE id = $1', [staff.id]);
+        return NextResponse.json(
+          { success: false, error: createdUser?.error || 'Failed to create user account' },
+          { status: 500 }
+        );
+      }
+
+      // Keep the reverse reference on the staff record for presence tracking
+      await query('UPDATE staff SET user_id = $1 WHERE id = $2', [createdUser.id, staff.id]);
+      staff.user_id = createdUser.id;
+    }
+
+    // ── 4. Audit trail ───────────────────────────────────────────────────────
+    await query(
+      `INSERT INTO staff_actions (staff_id, action_type, new_role_id, new_role_name, new_authority_level, performed_by)
+       VALUES ($1, 'hire', $2, $3, $4, $5)`,
+      [staff.id, role_id || null, role || null, null, auth.userId]
+    );
+    await query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'CREATE', 'staff', staff.id,
+       JSON.stringify({ name, department, position, accountCreated: !!createdUser })]
+    );
     dispatch('staff_created', {
-      entityType: 'staff', entityId: result.rows[0].id,
-      description: `Staff member "${name}" was added`, actorId: auth.userId,
+      entityType: 'staff', entityId: staff.id,
+      description: `Staff member "${name}" was added${createdUser ? ' with user account' : ''}`,
+      actorId: auth.userId,
       metadata: { name, department: department || null, position: position || null },
     });
-    return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: staff,
+        ...(createdUser && {
+          user: {
+            id: createdUser.id,
+            username: createdUser.username,
+            email: createdUser.email,
+            mustResetPassword: true,
+          },
+        }),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('[Staff] POST error:', error);
     return NextResponse.json({ success: false, error: 'Failed to create staff member' }, { status: 500 });

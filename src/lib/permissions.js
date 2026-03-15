@@ -307,10 +307,26 @@ export async function getPendingApprovalsForUser(userId) {
 // ============================================================================
 
 /**
- * Require specific permission on an API route
- * Returns { auth } if allowed, or NextResponse error if denied
+ * Require specific permission on an API route.
+ *
+ * Supports two calling conventions:
+ *   requirePermission(request, 'staff.view')          // 2-arg dot-notation
+ *   requirePermission(request, 'staff', 'view')       // 3-arg explicit
+ *
+ * Returns { auth } if allowed, or a NextResponse error if denied.
  */
-export async function requirePermission(request, module, action) {
+export async function requirePermission(request, moduleOrPermission, action) {
+  // Normalise calling convention: 'module.action' string → module + action parts
+  let module, act;
+  if (action === undefined && typeof moduleOrPermission === 'string' && moduleOrPermission.includes('.')) {
+    const dotIdx = moduleOrPermission.indexOf('.');
+    module = moduleOrPermission.slice(0, dotIdx);
+    act = moduleOrPermission.slice(dotIdx + 1);
+  } else {
+    module = moduleOrPermission;
+    act = action;
+  }
+
   const auth = await verifyAuth(request);
   if (!auth) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -327,12 +343,13 @@ export async function requirePermission(request, module, action) {
       { status: 403 }
     );
   }
+  // Superadmin bypasses all permission checks
   if (auth.role === 'superadmin') return { auth };
 
-  const allowed = await hasPermission(auth.userId, module, action, auth.role);
+  const allowed = await hasPermission(auth.userId, module, act, auth.role);
   if (!allowed) {
     return NextResponse.json(
-      { error: 'You do not have permission to perform this action.' },
+      { error: `Access denied. Required permission: ${module}.${act}` },
       { status: 403 }
     );
   }
