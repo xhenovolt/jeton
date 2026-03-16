@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(
       `SELECT p.*, d.title as deal_title, a.name as account_name, c.company_name as client_name
@@ -20,8 +22,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const fields = ['status','method','reference','payment_date','notes'];

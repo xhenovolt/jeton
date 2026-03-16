@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/prospects/[id]/contacts
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'prospects.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(`SELECT * FROM prospect_contacts WHERE prospect_id = $1 ORDER BY is_primary DESC, name ASC`, [id]);
     return NextResponse.json({ success: true, data: result.rows });
@@ -18,8 +20,9 @@ export async function GET(request, { params }) {
 // POST /api/prospects/[id]/contacts
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'prospects.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const { name, title, email, phone, is_primary, notes } = body;

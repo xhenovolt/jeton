@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/metrics — System metrics computed from events + tables
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'reports.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const today = new Date().toISOString().split('T')[0];
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];

@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/decision-logs/[id] — Get single decision log with full detail
  */
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'activity_logs.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
 
@@ -37,8 +39,9 @@ export async function GET(request, { params }) {
  */
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'activity_logs.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const body = await request.json();
@@ -85,8 +88,9 @@ export async function PUT(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'activity_logs.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
 

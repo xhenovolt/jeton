@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'users.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = await params;
     const result = await query(`SELECT id, email, name, role, status, is_active, last_login, created_at, updated_at FROM users WHERE id = $1`, [userId]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
@@ -19,10 +19,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'users.update');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = await params;
     const body = await request.json();
     const fields = ['name','role','status','is_active'];

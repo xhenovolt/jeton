@@ -44,8 +44,9 @@ export async function GET(request) {
 // POST /api/employees
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'staff.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { full_name, email, phone, role_id, department_id, employment_status, employment_type, salary, salary_currency, hired_date, manager_id, user_account_id, notes } = body;

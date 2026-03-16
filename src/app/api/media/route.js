@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/media
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'media.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const entity_type = searchParams.get('entity_type');
@@ -31,8 +33,9 @@ export async function GET(request) {
 // POST /api/media — record uploaded file metadata
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'media.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { filename, original_filename, mime_type, file_size, storage_provider, cloudinary_account,

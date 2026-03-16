@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/founder/command-center — Aggregated metrics for founder dashboard
@@ -8,8 +9,9 @@ import { verifyAuth } from '@/lib/auth-utils.js';
  */
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'dashboard.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     // Run all metric queries in parallel
     const [

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { v2 as cloudinary } from 'cloudinary';
+import { requirePermission } from '@/lib/permissions.js';
 
 // Size limits (bytes)
 const LIMITS = {
@@ -37,8 +38,9 @@ function getResourceType(mimeType) {
 // POST /api/media/upload — Upload file to Cloudinary
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'media.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const formData = await request.formData();
     const file = formData.get('file');

@@ -218,6 +218,7 @@ export const menuItems = [
       { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.manage' },
       { label: 'Permission Manager', href: '/app/admin/role-permissions', description: 'Toggle role permissions by module', permission: 'roles.manage' },
       { label: 'Access Simulator', href: '/app/admin/access-simulator', description: 'Preview what a role can access', permission: 'roles.manage' },
+      { label: 'Permission Inspector', href: '/app/admin/permission-inspector', description: 'Inspect effective permissions for any user', permission: 'roles.manage' },
       { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
       { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'approvals.manage' },
       { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },

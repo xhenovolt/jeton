@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/decision-logs — List decision log entries with filters
  */
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'activity_logs.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -62,8 +64,9 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'activity_logs.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { title, description, category, priority, status, decision_date, context, alternatives, consequences, stakeholders, related_entity_type, related_entity_id, tags, department_id } = body;

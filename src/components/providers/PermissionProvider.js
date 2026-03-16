@@ -7,6 +7,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 const PermissionContext = createContext({
   user: null,
@@ -124,6 +125,48 @@ export function PermissionGate({ permission, module, any, fallback = null, child
   if (permission && !checkPerm(permission)) return fallback;
   if (module && !hasModuleAccess(module)) return fallback;
   if (any && !hasAnyPermission(any)) return fallback;
+
+  return children;
+}
+
+/**
+ * Component: page-level guard that redirects to /app/unauthorized
+ * when the current user lacks the required permission or module access.
+ *
+ * Usage:
+ *   <PermissionGuard permission="finance.view">
+ *     <FinancePage />
+ *   </PermissionGuard>
+ *
+ *   <PermissionGuard module="reports">  — any action on 'reports' module
+ *   <PermissionGuard any={['deals.view','clients.view']}>
+ */
+export function PermissionGuard({ permission, module, any, children }) {
+  const { loading, hasPermission: checkPerm, hasModuleAccess, hasAnyPermission } = usePermissions();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const allowed =
+      (permission && checkPerm(permission)) ||
+      (module && hasModuleAccess(module)) ||
+      (any && hasAnyPermission(any));
+
+    if (!allowed) {
+      router.replace('/app/unauthorized');
+    }
+  }, [loading, permission, module, any, checkPerm, hasModuleAccess, hasAnyPermission, router]);
+
+  // While permissions load, render nothing (prevents flash)
+  if (loading) return null;
+
+  const allowed =
+    (permission && checkPerm(permission)) ||
+    (module && hasModuleAccess(module)) ||
+    (any && hasAnyPermission(any));
+
+  if (!allowed) return null;
 
   return children;
 }

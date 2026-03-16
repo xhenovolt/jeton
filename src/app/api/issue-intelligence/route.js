@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 const ROOT_CAUSE_CATEGORIES = [
   'code_bug', 'design_flaw', 'missing_validation', 'integration',
@@ -15,8 +16,9 @@ const RESOLUTION_TYPES = ['fix', 'workaround', 'wont_fix', 'duplicate', 'by_desi
  */
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const perm = await requirePermission(request, 'intelligence.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     // Check if required tables exist before querying
     const tableCheck = await query(

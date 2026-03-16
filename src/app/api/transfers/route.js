@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/transfers
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const result = await query(
       `SELECT t.*, fa.name as from_account_name, ta.name as to_account_name
        FROM transfers t
@@ -24,8 +26,9 @@ export async function GET(request) {
 // POST /api/transfers - Create transfer WITH two ledger entries
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { from_account_id, to_account_id, amount, currency, to_amount, to_currency, exchange_rate, description, reference, transfer_date } = body;

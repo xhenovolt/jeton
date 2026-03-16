@@ -7,13 +7,13 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { permissionId } = await params;
     const { description, name, route_path, method } = await request.json();
@@ -60,10 +60,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { permissionId } = await params;
 

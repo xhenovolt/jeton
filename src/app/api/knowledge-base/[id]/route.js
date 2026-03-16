@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/knowledge-base/[id] — Single article
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'knowledge.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const result = await query(`SELECT * FROM knowledge_articles WHERE id = $1`, [id]);
@@ -24,8 +26,9 @@ export async function GET(request, { params }) {
 // PUT /api/knowledge-base/[id] — Update article
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'knowledge.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const body = await request.json();
@@ -51,8 +54,9 @@ export async function PUT(request, { params }) {
 // DELETE /api/knowledge-base/[id]
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'knowledge.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     await query(`DELETE FROM knowledge_articles WHERE id = $1`, [id]);

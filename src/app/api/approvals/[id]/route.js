@@ -7,13 +7,13 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { getUserHierarchyLevel } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const perm = await requirePermission(request, 'approvals.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
 
@@ -51,10 +51,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const perm = await requirePermission(request, 'approvals.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const { status, notes } = await request.json();

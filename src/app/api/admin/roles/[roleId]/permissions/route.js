@@ -8,13 +8,13 @@ import { verifyAuth } from '@/lib/auth-utils.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
 
@@ -36,10 +36,9 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
     const body = await request.json();
@@ -99,10 +98,9 @@ export async function POST(request, { params }) {
  */
 export async function PATCH(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
     const body = await request.json();

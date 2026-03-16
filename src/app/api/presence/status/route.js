@@ -7,9 +7,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/current-user';
 import { query } from '@/lib/db';
+import { verifyAuth } from '@/lib/auth-utils.js';
 
 export async function GET(request) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

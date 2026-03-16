@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/revenue-events — List revenue events
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const source_type = searchParams.get('source_type');
@@ -36,8 +38,9 @@ export async function GET(request) {
 // POST /api/revenue-events — Record revenue and auto-allocate
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { source_type, source_id, amount, currency, received_account, date_received, description } = body;

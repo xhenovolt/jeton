@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // POST /api/prospects/[id]/convert - Convert prospect to client
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'prospects.update');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     

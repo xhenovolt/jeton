@@ -6,11 +6,13 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const result = await query(
       `SELECT * FROM authority_levels WHERE is_active = true ORDER BY rank_value DESC`
@@ -24,10 +26,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { name, description, rank_value, color_indicator } = await request.json();
     if (!name || rank_value === undefined) {

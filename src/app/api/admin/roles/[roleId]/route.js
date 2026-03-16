@@ -9,13 +9,13 @@ import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
 
@@ -39,7 +39,16 @@ export async function GET(request, { params }) {
     );
 
     const usersResult = await query(
-      `SELECT u.id, u.name, u.email FROM user_roles ur JOIN users u ON ur.user_id = u.id WHERE ur.role_id = $1`,
+      `SELECT u.id, u.name, u.email,
+              COALESCE(s.name, s.full_name) AS staff_name,
+              u.status AS account_status,
+              COALESCE(d.name, d.department_name) AS department
+       FROM staff_roles sr
+       JOIN staff s ON sr.staff_id = s.id
+       JOIN users u ON u.staff_id = s.id
+       LEFT JOIN departments d ON s.department_id = d.id
+       WHERE sr.role_id = $1
+       ORDER BY COALESCE(s.name, s.full_name) ASC`,
       [roleId]
     );
 
@@ -55,10 +64,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
     const body = await request.json();
@@ -139,10 +147,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { roleId } = await params;
 
@@ -154,7 +161,14 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, error: 'Cannot delete system roles' }, { status: 400 });
     }
 
-    const usersResult = await query('SELECT COUNT(*) AS cnt FROM user_roles WHERE role_id = $1', [roleId]);
+    const usersResult = await query(
+      `SELECT COUNT(DISTINCT u.id) AS cnt
+       FROM staff_roles sr
+       JOIN staff s ON sr.staff_id = s.id
+       JOIN users u ON u.staff_id = s.id
+       WHERE sr.role_id = $1`,
+      [roleId]
+    );
     if (parseInt(usersResult.rows[0].cnt) > 0) {
       return NextResponse.json({ success: false, error: 'Cannot delete role with assigned users. Remove user assignments first.' }, { status: 400 });
     }

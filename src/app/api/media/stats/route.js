@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/media/stats — storage tracking & statistics
@@ -8,8 +9,9 @@ import { verifyAuth } from '@/lib/auth-utils.js';
  */
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'media.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const department_id = searchParams.get('department_id');

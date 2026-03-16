@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const budget = await query(`SELECT * FROM v_budget_utilization WHERE budget_id = $1`, [id]);
     if (!budget.rows[0]) return NextResponse.json({ success: false, error: 'Budget not found' }, { status: 404 });
@@ -20,8 +22,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const fields = ['name','category','amount','currency','period','start_date','end_date','alert_threshold','is_active','notes'];
@@ -40,8 +43,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     // Unlink expenses from this budget first
     await query(`UPDATE expenses SET budget_id = NULL WHERE budget_id = $1`, [id]);

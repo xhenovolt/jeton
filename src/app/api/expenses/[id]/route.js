@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(`SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE e.id = $1`, [id]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Expense not found' }, { status: 404 });
@@ -17,8 +19,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.create');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const body = await request.json();
     const fields = ['category','subcategory','vendor','description','expense_date','receipt_url','is_recurring','recurrence_interval','status','budget_id','tags','notes'];
@@ -37,8 +40,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'finance.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     // Void the expense instead of deleting; create a reverse ledger entry
     const expense = await query(`SELECT * FROM expenses WHERE id = $1`, [id]);

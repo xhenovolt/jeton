@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/departments/[id]/documents
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'departments.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const result = await query(
       `SELECT dd.*, m.secure_url, m.mime_type, m.file_size, m.original_filename
@@ -22,8 +24,9 @@ export async function GET(request, { params }) {
 // POST /api/departments/[id]/documents
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'departments.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { id } = await params;
     const { title, description, media_id, document_url } = await request.json();
     if (!title?.trim()) return NextResponse.json({ success: false, error: 'title is required' }, { status: 400 });

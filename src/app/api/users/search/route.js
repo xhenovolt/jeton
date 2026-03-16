@@ -3,10 +3,15 @@
  * Search for users by email or name for autocomplete
  */
 
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
+    const perm = await requirePermission(request, 'users.view');
+    if (perm instanceof NextResponse) return perm;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '10');

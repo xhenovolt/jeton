@@ -5,11 +5,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'dashboard.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     // Run all queries in parallel for speed
     const [

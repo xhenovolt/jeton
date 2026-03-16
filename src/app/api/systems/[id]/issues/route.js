@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { Events } from '@/lib/events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // GET /api/systems/[id]/issues
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'systems.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const result = await query(
@@ -24,8 +26,9 @@ export async function GET(request, { params }) {
 // POST /api/systems/[id]/issues
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    const perm = await requirePermission(request, 'systems.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const body = await request.json();

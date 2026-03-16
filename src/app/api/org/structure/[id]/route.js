@@ -7,11 +7,13 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'departments.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const result = await query(
@@ -52,10 +54,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'departments.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const old = await query('SELECT * FROM organizational_structure WHERE id = $1', [id]);
@@ -128,10 +129,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'departments.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { id } = await params;
     const old = await query('SELECT * FROM organizational_structure WHERE id = $1', [id]);

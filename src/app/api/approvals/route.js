@@ -7,13 +7,13 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { getUserHierarchyLevel } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const perm = await requirePermission(request, 'approvals.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // pending, approved, rejected, or null for all
@@ -49,8 +49,11 @@ export async function GET(request) {
         WHERE ar.status = 'pending'
           AND $1 < (
             SELECT COALESCE(MIN(r.hierarchy_level), 5)
-            FROM user_roles ur JOIN roles r ON ur.role_id = r.id
-            WHERE ur.user_id = ar.requester_user_id
+            FROM users u2
+            JOIN staff s2 ON u2.staff_id = s2.id
+            JOIN staff_roles sr2 ON sr2.staff_id = s2.id
+            JOIN roles r ON sr2.role_id = r.id
+            WHERE u2.id = ar.requester_user_id
           )
         ORDER BY ar.created_at DESC
         LIMIT $2 OFFSET $3`;
@@ -81,10 +84,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const perm = await requirePermission(request, 'approvals.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { target_record_type, target_record_id, action_requested, reason } = await request.json();
 

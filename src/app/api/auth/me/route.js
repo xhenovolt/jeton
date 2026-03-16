@@ -79,7 +79,12 @@ export async function GET(request) {
     let rbacRoles = [];
     try {
       const rolesResult = await query(
-        `SELECT r.name, r.hierarchy_level FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1`,
+        `SELECT r.name, r.hierarchy_level
+         FROM users u
+         JOIN staff s ON u.staff_id = s.id
+         JOIN staff_roles sr ON sr.staff_id = s.id
+         JOIN roles r ON sr.role_id = r.id
+         WHERE u.id = $1`,
         [user.id]
       );
       rbacRoles = rolesResult.rows.map(r => r.name);

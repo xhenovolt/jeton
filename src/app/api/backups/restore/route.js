@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * POST /api/backups/restore — Request restoration (requires superadmin approval)
@@ -9,10 +10,9 @@ import { dispatch } from '@/lib/system-events.js';
  */
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'audit.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { backup_id } = await request.json();
     if (!backup_id) return NextResponse.json({ success: false, error: 'backup_id is required' }, { status: 400 });

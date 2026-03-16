@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 // Authority rank required per approval category
 const CATEGORY_AUTHORITY = {
@@ -19,8 +20,9 @@ const CATEGORY_AUTHORITY = {
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'approvals.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'pending';
@@ -57,8 +59,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'approvals.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { target_record_type, target_record_id, action_requested, reason, category } = await request.json();
     if (!target_record_type || !target_record_id || !action_requested) {

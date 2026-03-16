@@ -10,13 +10,13 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'staff.update');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { staffId } = await params;
 
@@ -42,10 +42,9 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'staff.update');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { staffId } = await params;
     const body = await request.json();
@@ -59,9 +58,11 @@ export async function POST(request, { params }) {
     if (auth.role !== 'superadmin' && roleIds.length > 0) {
       const assignerAuth = await query(
         `SELECT MAX(r.authority_level) AS max_authority
-         FROM staff_roles sr JOIN roles r ON sr.role_id = r.id
-         JOIN staff s ON sr.staff_id = s.id
-         WHERE s.user_id = $1`,
+         FROM users u
+         JOIN staff s ON u.staff_id = s.id
+         JOIN staff_roles sr ON sr.staff_id = s.id
+         JOIN roles r ON sr.role_id = r.id
+         WHERE u.id = $1`,
         [auth.userId]
       );
       const assignerAuthority = assignerAuth.rows[0]?.max_authority || 0;
@@ -135,10 +136,9 @@ export async function POST(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'staff.update');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { staffId } = await params;
     const { role_id } = await request.json();

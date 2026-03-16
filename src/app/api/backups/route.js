@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { query, getPool } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/backups — List all system backups
  */
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'audit.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const result = await query(
       `SELECT sb.*, u.name as created_by_name
@@ -32,10 +32,9 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'audit.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { name, description, backup_type, tags } = body;

@@ -8,13 +8,13 @@ import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { invalidateAllPermissionCaches } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const result = await query(`
       SELECT r.id, r.name, r.description, r.is_system, r.is_active,
@@ -22,7 +22,7 @@ export async function GET(request) {
         r.responsibilities, r.created_by, r.created_at, r.updated_at,
         COALESCE(d.name, d.department_name) AS department_name,
         (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
-        (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
+        (SELECT COUNT(DISTINCT u.id) FROM staff_roles sr JOIN staff s ON sr.staff_id = s.id JOIN users u ON u.staff_id = s.id WHERE sr.role_id = r.id) AS user_count
       FROM roles r
       LEFT JOIN departments d ON r.department_id = d.id
       WHERE r.is_active = true
@@ -38,10 +38,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    const perm = await requirePermission(request, 'roles.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { name, description, hierarchy_level, authority_level, department_id, alias, responsibilities } = body;

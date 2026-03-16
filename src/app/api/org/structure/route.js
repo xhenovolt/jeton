@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { requirePermission } from '@/lib/permissions.js';
 
 function buildTree(nodes) {
   const map = {};
@@ -25,8 +26,9 @@ function buildTree(nodes) {
 
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+    const perm = await requirePermission(request, 'departments.view');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'tree';

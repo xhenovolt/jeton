@@ -75,10 +75,12 @@ async function loadUserPermissionsFromDB(userId) {
   try {
     const result = await query(
       `SELECT DISTINCT p.module, p.action
-       FROM user_roles ur
-       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       FROM users u
+       JOIN staff s ON u.staff_id = s.id
+       JOIN staff_roles sr ON sr.staff_id = s.id
+       JOIN role_permissions rp ON sr.role_id = rp.role_id
        JOIN permissions p ON rp.permission_id = p.id
-       WHERE ur.user_id = $1
+       WHERE u.id = $1
        ORDER BY p.module, p.action`,
       [userId]
     );
@@ -153,9 +155,11 @@ export async function getUserHierarchyLevel(userId) {
   try {
     const result = await query(
       `SELECT MIN(r.hierarchy_level) AS hierarchy_level
-       FROM user_roles ur
-       JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1`,
+       FROM users u
+       JOIN staff s ON u.staff_id = s.id
+       JOIN staff_roles sr ON sr.staff_id = s.id
+       JOIN roles r ON sr.role_id = r.id
+       WHERE u.id = $1`,
       [userId]
     );
     return result.rows[0]?.hierarchy_level ?? 5; // Default to lowest authority
@@ -173,9 +177,11 @@ export async function getUserAuthorityLevel(userId) {
   try {
     const result = await query(
       `SELECT MAX(r.authority_level) AS authority_level
-       FROM user_roles ur
-       JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1`,
+       FROM users u
+       JOIN staff s ON u.staff_id = s.id
+       JOIN staff_roles sr ON sr.staff_id = s.id
+       JOIN roles r ON sr.role_id = r.id
+       WHERE u.id = $1`,
       [userId]
     );
     return result.rows[0]?.authority_level ?? 10; // Default to viewer-level
@@ -288,8 +294,11 @@ export async function getPendingApprovalsForUser(userId) {
            -- User can approve if they have higher authority than requester
            $1 <= (
              SELECT COALESCE(MIN(r.hierarchy_level), 5)
-             FROM user_roles ur JOIN roles r ON ur.role_id = r.id
-             WHERE ur.user_id = ar.requester_user_id
+             FROM users u2
+             JOIN staff s2 ON u2.staff_id = s2.id
+             JOIN staff_roles sr2 ON sr2.staff_id = s2.id
+             JOIN roles r ON sr2.role_id = r.id
+             WHERE u2.id = ar.requester_user_id
            )
          )
        ORDER BY ar.created_at DESC`,
@@ -406,11 +415,14 @@ export async function assignRole(userId, roleName, assignedBy = null) {
   try {
     const roleResult = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
     if (!roleResult.rows[0]) throw new Error(`Role '${roleName}' not found`);
+    const staffResult = await query('SELECT staff_id FROM users WHERE id = $1', [userId]);
+    const staffId = staffResult.rows[0]?.staff_id;
+    if (!staffId) throw new Error(`User has no linked staff record`);
     await query(
-      `INSERT INTO user_roles (user_id, role_id, assigned_by)
+      `INSERT INTO staff_roles (staff_id, role_id, assigned_by)
        VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, role_id) DO NOTHING`,
-      [userId, roleResult.rows[0].id, assignedBy]
+       ON CONFLICT (staff_id, role_id) DO NOTHING`,
+      [staffId, roleResult.rows[0].id, assignedBy]
     );
     invalidatePermissionCache(userId);
     return true;
@@ -427,7 +439,13 @@ export async function removeRole(userId, roleName) {
   try {
     const roleResult = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
     if (!roleResult.rows[0]) return false;
-    await query('DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2', [userId, roleResult.rows[0].id]);
+    const staffResult = await query('SELECT staff_id FROM users WHERE id = $1', [userId]);
+    const staffId = staffResult.rows[0]?.staff_id;
+    if (!staffId) return false;
+    await query(
+      'DELETE FROM staff_roles WHERE staff_id = $1 AND role_id = $2',
+      [staffId, roleResult.rows[0].id]
+    );
     invalidatePermissionCache(userId);
     return true;
   } catch (error) {
