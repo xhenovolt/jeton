@@ -796,3 +796,87 @@ export function getRoleDescription(role) {
   };
   return descriptions[role] || 'No description available';
 }
+
+// ============================================================================
+// HIERARCHICAL AUTHORITY ENFORCEMENT
+// Higher authority_level = more authority (Superadmin=100, Admin=80, ...)
+// A viewer may only see/modify records whose creator_authority <= viewer_authority
+// ============================================================================
+
+/**
+ * Get the viewer's authority level from a resolved auth object (or user id).
+ * Superadmin always returns 100.
+ */
+export async function getViewerAuthorityLevel(userId, userRole) {
+  if (userRole === 'superadmin') return 100;
+  return getUserAuthorityLevel(userId);
+}
+
+/**
+ * Build a SQL fragment that filters records so lower-authority viewers
+ * cannot see records created by higher-authority actors.
+ *
+ * Usage:
+ *   const { clause, params, nextIdx } = buildAuthorityFilter(viewerAuthority, {
+ *     actorAuthorityCol: 'al.actor_authority_level',
+ *     startIdx: 1,
+ *   });
+ *   sql += ` AND ${clause}`;
+ *   queryParams.push(...params);
+ *
+ * For superadmins, returns an always-true clause (no filtering).
+ */
+export function buildAuthorityFilter(viewerAuthority, {
+  actorAuthorityCol = 'actor_authority_level',
+  startIdx = 1,
+} = {}) {
+  if (viewerAuthority >= 100) {
+    // Superadmin sees everything
+    return { clause: '1=1', params: [], nextIdx: startIdx };
+  }
+  return {
+    clause: `${actorAuthorityCol} <= $${startIdx}`,
+    params: [viewerAuthority],
+    nextIdx: startIdx + 1,
+  };
+}
+
+/**
+ * Assert that the acting user has authority >= the record creator's authority.
+ * Returns NextResponse 403 if blocked, or null if allowed.
+ *
+ * Usage in PATCH/DELETE routes:
+ *   const block = await assertAuthorityOver(auth, recordRow.actor_authority_level);
+ *   if (block) return block;
+ */
+export async function assertAuthorityOver(auth, recordCreatorAuthorityLevel) {
+  // Superadmin is never blocked
+  if (auth.role === 'superadmin') return null;
+
+  const viewerAuthority = await getUserAuthorityLevel(auth.userId);
+
+  if (viewerAuthority < recordCreatorAuthorityLevel) {
+    return NextResponse.json(
+      { error: 'Insufficient authority. You cannot modify records created by higher-authority users.' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+/**
+ * Require permission AND authority hierarchy.
+ * If viewerAuthority < recordCreatorAuthority → 403.
+ * Superadmin always passes.
+ *
+ * Convenience wrapper combining requirePermission + assertAuthorityOver.
+ */
+export async function requirePermissionAndAuthority(request, permission, recordCreatorAuthorityLevel) {
+  const result = await requirePermission(request, permission);
+  if (result instanceof NextResponse) return result;
+
+  const block = await assertAuthorityOver(result.auth, recordCreatorAuthorityLevel ?? 0);
+  if (block) return block;
+
+  return result;
+}

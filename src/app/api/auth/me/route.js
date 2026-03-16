@@ -9,7 +9,7 @@ import { cookies } from 'next/headers.js';
 import { getSession } from '@/lib/session.js';
 import { logRouteAccess, extractRequestMetadata } from '@/lib/audit.js';
 import { query } from '@/lib/db.js';
-import { getUserPermissions, getUserHierarchyLevel } from '@/lib/permissions.js';
+import { getUserPermissions, getUserHierarchyLevel, getUserAuthorityLevel } from '@/lib/permissions.js';
 
 export async function GET(request) {
   try {
@@ -59,6 +59,8 @@ export async function GET(request) {
         u.role,
         u.status,
         u.is_active,
+        u.authority_level,
+        u.first_login_completed,
         u.created_at
       FROM users u
       WHERE u.id = $1`,
@@ -93,14 +95,17 @@ export async function GET(request) {
     // Fetch permissions using cached system
     let permissions = [];
     let hierarchyLevel = 5;
+    let authorityLevel = user.authority_level ?? 10;
     try {
       if (isSuperadmin) {
         permissions = ['*'];
         hierarchyLevel = 1;
+        authorityLevel = 100;
       } else {
-        [permissions, hierarchyLevel] = await Promise.all([
+        [permissions, hierarchyLevel, authorityLevel] = await Promise.all([
           getUserPermissions(user.id),
           getUserHierarchyLevel(user.id),
+          getUserAuthorityLevel(user.id),
         ]);
       }
     } catch (_) { /* RBAC tables may not exist yet */ }
@@ -138,6 +143,8 @@ export async function GET(request) {
           roles: rbacRoles.length > 0 ? rbacRoles : [user.role],
           permissions: permissions,
           hierarchy_level: hierarchyLevel,
+          authority_level: authorityLevel,
+          first_login_completed: user.first_login_completed ?? true,
           pending_approvals: pendingApprovals,
           created_at: user.created_at,
         },

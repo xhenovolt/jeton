@@ -75,11 +75,12 @@ export async function POST(request) {
 
     const passwordHash = await hashPassword(newPassword);
 
-    // Update password and clear reset flag atomically
+    // Update password and clear reset flag atomically; mark first login complete
     await query(
       `UPDATE users
        SET password_hash = $1,
-           must_reset_password = false,
+           must_reset_password    = false,
+           first_login_completed  = true,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
       [passwordHash, userId]

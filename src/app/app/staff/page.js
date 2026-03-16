@@ -1,10 +1,127 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle } from 'lucide-react';
+import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle, UserPlus, UserCheck, Lock, Eye, EyeOff, Key } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
+import { usePermissions } from '@/components/providers/PermissionProvider';
+
+// ─── Create Account Modal ────────────────────────────────────────────────────
+function CreateAccountModal({ staff, onClose, onSuccess }) {
+  const [username, setUsername]       = useState('');
+  const [password, setPassword]       = useState('');
+  const [showPass, setShowPass]       = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState('');
+
+  const requirements = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter',  met: /[A-Z]/.test(password) },
+    { label: 'One number',            met: /[0-9]/.test(password) },
+  ];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const res = await fetchWithAuth(`/api/admin/staff/${staff.id}/create-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Failed to create account');
+      } else {
+        onSuccess(data.user);
+      }
+    } catch {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-card rounded-2xl border border-border w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-blue-600" />
+            <h2 className="font-semibold text-foreground">Create User Account</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground mb-4">
+            Creating account for <span className="font-medium text-foreground">{staff.name}</span>.
+            They will be prompted to set a permanent password on first login.
+          </p>
+          {staff.email && (
+            <p className="text-xs bg-muted rounded-lg px-3 py-2 mb-4">
+              <span className="text-muted-foreground">Login email: </span>
+              <span className="font-medium text-foreground">{staff.email}</span>
+            </p>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Username *</label>
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required minLength={3}
+                placeholder="e.g. john.doe"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Temporary Password *</label>
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required minLength={8}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 pr-10 border border-border rounded-lg bg-background text-foreground"
+                />
+                <button type="button" onClick={() => setShowPass(v => !v)}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {password && (
+                <ul className="mt-2 space-y-1">
+                  {requirements.map(r => (
+                    <li key={r.label} className={`flex items-center gap-1.5 text-xs ${r.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      <span className={`w-3 h-3 rounded-full border flex-shrink-0 ${r.met ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground/40'}`} />
+                      {r.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={onClose}
+                className="flex-1 px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving || requirements.some(r => !r.met)}
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {saving ? 'Creating…' : 'Create Account'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const ACCOUNT_STATUS_STYLES = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -51,6 +168,9 @@ export default function StaffPage() {
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const presenceInterval = useRef(null);
+  // Account creation modal
+  const [createAccountFor, setCreateAccountFor] = useState(null);
+  const { user: currentUser } = usePermissions();
 
   // Fetch all RBAC roles dynamically
   const fetchRoles = useCallback(async () => {
@@ -192,6 +312,13 @@ export default function StaffPage() {
     if (s.email && presenceMap[s.email]) return presenceMap[s.email].status;
     return s.presence_status || 'offline';
   };
+
+  // Whether the current user can create linked accounts
+  const canCreateAccounts = currentUser?.is_superadmin ||
+    (currentUser?.authority_level ?? 0) >= 80;
+
+  // Determine if a staff member has a linked user account
+  const hasLinkedUser = (s) => !!(s.linked_user_id || s.user_id);
 
   // Filtering
   const filtered = staff.filter(s => {
@@ -450,6 +577,7 @@ export default function StaffPage() {
           {filtered.map(s => {
             const presence = getPresence(s);
             const roles = s.assigned_roles || [];
+            const linked = hasLinkedUser(s);
             return (
               <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition gap-2">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -457,7 +585,6 @@ export default function StaffPage() {
                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
                       {s.name?.charAt(0)}
                     </div>
-                    {/* Presence dot overlay */}
                     <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${PRESENCE_DOT[presence]}`}
                       title={PRESENCE_LABEL[presence]} />
                   </div>
@@ -468,6 +595,16 @@ export default function StaffPage() {
                       {s.account_status && s.account_status !== 'active' && (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACCOUNT_STATUS_STYLES[s.account_status]}`}>{s.account_status}</span>
                       )}
+                      {/* Linked account indicator */}
+                      {linked ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium" title="Has linked user account">
+                          <UserCheck className="w-2.5 h-2.5" />Account linked
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-medium" title="No user account linked">
+                          <UserPlus className="w-2.5 h-2.5" />No account
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
                       {s.position || s.role_name || (roles.length > 0 ? roles.map(r => r.name).join(', ') : 'No role')}
@@ -475,20 +612,30 @@ export default function StaffPage() {
                       {s.email && <span className="hidden sm:inline"> · {s.email}</span>}
                       {s.manager_name && <span className="hidden md:inline"> · Reports to: {s.manager_name}</span>}
                     </div>
-                    {/* Role badges */}
                     {roles.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {roles.map(r => (
                           <span key={r.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-[10px] font-medium">
                             <Shield className="w-2.5 h-2.5" />{r.name}
+                            {r.authority_level && <span className="opacity-60">·{r.authority_level}</span>}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-13 sm:ml-0 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {s.salary && <span className="text-sm font-medium text-foreground whitespace-nowrap">{s.salary_currency || 'UGX'} {Math.round(parseFloat(s.salary)).toLocaleString()}/mo</span>}
+                  {/* Create Account button — only shown when no linked account and viewer has authority */}
+                  {!linked && canCreateAccounts && (
+                    <button
+                      onClick={() => setCreateAccountFor(s)}
+                      title="Create user account for this staff member"
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-medium"
+                    >
+                      <Key className="w-3.5 h-3.5" />Create Account
+                    </button>
+                  )}
                   <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
                   <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500"><Trash2 className="w-4 h-4" /></button>
                 </div>
@@ -496,6 +643,19 @@ export default function StaffPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Create Account Modal */}
+      {createAccountFor && (
+        <CreateAccountModal
+          staff={createAccountFor}
+          onClose={() => setCreateAccountFor(null)}
+          onSuccess={() => {
+            toast.success(`Account created for ${createAccountFor.name}. They must set a password on first login.`);
+            setCreateAccountFor(null);
+            fetchStaff();
+          }}
+        />
       )}
     </div>
   );
