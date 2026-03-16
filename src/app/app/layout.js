@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/current-user.js';
+import { RoutePermissionGuard } from '@/components/layout/RoutePermissionGuard';
 
 /**
  * Protected App Layout
- * Server-side auth check before rendering any /app/* routes
- * If user is not authenticated, redirects to login
+ * Server-side auth check before rendering any /app/* routes.
+ * Wraps children in RoutePermissionGuard for client-side permission enforcement.
  */
 export default async function AppLayout({ children }) {
   // Check authentication on server before rendering
@@ -15,6 +16,6 @@ export default async function AppLayout({ children }) {
     redirect('/login');
   }
 
-  // User is authenticated - render protected content
-  return children;
+  // User is authenticated — apply route-level permission guard
+  return <RoutePermissionGuard>{children}</RoutePermissionGuard>;
 }

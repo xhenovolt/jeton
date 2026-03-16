@@ -185,4 +185,100 @@ UPDATE staff
 SET name = COALESCE(name, full_name, email)
 WHERE name IS NULL OR name = '';
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 8. SEED ALL MODULE PERMISSIONS REFERENCED BY NAVIGATION
+--    Extends the base seed from migration 934. All ON CONFLICT DO NOTHING.
+-- ────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO permissions (module, action, description) VALUES
+  -- Dashboard
+  ('dashboard',           'view',   'View the main dashboard'),
+  -- Activity logs
+  ('activity_logs',       'view',   'View activity logs'),
+  -- Command center
+  ('command_center',      'view',   'Access the command center'),
+  -- Pipeline
+  ('pipeline',            'view',   'View the sales pipeline'),
+  ('pipeline',            'manage', 'Manage the sales pipeline'),
+  -- Obligations
+  ('obligations',         'view',   'View obligations and deliverables'),
+  ('obligations',         'manage', 'Manage obligations'),
+  -- Allocations
+  ('allocations',         'view',   'View money allocations'),
+  ('allocations',         'manage', 'Manage money allocations'),
+  -- Products
+  ('products',            'view',   'View products'),
+  ('products',            'manage', 'Manage products'),
+  -- Services
+  ('services',            'view',   'View services'),
+  ('services',            'manage', 'Manage services'),
+  -- Media
+  ('media',               'view',   'View media files'),
+  ('media',               'manage', 'Manage media files'),
+  -- Knowledge base
+  ('knowledge',           'view',   'View knowledge base'),
+  ('knowledge',           'manage', 'Manage knowledge base'),
+  -- Accounts (finance sub-module)
+  ('accounts',            'view',   'View bank/cash accounts'),
+  ('accounts',            'manage', 'Manage bank/cash accounts'),
+  -- Expenses
+  ('expenses',            'view',   'View expenses'),
+  ('expenses',            'manage', 'Manage expenses'),
+  -- Budgets
+  ('budgets',             'view',   'View budgets'),
+  ('budgets',             'manage', 'Manage budgets'),
+  -- Intelligence
+  ('intelligence',        'view',   'View intelligence dashboard'),
+  -- Bug / tech tracking
+  ('bug_tracking',        'view',   'View engineering bug tracker'),
+  -- Issue intelligence
+  ('issue_intelligence',  'view',   'View issue intelligence'),
+  -- HRM
+  ('hrm',                 'view',   'View HRM dashboard'),
+  -- Documents
+  ('documents',           'view',   'View documents'),
+  ('documents',           'manage', 'Manage documents'),
+  -- Decision logs
+  ('decision_logs',       'view',   'View decision log'),
+  ('decision_logs',       'manage', 'Manage decision log'),
+  -- Backups
+  ('backups',             'view',   'View system backups'),
+  ('backups',             'manage', 'Manage system backups'),
+  -- Offerings
+  ('offerings',           'view',   'View offerings catalog'),
+  ('offerings',           'manage', 'Manage offerings catalog'),
+  -- Licenses
+  ('licenses',            'view',   'View license registry'),
+  ('licenses',            'manage', 'Manage license registry'),
+  -- Operations
+  ('operations',          'view',   'View operations log'),
+  ('operations',          'manage', 'Manage operations log'),
+  -- Payments
+  ('payments',            'view',   'View payment records'),
+  ('payments',            'manage', 'Manage payment records'),
+  -- Staff
+  ('staff',               'view',   'View staff directory'),
+  ('staff',               'create', 'Create staff members'),
+  ('staff',               'update', 'Update staff records'),
+  ('staff',               'delete', 'Delete staff records')
+ON CONFLICT (module, action) DO NOTHING;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 9. GRANT SUPERADMIN ROLE ALL PERMISSIONS
+--    Ensures superadmin can access every module after the RBAC chain is repaired.
+-- ────────────────────────────────────────────────────────────────────────────
+
+DO $$
+DECLARE
+  superadmin_role_id uuid;
+BEGIN
+  SELECT id INTO superadmin_role_id FROM roles WHERE name = 'superadmin';
+  IF superadmin_role_id IS NOT NULL THEN
+    INSERT INTO role_permissions (role_id, permission_id)
+    SELECT superadmin_role_id, p.id
+    FROM permissions p
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+
 COMMIT;

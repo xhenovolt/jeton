@@ -53,13 +53,14 @@ export const menuItems = [
     href: '/app/dashboard',
     icon: Home,
     category: 'primary',
-    // Dashboard visible to all authenticated users
+    permission: 'dashboard.view',
   },
   {
     label: 'Command Center',
     href: '/app/command-center',
     icon: Zap,
     category: 'primary',
+    permission: 'command_center.view',
     minHierarchy: 3,
   },
   {
@@ -68,12 +69,14 @@ export const menuItems = [
     icon: Activity,
     category: 'primary',
     module: 'activity_logs',
+    permission: 'activity_logs.view',
   },
   {
     label: 'Notifications',
     href: '/app/notifications',
     icon: Bell,
     category: 'primary',
+    // Visible to all authenticated users — no permission required
   },
 
   // === SYSTEMS (core IP) ===
@@ -97,6 +100,7 @@ export const menuItems = [
     icon: Layers,
     category: 'sections',
     module: 'services',
+    permission: 'services.view',
   },
 
   // === SALES PIPELINE ===
@@ -136,6 +140,7 @@ export const menuItems = [
     icon: Package,
     category: 'sections',
     module: 'products',
+    permission: 'products.view',
   },
 
   // === COMPANY ===
@@ -144,9 +149,9 @@ export const menuItems = [
     icon: Building2,
     category: 'sections',
     submenu: [
-      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'employees.view' },
-      { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'employees.view' },
-      { label: 'Control Tower', href: '/app/control-tower', description: 'Authority & structural health', permission: 'employees.view' },
+      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'staff.view' },
+      { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'staff.view' },
+      { label: 'Control Tower', href: '/app/control-tower', description: 'Authority & structural health', permission: 'staff.view' },
       { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
       { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts', permission: 'finance.view' },
@@ -178,6 +183,7 @@ export const menuItems = [
     icon: BookOpen,
     category: 'sections',
     module: 'knowledge',
+    permission: 'knowledge.view',
   },
 
   // === INTELLIGENCE ===
@@ -204,6 +210,7 @@ export const menuItems = [
     icon: BarChart3,
     category: 'sections',
     module: 'reports',
+    permission: 'reports.view',
   },
 
   // === ADMIN ===
@@ -218,7 +225,7 @@ export const menuItems = [
       { label: 'Roles', href: '/app/admin/roles', description: 'Manage roles & permissions', permission: 'roles.manage' },
       { label: 'Permission Manager', href: '/app/admin/role-permissions', description: 'Toggle role permissions by module', permission: 'roles.manage' },
       { label: 'Access Simulator', href: '/app/admin/access-simulator', description: 'Preview what a role can access', permission: 'roles.manage' },
-      { label: 'Permission Inspector', href: '/app/admin/permission-inspector', description: 'Inspect effective permissions for any user', permission: 'roles.manage' },
+      { label: 'Access Inspector', href: '/app/admin/permission-inspector', description: 'Inspect effective permissions for any user', permission: 'roles.manage' },
       { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
       { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'approvals.manage' },
       { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },
@@ -322,4 +329,47 @@ export function getAllValidRoutes() {
   }
   traverse(menuItems);
   return routes;
+}
+
+// ============================================================================
+// ROUTE → PERMISSION MAP
+// Built from menuItems at module-load time.
+// Keys are exact paths; values are permission strings like 'finance.view'.
+// ============================================================================
+
+const _routePermissionMap = {};
+
+function _buildMap(items) {
+  items.forEach((item) => {
+    if (item.href) {
+      if (item.permission) {
+        _routePermissionMap[item.href] = item.permission;
+      } else if (item.module) {
+        _routePermissionMap[item.href] = `${item.module}.view`;
+      }
+    }
+    if (item.submenu) _buildMap(item.submenu);
+  });
+}
+_buildMap(menuItems);
+
+/**
+ * Return the required permission key for a given path, or null if open to all.
+ * Tries exact match first, then walks up path segments.
+ *
+ * @param {string} path - e.g. '/app/finance/ledger'
+ * @returns {string|null} e.g. 'finance.view'
+ */
+export function getRoutePermission(path) {
+  if (_routePermissionMap[path]) return _routePermissionMap[path];
+
+  // Walk up: /app/finance/ledger → /app/finance → /app (stop)
+  const parts = path.split('/');
+  while (parts.length > 2) {
+    parts.pop();
+    const parent = parts.join('/');
+    if (_routePermissionMap[parent]) return _routePermissionMap[parent];
+  }
+
+  return null;
 }
