@@ -39,13 +39,15 @@ export async function getCurrentUser() {
     }
 
     // Return user object without sensitive fields
+    // NOTE: users table has no is_superadmin column — derive from role field
     return {
       id: user.id,
       email: user.email,
       role: user.role,
       status: user.status,
       fullName: user.full_name,
-      isSuperadmin: user.is_superadmin ?? false,
+      isSuperadmin: user.role === 'superadmin',
+      is_superadmin: user.role === 'superadmin',
       createdAt: user.created_at,
     };
   } catch (error) {

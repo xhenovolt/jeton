@@ -1,9 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, Users, Code, Target, Workflow, Map, FileText, Rocket } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BookOpen, Users, Code, Target, Workflow, Map, FileText, Rocket, Shield, AlertTriangle, Database } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/fetch-client';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 export default function DocsHomePage() {
+  const { user } = usePermissions();
+  const [dbDocs, setDbDocs] = useState([]);
+
+  useEffect(() => {
+    fetchWithAuth('/api/docs')
+      .then(r => r.json())
+      .then(d => { if (d.success) setDbDocs(d.data); })
+      .catch(() => {});
+  }, []);
+
+  const CATEGORY_COLORS = {
+    architecture: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800',
+    security:     'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+    guides:       'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800',
+    modules:      'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800',
+    general:      'bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-800',
+  };
+
   const docSections = [
     {
       title: 'Getting Started',
@@ -194,10 +215,59 @@ export default function DocsHomePage() {
           </div>
         </div>
 
+        {/* DB-backed Technical Documentation */}
+        {dbDocs.length > 0 && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold">Technical Reference</h2>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">DB-backed</span>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dbDocs.map((doc) => (
+                <Link
+                  key={doc.id}
+                  href={`/app/docs/${doc.slug || doc.id}`}
+                  className={`block p-4 rounded-xl border-2 transition-all hover:shadow-md ${CATEGORY_COLORS[doc.category] || CATEGORY_COLORS.general} dark:hover:bg-accent`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{doc.category}</span>
+                    <span className="text-xs text-muted-foreground font-mono">v{doc.version}</span>
+                  </div>
+                  <h3 className="font-semibold text-sm leading-snug">{doc.title}</h3>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* System Issues (superadmin only) */}
+        {user?.is_superadmin && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <h2 className="text-xl font-bold">Architecture Issues</h2>
+              <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">Superadmin</span>
+            </div>
+            <div className="bg-card border rounded-xl p-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Tracked root causes, fixes, and verification status for all identified architectural issues.</p>
+              </div>
+              <Link
+                href="/app/docs/issues"
+                className="shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                View Issues
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="text-center text-muted-foreground text-sm">
           <p>
-            Documentation version 1.0 • Last updated March 8, 2026
+            Documentation version 1.0 • Last updated March 19, 2026
           </p>
           <p className="mt-2">
             Need help?{' '}
