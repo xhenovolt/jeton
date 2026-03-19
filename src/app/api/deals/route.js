@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, buildDataScopeFilter } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
 import { dispatch } from '@/lib/system-events.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUUID(v) { return typeof v === 'string' && UUID_RE.test(v); }
 
-// GET /api/deals — deals.view
+// GET /api/deals — deals.view (data-scope enforced)
 export async function GET(request) {
   const perm = await requirePermission(request, 'deals.view');
   if (perm instanceof NextResponse) return perm;
   try {
+    const { auth, dataScope, departmentId } = perm;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const client_id = searchParams.get('client_id');
     const system_id = searchParams.get('system_id');
+
+    const params = [];
     let sql = `SELECT d.*,
       COALESCE(c.company_name, d.client_name, 'Unknown') as client_label,
       o.name as offering_name,
@@ -30,10 +33,22 @@ export async function GET(request) {
       LEFT JOIN systems s ON d.system_id = s.id
       LEFT JOIN services svc ON d.service_id = svc.id
       WHERE 1=1`;
-    const params = [];
+
     if (status) { params.push(status); sql += ` AND d.status = $${params.length}`; }
     if (client_id) { params.push(client_id); sql += ` AND d.client_id = $${params.length}`; }
     if (system_id) { params.push(system_id); sql += ` AND d.system_id = $${params.length}`; }
+
+    // ── Data scope enforcement ───────────────────────────────────────────────
+    const scopeFilter = buildDataScopeFilter({
+      dataScope: dataScope ?? 'GLOBAL',
+      userId: auth.userId,
+      departmentId,
+      tableAlias: 'd',
+      paramOffset: params.length,
+    });
+    sql += scopeFilter.clause;
+    params.push(...scopeFilter.params);
+
     sql += ` ORDER BY d.created_at DESC`;
     const result = await query(sql, params);
     return NextResponse.json({ success: true, data: result.rows });

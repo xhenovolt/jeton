@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, buildDataScopeFilter } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
 
-// GET /api/expenses
+// GET /api/expenses (data-scope enforced)
 export async function GET(request) {
   try {
     const perm = await requirePermission(request, 'expenses', 'view');
     if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
+    const { auth, dataScope, departmentId } = perm;
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const from_date = searchParams.get('from_date');
     const to_date = searchParams.get('to_date');
 
-    let sql = `SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE 1=1`;
     const params = [];
+    let sql = `SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE 1=1`;
+
     if (category) { params.push(category); sql += ` AND e.category = $${params.length}`; }
     if (from_date) { params.push(from_date); sql += ` AND e.expense_date >= $${params.length}`; }
     if (to_date) { params.push(to_date); sql += ` AND e.expense_date <= $${params.length}`; }
-    sql += ` ORDER BY e.expense_date DESC`;
 
+    // ── Data scope enforcement ───────────────────────────────────────────────
+    const scopeFilter = buildDataScopeFilter({
+      dataScope: dataScope ?? 'GLOBAL',
+      userId: auth.userId,
+      departmentId,
+      tableAlias: 'e',
+      paramOffset: params.length,
+    });
+    sql += scopeFilter.clause;
+    params.push(...scopeFilter.params);
+
+    sql += ` ORDER BY e.expense_date DESC`;
     const result = await query(sql, params);
     return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {

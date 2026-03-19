@@ -1,29 +1,42 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, buildDataScopeFilter } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
 import { dispatch } from '@/lib/system-events.js';
 import { createInvoiceForPayment } from '@/lib/invoice-engine.js';
 
-// GET /api/payments — payments.view
+// GET /api/payments — payments.view (data-scope enforced)
 export async function GET(request) {
   const perm = await requirePermission(request, 'payments.view');
   if (perm instanceof NextResponse) return perm;
   try {
+    const { auth, dataScope, departmentId } = perm;
     const { searchParams } = new URL(request.url);
     const deal_id = searchParams.get('deal_id');
     const status = searchParams.get('status');
 
+    const params = [];
     let sql = `SELECT p.*, d.title as deal_title, COALESCE(c.company_name, d.client_name) as client_name, a.name as account_name
                FROM payments p
                LEFT JOIN deals d ON p.deal_id = d.id
                LEFT JOIN clients c ON d.client_id = c.id
                LEFT JOIN accounts a ON p.account_id = a.id WHERE 1=1`;
-    const params = [];
+
     if (deal_id) { params.push(deal_id); sql += ` AND p.deal_id = $${params.length}`; }
     if (status) { params.push(status); sql += ` AND p.status = $${params.length}`; }
-    sql += ` ORDER BY p.payment_date DESC`;
 
+    // ── Data scope enforcement ───────────────────────────────────────────────
+    const scopeFilter = buildDataScopeFilter({
+      dataScope: dataScope ?? 'GLOBAL',
+      userId: auth.userId,
+      departmentId,
+      tableAlias: 'p',
+      paramOffset: params.length,
+    });
+    sql += scopeFilter.clause;
+    params.push(...scopeFilter.params);
+
+    sql += ` ORDER BY p.payment_date DESC`;
     const result = await query(sql, params);
     return NextResponse.json({ success: true, data: result.rows });
   } catch (error) {

@@ -26,7 +26,7 @@ import { NextResponse } from 'next/server';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-/** @type {Map<string, { permissions: string[], hierarchyLevel: number, authorityLevel: number, expiry: number }>} */
+/** @type {Map<string, { permissions: string[], hierarchyLevel: number, authorityLevel: number, dataScope: string, departmentId: string|null, expiry: number }>} */
 const permissionCache = new Map();
 
 /**
@@ -38,12 +38,14 @@ async function getCachedPermissions(userId) {
     return cached;
   }
   // Load from DB
-  const [permissions, hierarchyLevel, authorityLevel] = await Promise.all([
+  const [permissions, hierarchyLevel, authorityLevel, dataScope, departmentId] = await Promise.all([
     loadUserPermissionsFromDB(userId),
     getUserHierarchyLevel(userId),
     getUserAuthorityLevel(userId),
+    getUserDataScope(userId),
+    getUserDepartmentId(userId),
   ]);
-  const entry = { permissions, hierarchyLevel, authorityLevel, expiry: Date.now() + CACHE_TTL_MS };
+  const entry = { permissions, hierarchyLevel, authorityLevel, dataScope, departmentId, expiry: Date.now() + CACHE_TTL_MS };
   permissionCache.set(userId, entry);
   return entry;
 }
@@ -69,10 +71,15 @@ export function invalidateAllPermissionCaches() {
 // ============================================================================
 
 /**
- * Load all permissions for a user from DB (internal, used by cache)
+ * Load all permissions for a user from DB (internal, used by cache).
+ *
+ * Primary path:  users → staff → staff_roles → role_permissions → permissions
+ * Fallback path: users.role (text) → roles → role_permissions → permissions
+ *   (used when the user has no linked staff record yet, e.g. orphan users)
  */
 async function loadUserPermissionsFromDB(userId) {
   try {
+    // Primary: full normalized chain
     const result = await query(
       `SELECT DISTINCT p.module, p.action
        FROM users u
@@ -84,7 +91,22 @@ async function loadUserPermissionsFromDB(userId) {
        ORDER BY p.module, p.action`,
       [userId]
     );
-    return result.rows.map(r => `${r.module}.${r.action}`);
+    if (result.rows.length > 0) {
+      return result.rows.map(r => `${r.module}.${r.action}`);
+    }
+
+    // Fallback: derive from users.role text field when staff link is missing
+    const fallback = await query(
+      `SELECT DISTINCT p.module, p.action
+       FROM users u
+       JOIN roles r ON u.role = r.name
+       JOIN role_permissions rp ON rp.role_id = r.id
+       JOIN permissions p ON rp.permission_id = p.id
+       WHERE u.id = $1
+       ORDER BY p.module, p.action`,
+      [userId]
+    );
+    return fallback.rows.map(r => `${r.module}.${r.action}`);
   } catch (error) {
     console.error('[RBAC] loadUserPermissionsFromDB failed:', error.message);
     return [];
@@ -144,12 +166,137 @@ export async function getRolePermissionsFromDB(roleId) {
 }
 
 // ============================================================================
+// DATA SCOPE
+// ============================================================================
+
+/**
+ * Get the data scope for a user based on their most-permissive role.
+ * GLOBAL > DEPARTMENT > OWN  (returns highest privilege found)
+ * Defaults to OWN when no role is linked.
+ *
+ * @param {string} userId
+ * @returns {Promise<'OWN'|'DEPARTMENT'|'GLOBAL'>}
+ */
+export async function getUserDataScope(userId) {
+  try {
+    const result = await query(
+      `SELECT r.data_scope
+       FROM users u
+       JOIN staff s ON u.staff_id = s.id
+       JOIN staff_roles sr ON sr.staff_id = s.id
+       JOIN roles r ON sr.role_id = r.id
+       WHERE u.id = $1`,
+      [userId]
+    );
+    if (result.rows.length > 0) {
+      const scopes = result.rows.map(r => r.data_scope).filter(Boolean);
+      if (scopes.includes('GLOBAL'))     return 'GLOBAL';
+      if (scopes.includes('DEPARTMENT')) return 'DEPARTMENT';
+      if (scopes.includes('OWN'))        return 'OWN';
+    }
+    // Fallback: via users.role text
+    const fallback = await query(
+      `SELECT r.data_scope
+       FROM users u
+       JOIN roles r ON u.role = r.name
+       WHERE u.id = $1`,
+      [userId]
+    );
+    if (fallback.rows.length > 0) {
+      const scopes = fallback.rows.map(r => r.data_scope).filter(Boolean);
+      if (scopes.includes('GLOBAL'))     return 'GLOBAL';
+      if (scopes.includes('DEPARTMENT')) return 'DEPARTMENT';
+      if (scopes.includes('OWN'))        return 'OWN';
+    }
+    return 'OWN'; // Safest default
+  } catch (error) {
+    console.error('[RBAC] getUserDataScope failed:', error.message);
+    return 'OWN'; // Fail closed
+  }
+}
+
+/**
+ * Get the department_id for a user via their staff record.
+ *
+ * @param {string} userId
+ * @returns {Promise<string|null>}
+ */
+export async function getUserDepartmentId(userId) {
+  try {
+    const result = await query(
+      `SELECT s.department_id FROM users u JOIN staff s ON u.staff_id = s.id WHERE u.id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.department_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a SQL WHERE clause fragment to enforce data scope.
+ *
+ * Usage:
+ *   const existing = [stage]; // already bound params
+ *   const filter = buildDataScopeFilter({ dataScope, userId, departmentId,
+ *                                         tableAlias: 'p', paramOffset: existing.length });
+ *   const params = [...existing, ...filter.params];
+ *   query(`SELECT * FROM prospects p WHERE p.stage = $1${filter.clause}`, params);
+ *
+ * @param {{ dataScope: string, userId: string, departmentId: string|null,
+ *           tableAlias?: string, createdByCol?: string, departmentCol?: string,
+ *           paramOffset?: number }} opts
+ * @returns {{ clause: string, params: any[] }}
+ */
+export function buildDataScopeFilter({
+  dataScope,
+  userId,
+  departmentId,
+  tableAlias = '',
+  createdByCol = 'created_by',
+  departmentCol = 'department_id',
+  paramOffset = 0,
+}) {
+  const prefix = tableAlias ? `${tableAlias}.` : '';
+  if (dataScope === 'GLOBAL') {
+    return { clause: '', params: [] };
+  }
+  if (dataScope === 'DEPARTMENT' && departmentId) {
+    return {
+      clause: ` AND (${prefix}${departmentCol} = $${paramOffset + 1} OR ${prefix}${createdByCol} = $${paramOffset + 2})`,
+      params: [departmentId, userId],
+    };
+  }
+  // OWN (or DEPARTMENT without a department)
+  return {
+    clause: ` AND ${prefix}${createdByCol} = $${paramOffset + 1}`,
+    params: [userId],
+  };
+}
+
+/**
+ * Get data scope info for user from cache (single convenient call for API routes).
+ *
+ * @param {string} userId
+ * @returns {Promise<{ dataScope: string, departmentId: string|null }>}
+ */
+export async function getUserScopeInfo(userId) {
+  try {
+    const cached = await getCachedPermissions(userId);
+    return { dataScope: cached.dataScope ?? 'OWN', departmentId: cached.departmentId ?? null };
+  } catch {
+    return { dataScope: 'OWN', departmentId: null };
+  }
+}
+
+// ============================================================================
 // HIERARCHY SYSTEM
 // ============================================================================
 
 /**
- * Get the effective hierarchy level for a user (lowest number = highest authority)
- * Uses the best (lowest) hierarchy_level among all assigned roles
+ * Get the effective hierarchy level for a user (lowest number = highest authority).
+ * Primary: via staff → staff_roles → roles chain.
+ * Fallback: via users.role → roles (when no staff record is linked).
  */
 export async function getUserHierarchyLevel(userId) {
   try {
@@ -162,7 +309,17 @@ export async function getUserHierarchyLevel(userId) {
        WHERE u.id = $1`,
       [userId]
     );
-    return result.rows[0]?.hierarchy_level ?? 5; // Default to lowest authority
+    if (result.rows[0]?.hierarchy_level != null) {
+      return result.rows[0].hierarchy_level;
+    }
+    // Fallback: use users.role text
+    const fallback = await query(
+      `SELECT MIN(r.hierarchy_level) AS hierarchy_level
+       FROM users u JOIN roles r ON u.role = r.name
+       WHERE u.id = $1`,
+      [userId]
+    );
+    return fallback.rows[0]?.hierarchy_level ?? 5;
   } catch (error) {
     console.error('[RBAC] getUserHierarchyLevel failed:', error.message);
     return 5;
@@ -170,8 +327,10 @@ export async function getUserHierarchyLevel(userId) {
 }
 
 /**
- * Get the effective authority level for a user (higher number = more authority)
- * Uses the best (highest) authority_level among all assigned roles
+ * Get the effective authority level for a user (higher number = more authority).
+ * Primary: via staff → staff_roles → roles chain.
+ * Fallback A: use denormalized users.authority_level (fast path).
+ * Fallback B: derive from users.role text → roles.
  */
 export async function getUserAuthorityLevel(userId) {
   try {
@@ -184,7 +343,25 @@ export async function getUserAuthorityLevel(userId) {
        WHERE u.id = $1`,
       [userId]
     );
-    return result.rows[0]?.authority_level ?? 10; // Default to viewer-level
+    if (result.rows[0]?.authority_level != null) {
+      return result.rows[0].authority_level;
+    }
+    // Fallback A: denormalized column
+    const fast = await query(
+      `SELECT authority_level FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (fast.rows[0]?.authority_level != null && fast.rows[0].authority_level > 10) {
+      return fast.rows[0].authority_level;
+    }
+    // Fallback B: derive from users.role text
+    const fallback = await query(
+      `SELECT MAX(r.authority_level) AS authority_level
+       FROM users u JOIN roles r ON u.role = r.name
+       WHERE u.id = $1`,
+      [userId]
+    );
+    return fallback.rows[0]?.authority_level ?? 10;
   } catch (error) {
     console.error('[RBAC] getUserAuthorityLevel failed:', error.message);
     return 10;
@@ -353,16 +530,21 @@ export async function requirePermission(request, moduleOrPermission, action) {
     );
   }
   // Superadmin bypasses all permission checks
-  if (auth.role === 'superadmin') return { auth };
+  if (auth.role === 'superadmin') {
+    return { auth, dataScope: 'GLOBAL', departmentId: null };
+  }
 
-  const allowed = await hasPermission(auth.userId, module, act, auth.role);
+  const [allowed, scopeInfo] = await Promise.all([
+    hasPermission(auth.userId, module, act, auth.role),
+    getUserScopeInfo(auth.userId),
+  ]);
   if (!allowed) {
     return NextResponse.json(
       { error: `Access denied. Required permission: ${module}.${act}` },
       { status: 403 }
     );
   }
-  return { auth };
+  return { auth, dataScope: scopeInfo.dataScope, departmentId: scopeInfo.departmentId };
 }
 
 /**

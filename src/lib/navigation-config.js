@@ -232,6 +232,7 @@ export const menuItems = [
       { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },
       { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'audit.view' },
+      { label: 'Identity Debug', href: '/app/admin/debug', description: 'User–Staff–Role integrity checker', permission: 'users.view', minHierarchy: 1 },
     ],
   },
 
@@ -253,10 +254,10 @@ export const menuItems = [
  * Quick access links for mobile bottom navigation
  */
 export const quickAccessLinks = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard' },
-  { id: 'systems', label: 'Systems', icon: Monitor, href: '/app/systems' },
-  { id: 'deals', label: 'Deals', icon: Briefcase, href: '/app/deals' },
-  { id: 'finance', label: 'Finance', icon: DollarSign, href: '/app/finance' },
+  { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/app/dashboard', permission: 'dashboard.view' },
+  { id: 'systems', label: 'Systems', icon: Monitor, href: '/app/systems', permission: 'systems.view' },
+  { id: 'deals', label: 'Deals', icon: Briefcase, href: '/app/deals', permission: 'deals.view' },
+  { id: 'finance', label: 'Finance', icon: DollarSign, href: '/app/finance', permission: 'finance.view' },
 ];
 
 /**

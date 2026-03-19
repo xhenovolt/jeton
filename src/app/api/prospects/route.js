@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, buildDataScopeFilter } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
 
-// GET /api/prospects - List all prospects
+// GET /api/prospects - List all prospects (data-scope enforced)
 export async function GET(request) {
   try {
     const perm = await requirePermission(request, 'prospects', 'view');
     if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
+    const { auth, dataScope, departmentId } = perm;
 
     const { searchParams } = new URL(request.url);
     const stage = searchParams.get('stage');
@@ -19,6 +19,7 @@ export async function GET(request) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25')));
     const offset = (page - 1) * limit;
 
+    const params = [];
     let sql = `SELECT p.*, 
       (SELECT COUNT(*) FROM followups f WHERE f.prospect_id = p.id) as followup_count,
       (SELECT COUNT(*) FROM prospect_contacts pc WHERE pc.prospect_id = p.id) as contact_count,
@@ -28,7 +29,6 @@ export async function GET(request) {
       LEFT JOIN systems s ON p.system_id = s.id
       LEFT JOIN services sv ON p.service_id = sv.id
       WHERE 1=1`;
-    const params = [];
 
     if (stage) { params.push(stage); sql += ` AND p.stage = $${params.length}`; }
     if (source) { params.push(source); sql += ` AND p.source = $${params.length}`; }
@@ -37,22 +37,28 @@ export async function GET(request) {
       sql += ` AND (p.company_name ILIKE $${params.length} OR p.contact_name ILIKE $${params.length} OR p.email ILIKE $${params.length})`;
     }
 
+    // ── Data scope enforcement ───────────────────────────────────────────────
+    const scopeFilter = buildDataScopeFilter({
+      dataScope: dataScope ?? 'GLOBAL',
+      userId: auth.userId,
+      departmentId,
+      tableAlias: 'p',
+      paramOffset: params.length,
+    });
+    sql += scopeFilter.clause;
+    params.push(...scopeFilter.params);
+
+    const countSql = sql.replace(/SELECT p\.\*.*?FROM prospects p/s, 'SELECT COUNT(*) FROM prospects p');
+    const countParams = [...params];
+
     sql += ` ORDER BY p.created_at DESC`;
     params.push(limit); sql += ` LIMIT $${params.length}`;
     params.push(offset); sql += ` OFFSET $${params.length}`;
 
-    const result = await query(sql, params);
-
-    // Count query with same filters
-    let countSql = `SELECT COUNT(*) FROM prospects p WHERE 1=1`;
-    const countParams = [];
-    if (stage) { countParams.push(stage); countSql += ` AND p.stage = $${countParams.length}`; }
-    if (source) { countParams.push(source); countSql += ` AND p.source = $${countParams.length}`; }
-    if (search) {
-      countParams.push(`%${search}%`);
-      countSql += ` AND (p.company_name ILIKE $${countParams.length} OR p.contact_name ILIKE $${countParams.length} OR p.email ILIKE $${countParams.length})`;
-    }
-    const countResult = await query(countSql, countParams);
+    const [result, countResult] = await Promise.all([
+      query(sql, params),
+      query(countSql, countParams),
+    ]);
     const total = parseInt(countResult.rows[0].count);
 
     return NextResponse.json({

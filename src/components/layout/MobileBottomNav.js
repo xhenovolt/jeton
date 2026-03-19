@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Home, Zap, TrendingUp, Menu } from 'lucide-react';
 import { quickAccessLinks } from '@/lib/navigation-config';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 /**
  * Mobile Bottom Navigation Bar
  * 
  * Features:
  * - Visible only on mobile (< md breakpoint)
- * - Quick access to frequently used routes
+ * - Quick access to permitted routes only
  * - Menu button to trigger drawer
  * - Active route highlighting
  * - App-like feel
@@ -20,15 +21,25 @@ import { quickAccessLinks } from '@/lib/navigation-config';
 export function MobileBottomNav({ onDrawerOpen }) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { user, hasPermission } = usePermissions();
+
+  // Filter quick access links by permission
+  const visibleLinks = useMemo(() => {
+    if (!user) return [];
+    if (user.is_superadmin) return quickAccessLinks;
+    return quickAccessLinks.filter((link) =>
+      !link.permission || hasPermission(link.permission)
+    );
+  }, [user, hasPermission]);
 
   // Update active tab based on current route
   useEffect(() => {
-    quickAccessLinks.forEach((link) => {
+    visibleLinks.forEach((link) => {
       if (pathname === link.href) {
         setActiveTab(link.id);
       }
     });
-  }, [pathname]);
+  }, [pathname, visibleLinks]);
 
   const isActive = (href) => pathname === href;
 
@@ -44,7 +55,7 @@ export function MobileBottomNav({ onDrawerOpen }) {
       <div className="flex items-center w-full h-full">
         {/* Quick Links */}
         <div className="flex items-center flex-1 h-full">
-          {quickAccessLinks.map((link) => {
+          {visibleLinks.map((link) => {
             const Icon = link.icon;
             const active = isActive(link.href);
 

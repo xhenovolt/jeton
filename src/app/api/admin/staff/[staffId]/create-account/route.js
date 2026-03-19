@@ -39,6 +39,7 @@ export async function POST(request, { params }) {
     if (block) return block;
 
     // --- 3. Check no user account is already linked --------------------------
+    // Check both linked_user_id (canonical) and users.staff_id (bi-directional)
     if (staff.linked_user_id) {
       return NextResponse.json(
         { success: false, error: 'This staff member already has a linked user account.' },
@@ -46,7 +47,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Also check via users table (belt-and-suspenders)
+    // Belt-and-suspenders: check via users table
     const existingLink = await query(
       'SELECT id FROM users WHERE staff_id = $1',
       [staffId]
@@ -54,11 +55,11 @@ export async function POST(request, { params }) {
     if (existingLink.rows.length > 0) {
       // Repair the link pointer and return the existing user
       await query(
-        'UPDATE staff SET linked_user_id = $1 WHERE id = $2',
+        'UPDATE staff SET linked_user_id = $1, user_id = $1 WHERE id = $2',
         [existingLink.rows[0].id, staffId]
       );
       return NextResponse.json(
-        { success: false, error: 'Staff already has a linked user account (now repaired).' },
+        { success: false, error: 'Staff already has a linked user account (link now repaired).' },
         { status: 409 }
       );
     }
@@ -124,13 +125,18 @@ export async function POST(request, { params }) {
     // --- 7. Create the user account -----------------------------------------
     const passwordHash = await hashPassword(password);
 
+    // Determine the role name from roleId (fall back to 'user')
+    let roleName = 'user';
+    if (roleId) {
+      const rn = await query('SELECT name FROM roles WHERE id = $1', [roleId]);
+      roleName = rn.rows[0]?.name ?? 'user';
+    }
+
     const insertResult = await query(
       `INSERT INTO users
-         (email, username, name, password_hash, role, role_id, staff_id,
+         (email, username, name, password_hash, role, staff_id,
           status, is_active, must_reset_password, first_login_completed, authority_level)
-       VALUES ($1, $2, $3, $4,
-               COALESCE((SELECT name FROM roles WHERE id = $5), 'user'),
-               $5, $6,
+       VALUES ($1, $2, $3, $4, $5, $6,
                'active', true, true, false, $7)
        RETURNING id, email, username, name, authority_level`,
       [
@@ -138,16 +144,16 @@ export async function POST(request, { params }) {
         username.trim(),
         staff.name,
         passwordHash,
-        roleId,
+        roleName,
         staffId,
         authorityLevel,
       ]
     );
     const newUser = insertResult.rows[0];
 
-    // --- 8. Link the user back to the staff record --------------------------
+    // --- 8. Link the user back to the staff record (both columns) -----------
     await query(
-      'UPDATE staff SET linked_user_id = $1 WHERE id = $2',
+      'UPDATE staff SET linked_user_id = $1, user_id = $1 WHERE id = $2',
       [newUser.id, staffId]
     );
 

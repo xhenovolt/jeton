@@ -7,6 +7,7 @@
 
 import { cookies } from 'next/headers.js';
 import { getSession } from './session.js';
+import { getUserScopeInfo } from './permissions.js';
 
 /**
  * Verify authentication from request
@@ -30,12 +31,26 @@ export async function verifyAuth(request) {
       return null;
     }
 
+    const isSuperadmin = session.user.role === 'superadmin';
+    // Fetch data scope (non-blocking, default to GLOBAL for superadmin)
+    let dataScope = 'GLOBAL';
+    let departmentId = null;
+    if (!isSuperadmin) {
+      try {
+        const scopeInfo = await getUserScopeInfo(session.userId);
+        dataScope = scopeInfo.dataScope;
+        departmentId = scopeInfo.departmentId;
+      } catch { /* non-fatal */ }
+    }
+
     return {
       userId: session.userId,
       email: session.user.email,
       role: session.user.role,
-      is_superadmin: session.user.role === 'superadmin',
+      is_superadmin: isSuperadmin,
       status: session.user.status,
+      dataScope,
+      departmentId,
     };
   } catch (error) {
     console.error('[Auth] Verification failed:', error.message);

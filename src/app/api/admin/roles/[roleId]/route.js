@@ -100,6 +100,11 @@ export async function PUT(request, { params }) {
     if (responsibilities !== undefined) {
       updates.push(`responsibilities = $${idx}`); values.push(responsibilities || null); idx++;
     }
+    if (body.data_scope !== undefined) {
+      const validScopes = ['OWN', 'DEPARTMENT', 'GLOBAL'];
+      const scope = validScopes.includes(body.data_scope) ? body.data_scope : 'GLOBAL';
+      updates.push(`data_scope = $${idx}`); values.push(scope); idx++;
+    }
 
     if (updates.length > 0) {
       updates.push(`updated_at = NOW()`);

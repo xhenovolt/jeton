@@ -11,7 +11,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Shield, ChevronDown, ChevronUp, ToggleLeft, ToggleRight,
-  Loader2, Search, ShieldCheck, RefreshCw,
+  Loader2, Search, ShieldCheck, RefreshCw, Globe2, Building2, Lock,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
@@ -66,6 +66,12 @@ const ACTION_COLOR = {
   export: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
 };
 
+const DATA_SCOPES = [
+  { value: 'OWN',        label: 'Own Records',        Icon: Lock,      color: 'text-amber-600 dark:text-amber-400' },
+  { value: 'DEPARTMENT', label: 'Department Records',  Icon: Building2, color: 'text-blue-600 dark:text-blue-400' },
+  { value: 'GLOBAL',     label: 'All Records (Global)', Icon: Globe2,   color: 'text-green-600 dark:text-green-400' },
+];
+
 function PermissionToggle({ perm, enabled, onToggle, loading }) {
   const colorClass = ACTION_COLOR[perm.action] || 'text-muted-foreground bg-muted border-border';
   return (
@@ -107,6 +113,7 @@ export default function RolePermissionsPage() {
   const [loadingInit, setLoadingInit] = useState(true);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState({});
+  const [savingScope, setSavingScope] = useState(false);
 
   // Fetch roles + all permissions on mount
   useEffect(() => {
@@ -168,6 +175,30 @@ export default function RolePermissionsPage() {
       toast.error('Network error');
     } finally {
       setToggling((prev) => { const n = { ...prev }; delete n[permId]; return n; });
+    }
+  };
+
+  const updateDataScope = async (scope) => {
+    if (!selectedRole) return;
+    setSavingScope(true);
+    try {
+      const res = await fetchWithAuth(`/api/admin/roles/${selectedRole.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_scope: scope }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectedRole((prev) => ({ ...prev, data_scope: scope }));
+        setRoles((prev) => prev.map((r) => r.id === selectedRole.id ? { ...r, data_scope: scope } : r));
+        toast.success('Data scope updated');
+      } else {
+        toast.error(data.error || 'Failed to update data scope');
+      }
+    } catch {
+      toast.error('Network error');
+    } finally {
+      setSavingScope(false);
     }
   };
 
@@ -256,8 +287,15 @@ export default function RolePermissionsPage() {
                 }`}
               >
                 <div className="font-medium capitalize">{role.alias || role.name}</div>
-                <div className="text-[11px] opacity-70 mt-0.5">
-                  {role.permission_count || 0} permissions · Level {role.hierarchy_level}
+                <div className="text-[11px] opacity-70 mt-0.5 flex items-center gap-2">
+                  <span>{role.permission_count || 0} permissions · Level {role.hierarchy_level}</span>
+                  {role.data_scope && role.data_scope !== 'GLOBAL' && (
+                    <span className={`font-semibold ${
+                      role.data_scope === 'OWN' ? 'text-amber-500' : 'text-blue-500'
+                    }`}>
+                      {role.data_scope}
+                    </span>
+                  )}
                 </div>
               </button>
             ))}
@@ -286,6 +324,37 @@ export default function RolePermissionsPage() {
                   placeholder="Search permissions…"
                   className="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
+              </div>
+
+              {/* Data Scope Selector */}
+              <div className="bg-muted/30 border border-border rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Data Scope</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Controls which records this role can see when data-scoped APIs are called.</p>
+                  </div>
+                  {savingScope && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {DATA_SCOPES.map(({ value, label, Icon, color }) => {
+                    const isActive = (selectedRole?.data_scope || 'GLOBAL') === value;
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => updateDataScope(value)}
+                        disabled={savingScope}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all disabled:opacity-60 ${
+                          isActive
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? color : ''}`} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Module groups */}

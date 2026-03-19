@@ -20,6 +20,7 @@ export async function GET(request) {
       SELECT r.id, r.name, r.description, r.is_system, r.is_active,
         r.hierarchy_level, r.authority_level, r.department_id, r.alias,
         r.responsibilities, r.created_by, r.created_at, r.updated_at,
+        COALESCE(r.data_scope, 'GLOBAL') AS data_scope,
         COALESCE(d.name, d.department_name) AS department_name,
         (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
         (SELECT COUNT(DISTINCT u.id) FROM staff_roles sr JOIN staff s ON sr.staff_id = s.id JOIN users u ON u.staff_id = s.id WHERE sr.role_id = r.id) AS user_count

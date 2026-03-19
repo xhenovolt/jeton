@@ -71,8 +71,25 @@ export async function POST(request) {
     // Update last login
     await updateUserLastLogin(user.id);
 
+    // Collect device metadata for session tracking
+    const deviceInfo = {
+      ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || null,
+      userAgent: request.headers.get('user-agent') || null,
+      deviceName: null, // Can be set by the client via a request header in the future
+    };
+    const ua = deviceInfo.userAgent ?? '';
+    if (ua.includes('Mobile') || ua.includes('Android') || ua.includes('iPhone')) {
+      deviceInfo.deviceName = 'Mobile';
+    } else if (ua.includes('Tablet') || ua.includes('iPad')) {
+      deviceInfo.deviceName = 'Tablet';
+    } else if (ua) {
+      deviceInfo.deviceName = 'Desktop';
+    }
+
     // Create session in database
-    const sessionId = await createSession(user.id);
+    const sessionId = await createSession(user.id, deviceInfo);
 
     // Log success
     await logAuthEvent({
