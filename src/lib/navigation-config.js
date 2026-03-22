@@ -40,6 +40,8 @@ import {
   Code2,
   BookMarked,
   Bell,
+  CreditCard,
+  Tag,
 } from 'lucide-react';
 
 /**
@@ -200,6 +202,18 @@ export const menuItems = [
       { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
       { label: 'Documents', href: '/app/documents', description: 'Document center', permission: 'documents.view' },
       { label: 'Decision Log', href: '/app/decision-log', description: 'Key decisions & rationale', permission: 'decision_logs.view' },
+    ],
+  },
+
+  // === PRICING & SUBSCRIPTIONS ===
+  {
+    label: 'Pricing',
+    icon: Tag,
+    category: 'sections',
+    module: 'pricing',
+    submenu: [
+      { label: 'Pricing Plans', href: '/app/pricing', description: 'Centralized pricing for all systems', permission: 'pricing.view' },
+      { label: 'Subscriptions', href: '/app/subscriptions', description: 'Client subscription management', permission: 'subscriptions.view' },
     ],
   },
 
