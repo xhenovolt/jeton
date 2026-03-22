@@ -25,6 +25,7 @@ const OPEN_PATH_PREFIXES = [
   '/app/unauthorized',
   '/app/notifications',
   '/app/settings',         // General settings section open to all
+  '/app/dashboard',        // Dashboard is always accessible; widgets self-gate via hasPermission
 ];
 
 export function RoutePermissionGuard({ children }) {

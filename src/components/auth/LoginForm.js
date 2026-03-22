@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 
@@ -13,6 +13,15 @@ export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // If user already has a valid session, skip the login page silently.
+  // We check /api/auth/me here (not in middleware) because middleware cannot
+  // query the DB — it can only see the cookie, which may be stale.
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => { if (r.ok) router.replace('/app/dashboard'); })
+      .catch(() => {}); // silent — let the user log in normally if check fails
+  }, [router]);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +52,7 @@ export default function LoginForm() {
         return;
       }
 
-      router.push('/app');
+      router.push('/app/dashboard');
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Login error:', err);

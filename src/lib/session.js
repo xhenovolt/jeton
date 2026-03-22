@@ -215,7 +215,10 @@ export function getSecureCookieOptions() {
   return {
     httpOnly: true,            // Not accessible via JavaScript
     secure: isProduction,      // HTTPS only in production
-    sameSite: 'strict',        // CSRF protection (strict in production)
+    // 'lax' sends cookie on same-site navigations AND top-level cross-site navigations
+    // (e.g. GET links, redirects). 'strict' would block the cookie during redirect
+    // chains on Vercel/Firefox, causing infinite redirect loops.
+    sameSite: 'lax',
     maxAge: SESSION_DURATION_MS / 1000, // Convert ms to seconds
     path: '/',
   };
