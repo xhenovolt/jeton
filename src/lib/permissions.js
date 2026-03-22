@@ -755,6 +755,9 @@ const ROLE_HIERARCHY = {
  * @returns {boolean} True if user has permission
  */
 export function canAccess(user, resource, action) {
+  if (!user) return false;
+  // Superadmin bypasses ALL permission checks — no matrix lookup needed
+  if (user.role === 'superadmin' || user.is_superadmin) return true;
   // Suspended users cannot access anything
   if (user.status === 'suspended') {
     return false;

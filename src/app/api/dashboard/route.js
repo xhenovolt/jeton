@@ -34,16 +34,22 @@ async function widgetDealSummary({ userId, dataScope, departmentId }) {
   const filter = buildDataScopeFilter({ dataScope, userId, departmentId, tableAlias: 'd', paramOffset: 0 });
   const params = [...filter.params];
   const { rows } = await query(
-    `SELECT
+    `WITH dp AS (
+       SELECT d.status, d.total_amount, d.due_date,
+         COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.deal_id = d.id AND p.status = 'completed'), 0) AS paid_amount
+       FROM deals d WHERE 1=1${filter.clause}
+     )
+     SELECT
        COUNT(*) FILTER (WHERE status IN ('draft','sent','accepted','in_progress')) as active_deals,
        COALESCE(SUM(total_amount) FILTER (WHERE status IN ('draft','sent','accepted','in_progress')), 0) as active_value,
        COUNT(*) FILTER (WHERE status = 'completed') as completed_deals,
        COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as completed_value,
-       COUNT(*) FILTER (WHERE due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('completed','cancelled')) as overdue_deals
-     FROM deals d WHERE 1=1${filter.clause}`,
+       COUNT(*) FILTER (WHERE due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('completed','cancelled')) as overdue_deals,
+       COALESCE(SUM(total_amount - paid_amount) FILTER (WHERE status IN ('draft','sent','accepted','in_progress')), 0) as outstanding_balance
+     FROM dp`,
     params
   );
-  return rows[0] || { active_deals: 0, active_value: 0, completed_deals: 0, completed_value: 0, overdue_deals: 0 };
+  return rows[0] || { active_deals: 0, active_value: 0, completed_deals: 0, completed_value: 0, overdue_deals: 0, outstanding_balance: 0 };
 }
 
 async function widgetUpcomingFollowups({ userId, dataScope, departmentId }) {
@@ -170,14 +176,18 @@ async function widgetAttentionItems({ userId, dataScope }) {
 }
 
 async function widgetRecentActivity({ userId, dataScope }) {
-  const scopeFilter = dataScope === 'OWN'
-    ? ` AND user_id = '${userId}'`
-    : '';
   try {
+    const params = [];
+    let scopeFilter = '';
+    if (dataScope === 'OWN') {
+      params.push(userId);
+      scopeFilter = ` AND user_id = $${params.length}`;
+    }
     const { rows } = await query(
       `SELECT action, entity_type, details, created_at
        FROM audit_logs WHERE 1=1${scopeFilter}
-       ORDER BY created_at DESC LIMIT 10`
+       ORDER BY created_at DESC LIMIT 10`,
+      params
     );
     return rows;
   } catch { return []; }
@@ -188,6 +198,23 @@ async function widgetMonthlyFinancials() {
     const { rows } = await query(`SELECT * FROM v_monthly_financials LIMIT 12`);
     return rows;
   } catch { return []; }
+}
+
+async function widgetAdminStats() {
+  try {
+    const [usersR, staffR, clientsR, rolesR] = await Promise.all([
+      query(`SELECT COUNT(*) as count FROM users WHERE is_active = true`),
+      query(`SELECT COUNT(*) as count FROM staff WHERE status = 'active'`),
+      query(`SELECT COUNT(*) as count FROM clients WHERE status = 'active'`),
+      query(`SELECT COUNT(*) as count FROM roles`),
+    ]);
+    return {
+      total_users:   parseInt(usersR.rows[0]?.count   || 0),
+      total_staff:   parseInt(staffR.rows[0]?.count   || 0),
+      total_clients: parseInt(clientsR.rows[0]?.count || 0),
+      total_roles:   parseInt(rolesR.rows[0]?.count   || 0),
+    };
+  } catch { return { total_users: 0, total_staff: 0, total_clients: 0, total_roles: 0 }; }
 }
 
 // ─── Widget registry ─────────────────────────────────────────────────────────
@@ -208,6 +235,7 @@ const WIDGET_FETCHERS = {
   attention_items:    widgetAttentionItems,
   recent_activity:    widgetRecentActivity,
   monthly_financials: widgetMonthlyFinancials,
+  admin_overview:     widgetAdminStats,
 };
 
 // ─── Default widget layout per permission set ────────────────────────────────
@@ -230,6 +258,7 @@ function inferWidgetsFromPermissions(permissions) {
   if (has('operations.view'))       widgets.push({ id: 'operations',        label: 'Operations',        size: 'small' });
   if (has('finance.view'))          widgets.push({ id: 'monthly_financials',label: 'Monthly P&L',       size: 'large' });
   if (has('activity_logs.view'))    widgets.push({ id: 'recent_activity',   label: 'Activity',          size: 'small' });
+  if (has('users.view'))            widgets.push({ id: 'admin_overview',    label: 'Admin Overview',    size: 'medium' });
 
   // Always show deals if nothing else
   if (widgets.length === 0) {

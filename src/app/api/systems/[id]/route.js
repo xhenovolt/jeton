@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
+import { sanitizeSystemDetail } from '@/lib/rbac.js';
 
 // GET /api/systems/[id]
 export async function GET(request, { params }) {
@@ -38,16 +39,21 @@ export async function GET(request, { params }) {
     system.total_revenue = deals.reduce((s, d) => s + parseFloat(d.total_amount || 0), 0);
     system.total_paid = deals.reduce((s, d) => s + parseFloat(d.paid_amount || 0), 0);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...system,
-        issues: issuesRes.rows,
-        changes: changesRes.rows,
-        deals,
-        licenses: licensesRes.rows,
-      },
-    });
+    let responseData = {
+      ...system,
+      issues: issuesRes.rows,
+      changes: changesRes.rows,
+      deals,
+      licenses: licensesRes.rows,
+    };
+
+    // Backend enforcement: strip financial fields for users without finance.view
+    const hasFinanceAccess = await hasPermission(auth.userId, 'finance', 'view', auth.role);
+    if (!hasFinanceAccess) {
+      responseData = sanitizeSystemDetail(responseData);
+    }
+
+    return NextResponse.json({ success: true, data: responseData });
   } catch (error) {
     console.error('[Systems/id] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch system' }, { status: 500 });

@@ -138,10 +138,11 @@ export default function DashboardPage() {
   }
 
   const d          = data || {};
-  const fin        = d.financial   || {};
-  const deals      = d.deals       || {};
-  const ops        = d.operations  || {};
-  const attention  = d.attention   || [];
+  const wd         = d.widgetData  || {};             // widget data map from /api/dashboard
+  const fin        = wd.financial_summary   || {};
+  const deals      = wd.deal_summary        || {};
+  const ops        = wd.operations          || {};
+  const attention  = wd.attention_items     || [];
 
   // Derive role label for header
   const roleLabel = user?.is_superadmin
@@ -258,7 +259,7 @@ export default function DashboardPage() {
             <Link href="/app/admin/users">
               <div className="bg-card rounded-xl border p-4 hover:border-blue-300 transition cursor-pointer">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Users className="w-3.5 h-3.5" />Total Users</div>
-                <div className="text-xl font-bold text-foreground">{d.admin?.total_users ?? '—'}</div>
+                <div className="text-xl font-bold text-foreground">{wd.admin_overview?.total_users ?? '—'}</div>
               </div>
             </Link>
           )}
@@ -266,7 +267,7 @@ export default function DashboardPage() {
             <Link href="/app/staff">
               <div className="bg-card rounded-xl border p-4 hover:border-blue-300 transition cursor-pointer">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><UserCheck className="w-3.5 h-3.5" />Staff Members</div>
-                <div className="text-xl font-bold text-foreground">{d.admin?.total_staff ?? '—'}</div>
+                <div className="text-xl font-bold text-foreground">{wd.admin_overview?.total_staff ?? '—'}</div>
               </div>
             </Link>
           )}
@@ -274,7 +275,7 @@ export default function DashboardPage() {
             <Link href="/app/clients">
               <div className="bg-card rounded-xl border p-4 hover:border-blue-300 transition cursor-pointer">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Target className="w-3.5 h-3.5" />Active Clients</div>
-                <div className="text-xl font-bold text-foreground">{d.admin?.total_clients ?? '—'}</div>
+                <div className="text-xl font-bold text-foreground">{wd.admin_overview?.total_clients ?? '—'}</div>
               </div>
             </Link>
           )}
@@ -282,7 +283,7 @@ export default function DashboardPage() {
             <Link href="/app/admin/roles">
               <div className="bg-card rounded-xl border p-4 hover:border-blue-300 transition cursor-pointer">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Shield className="w-3.5 h-3.5" />Roles</div>
-                <div className="text-xl font-bold text-foreground">{d.admin?.total_roles ?? '—'}</div>
+                <div className="text-xl font-bold text-foreground">{wd.admin_overview?.total_roles ?? '—'}</div>
               </div>
             </Link>
           )}
@@ -295,11 +296,11 @@ export default function DashboardPage() {
         {/* Prospect Pipeline (prospects.view) */}
         {can('prospects.view') && (
           <SectionCard title="Prospect Pipeline" href="/app/prospects">
-            {(d.pipeline || []).length === 0 ? (
+            {(wd.pipeline_summary || []).length === 0 ? (
               <EmptyState message="No active prospects yet" />
             ) : (
               <div className="space-y-3">
-                {(d.pipeline || []).map((stage) => (
+                {(wd.pipeline_summary || []).map((stage) => (
                   <div key={stage.stage} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -319,7 +320,7 @@ export default function DashboardPage() {
         {/* Account Balances (accounts.view or finance.view) */}
         {(can('accounts.view') || can('finance.view')) && (
           <SectionCard title="Account Balances" href="/app/finance/accounts" linkLabel="Manage →">
-            {(d.accounts || []).length === 0 ? (
+            {(wd.account_balances || []).length === 0 ? (
               <div className="text-center py-8">
                 <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                 <EmptyState message="No accounts set up" />
@@ -327,7 +328,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(d.accounts || []).map((acct) => (
+                {(wd.account_balances || []).map((acct) => (
                   <div key={acct.account_id} className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-medium">{acct.name}</div>
@@ -350,11 +351,11 @@ export default function DashboardPage() {
         {/* Upcoming Follow-ups (prospects.view) */}
         {can('prospects.view') && (
           <SectionCard title="Upcoming Follow-ups" href="/app/followups">
-            {(d.upcomingFollowups || []).length === 0 ? (
+            {(wd.upcoming_followups || []).length === 0 ? (
               <EmptyState message="No upcoming follow-ups" />
             ) : (
               <div className="space-y-3">
-                {(d.upcomingFollowups || []).slice(0, 5).map((f) => (
+                {(wd.upcoming_followups || []).slice(0, 5).map((f) => (
                   <div key={f.id} className="flex items-center justify-between py-1">
                     <div>
                       <div className="text-sm font-medium">{f.prospect_name}</div>
@@ -376,11 +377,11 @@ export default function DashboardPage() {
         {/* Recent Activity (activity_logs.view or admin) */}
         {(can('activity_logs.view') || isAdmin) && (
           <SectionCard title="Recent Activity">
-            {(d.recentActivity || []).length === 0 ? (
+            {(wd.recent_activity || []).length === 0 ? (
               <EmptyState message="No recent activity" />
             ) : (
               <div className="space-y-2">
-                {(d.recentActivity || []).slice(0, 8).map((a, i) => (
+                {(wd.recent_activity || []).slice(0, 8).map((a, i) => (
                   <div key={i} className="flex items-center justify-between text-sm py-1">
                     <div>
                       <span className="font-medium capitalize">{a.action}</span>
@@ -398,11 +399,11 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Monthly Financial Trend (finance.view) ───────────────────────── */}
-      {can('finance.view') && (d.monthlyFinancials || []).length > 0 && (
+      {can('finance.view') && (wd.monthly_financials || []).length > 0 && (
         <div className="bg-card rounded-xl border border-border p-5">
           <h2 className="text-lg font-semibold text-foreground mb-4">Monthly Financial Trend</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {(d.monthlyFinancials || []).slice(0, 6).reverse().map((m, i) => {
+            {(wd.monthly_financials || []).slice(0, 6).reverse().map((m, i) => {
               const income   = parseFloat(m.income   || 0);
               const expenses = parseFloat(m.expenses || 0);
               const net      = income - expenses;

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
+import { sanitizeSystemRecord } from '@/lib/rbac.js';
 
 // GET /api/systems
 export async function GET(request) {
@@ -30,7 +31,12 @@ export async function GET(request) {
     sql += ` ORDER BY s.created_at DESC`;
 
     const result = await query(sql, params);
-    return NextResponse.json({ success: true, data: result.rows });
+
+    // Backend enforcement: strip financial fields for users without finance.view
+    const hasFinanceAccess = await hasPermission(auth.userId, 'finance', 'view', auth.role);
+    const data = hasFinanceAccess ? result.rows : result.rows.map(sanitizeSystemRecord);
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('[Systems] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch systems' }, { status: 500 });
