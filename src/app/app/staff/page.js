@@ -165,6 +165,10 @@ export default function StaffPage() {
     salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '',
     hire_date: '', status: 'active', account_status: 'active', notes: '',
   });
+  // User-account fields (only for new staff, not edit)
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const presenceInterval = useRef(null);
@@ -243,27 +247,57 @@ export default function StaffPage() {
     setForm({ name: '', email: '', phone: '', department: '', department_id: '', position: '', salary: '', salary_currency: 'UGX', salary_account_id: '', manager_id: '', hire_date: '', status: 'active', account_status: 'active', notes: '' });
     setSelectedRoleIds([]);
     setRoleFilterText('');
+    setNewUsername('');
+    setNewPassword('');
+    setShowNewPassword(false);
   };
 
   const submit = async (e) => {
     e.preventDefault();
+
+    // For new staff, validate user account fields before submitting
+    if (!editId) {
+      if (!newUsername.trim() || newUsername.trim().length < 3) {
+        toast.error('Username must be at least 3 characters');
+        return;
+      }
+      if (!newPassword || newPassword.length < 8) {
+        toast.error('Temporary password must be at least 8 characters');
+        return;
+      }
+      if (selectedRoleIds.length === 0) {
+        toast.error('Please select at least one role');
+        return;
+      }
+      if (!form.department_id) {
+        toast.error('Department is required');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const body = { ...form };
-      // Set role_id to first selected role for backward compat
+      // role_id from first selected role
       if (selectedRoleIds.length > 0) body.role_id = selectedRoleIds[0];
       if (body.salary) body.salary = parseFloat(body.salary);
       else delete body.salary;
       Object.keys(body).forEach(k => { if (body[k] === '') delete body[k]; });
       if (editId) body.id = editId;
 
+      // Attach user account fields for new staff creation
+      if (!editId) {
+        body.username = newUsername.trim().toLowerCase();
+        body.password = newPassword;
+      }
+
       const method = editId ? 'PATCH' : 'POST';
       const res = await fetchWithAuth('/api/staff', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const result = await res.json();
       if (result.success) {
         const staffId = editId || result.data?.id;
-        // Assign roles via staff_roles
-        if (staffId && selectedRoleIds.length >= 0) {
+        // For edits, sync roles via staff_roles
+        if (editId && staffId && selectedRoleIds.length >= 0) {
           try {
             await fetchWithAuth(`/api/admin/staff/${staffId}/roles`, {
               method: 'POST',
@@ -272,7 +306,10 @@ export default function StaffPage() {
             });
           } catch {}
         }
-        toast.success(editId ? 'Staff updated' : 'Staff member added');
+        const msg = editId
+          ? 'Staff updated'
+          : `Staff added. Login username: ${result.user?.username || newUsername}`;
+        toast.success(msg);
         setShowForm(false);
         setEditId(null);
         resetForm();
@@ -421,8 +458,8 @@ export default function StaffPage() {
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
+              <label className="block text-sm text-muted-foreground mb-1">Email {!editId && <span className="text-red-500">*</span>}</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required={!editId} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground" />
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Phone</label>
@@ -433,7 +470,7 @@ export default function StaffPage() {
               <select value={form.department_id} onChange={e => {
                 const dept = departments.find(d => d.id === e.target.value);
                 setForm(f => ({ ...f, department_id: e.target.value, department: dept?.name || '' }));
-              }} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
+              }} required={!editId} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
                 <option value="">Select department...</option>
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -442,7 +479,7 @@ export default function StaffPage() {
             {/* Multi-role searchable dropdown */}
             <div className="relative md:col-span-2" ref={roleDropdownRef}>
               <label className="block text-sm text-muted-foreground mb-1">
-                Roles <span className="text-xs text-muted-foreground">(from RBAC)</span>
+                Roles {!editId && <span className="text-red-500">*</span>} <span className="text-xs text-muted-foreground">(from RBAC)</span>
               </label>
               <div
                 className="w-full min-h-[42px] px-3 py-2 border border-border rounded-lg bg-background text-foreground cursor-pointer flex flex-wrap gap-1 items-center"
@@ -488,6 +525,58 @@ export default function StaffPage() {
                 </div>
               )}
             </div>
+
+            {/* User Account — required for new staff, hidden on edit */}
+            {!editId && (
+              <>
+                <div className="md:col-span-3 pt-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>User Account (required)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">Staff must have a login account. They will be prompted to set a permanent password on first login.</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-1">Username <span className="text-red-500">*</span></label>
+                  <input
+                    value={newUsername}
+                    onChange={e => setNewUsername(e.target.value.replace(/[^a-z0-9._-]/gi, '').toLowerCase())}
+                    required minLength={3} placeholder="e.g. john.doe"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-muted-foreground mb-1">Temporary Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required minLength={8} placeholder="Min 8 characters"
+                      className="w-full px-3 py-2 pr-10 border border-border rounded-lg bg-background text-foreground"
+                    />
+                    <button type="button" onClick={() => setShowNewPassword(v => !v)}
+                      className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {newPassword && (
+                    <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                      {[
+                        { label: 'At least 8 characters', met: newPassword.length >= 8 },
+                        { label: 'One uppercase letter',  met: /[A-Z]/.test(newPassword) },
+                        { label: 'One number',            met: /[0-9]/.test(newPassword) },
+                      ].map(r => (
+                        <li key={r.label} className={`flex items-center gap-1.5 text-xs ${r.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                          <span className={`w-3 h-3 rounded-full border flex-shrink-0 ${r.met ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground/40'}`} />
+                          {r.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm text-muted-foreground mb-1">Position Title</label>
