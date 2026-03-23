@@ -72,10 +72,38 @@ export default function AdminDepartmentsPage() {
   const deleteDepartment = async (id, name) => {
     if (!await confirmDelete(name)) return;
     try {
+      // First attempt — server will block if staff exist
       const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
-      if (data.success) { toast.success('Deleted'); if (selected?.id === id) { setSelected(null); setDetail(null); } fetchDepartments(); }
-      else toast.error(data.error);
+
+      if (data.success) {
+        toast.success('Deleted');
+        if (selected?.id === id) { setSelected(null); setDetail(null); }
+        fetchDepartments();
+        return;
+      }
+
+      // Handle the staff-exists warning (409)
+      if (data.requires_confirmation && data.staff_count > 0) {
+        const confirmed = window.confirm(
+          `⚠️ Warning: This department has ${data.staff_count} active staff member${data.staff_count !== 1 ? 's' : ''}.\n\n` +
+          `Deleting it will not remove the staff, but they will lose their department assignment.\n\n` +
+          `Continue anyway?`
+        );
+        if (!confirmed) return;
+        // Force delete
+        const forceRes = await fetch(`/api/departments/${id}?force=true`, { method: 'DELETE', credentials: 'include' });
+        const forceData = await forceRes.json();
+        if (forceData.success) {
+          toast.success('Department deactivated');
+          if (selected?.id === id) { setSelected(null); setDetail(null); }
+          fetchDepartments();
+        } else {
+          toast.error(forceData.error);
+        }
+      } else {
+        toast.error(data.error);
+      }
     } catch { toast.error('Failed to delete'); }
   };
 

@@ -154,9 +154,35 @@ export async function DELETE(request, { params }) {
 
     const { id } = await params;
 
-    const result = await query(
-      `UPDATE departments SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING name`,
+    // Safety check: warn if department has active staff
+    const staffCount = await query(
+      `SELECT COUNT(*) FROM staff
+       WHERE (department_id = $1 OR department = (SELECT COALESCE(name, department_name) FROM departments WHERE id = $1))
+         AND status = 'active'`,
       [id]
+    );
+    const activeStaffCount = parseInt(staffCount.rows[0]?.count || '0');
+
+    const { searchParams } = new URL(request.url);
+    const forceDelete = searchParams.get('force') === 'true';
+
+    if (activeStaffCount > 0 && !forceDelete) {
+      return NextResponse.json({
+        success: false,
+        error: `This department has ${activeStaffCount} active staff member${activeStaffCount !== 1 ? 's' : ''}. Pass ?force=true to confirm deletion.`,
+        staff_count: activeStaffCount,
+        requires_confirmation: true,
+      }, { status: 409 });
+    }
+
+    const result = await query(
+      `UPDATE departments
+       SET is_active       = false,
+           deactivated_at  = NOW(),
+           deactivated_by  = $2,
+           updated_at      = NOW()
+       WHERE id = $1 RETURNING name`,
+      [id, auth.userId]
     );
 
     if (result.rows.length === 0) {

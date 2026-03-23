@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server.js';
 import { cookies } from 'next/headers.js';
 import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
 import { getSession, deleteSession } from '@/lib/session.js';
+import { query } from '@/lib/db.js';
 
 export async function POST(request) {
   try {
@@ -25,6 +26,28 @@ export async function POST(request) {
 
         // Delete session from database
         await deleteSession(sessionId);
+
+        // Mark user as offline in presence table
+        try {
+          await query(
+            `UPDATE user_presence
+             SET is_online   = false,
+                 status      = 'offline',
+                 updated_at  = NOW()
+             WHERE user_id = $1`,
+            [userId]
+          );
+          await query(
+            `UPDATE users
+             SET is_online  = false,
+                 session_id = NULL
+             WHERE id = $1`,
+            [userId]
+          );
+        } catch (presenceErr) {
+          // Non-fatal — presence columns may not exist yet
+          console.warn('[logout] presence update failed:', presenceErr.message);
+        }
 
         // Log logout event
         await logAuthEvent({

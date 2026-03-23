@@ -64,6 +64,58 @@ export async function POST(request) {
     const effectiveClientName = client_name || 'Unknown';
     const effectiveIssueDate = issue_date || issued_date || null;
 
+    // VALIDATION: require system_id or deal_id to prevent orphan licenses
+    if (!system_id && !deal_id) {
+      return NextResponse.json({
+        success: false,
+        error: 'system_id or deal_id is required to issue a license',
+      }, { status: 400 });
+    }
+
+    // VALIDATION: require a client identifier
+    if (!client_id && !client_name) {
+      return NextResponse.json({
+        success: false,
+        error: 'client_id or client_name is required',
+      }, { status: 400 });
+    }
+
+    // If deal_id is provided, validate the deal and auto-populate missing fields
+    let resolvedSystemId = system_id || null;
+    let resolvedClientId = client_id || null;
+    let resolvedPlanId   = plan_id || null;
+    let resolvedClientName = effectiveClientName;
+
+    if (deal_id) {
+      try {
+        const dealRes = await query(
+          `SELECT d.id, d.system_id, d.client_id, d.client_name, d.plan_id,
+                  c.company_name as client_company
+           FROM deals d
+           LEFT JOIN clients c ON d.client_id = c.id
+           WHERE d.id = $1`,
+          [deal_id]
+        );
+        if (dealRes.rows.length > 0) {
+          const deal = dealRes.rows[0];
+          resolvedSystemId   = resolvedSystemId  || deal.system_id  || null;
+          resolvedClientId   = resolvedClientId  || deal.client_id  || null;
+          resolvedPlanId     = resolvedPlanId    || deal.plan_id    || null;
+          resolvedClientName = client_name || deal.client_name || deal.client_company || effectiveClientName;
+        }
+      } catch (dealErr) {
+        console.warn('[Licenses] deal lookup failed:', dealErr.message);
+      }
+    }
+
+    // After resolution, verify system exists if provided
+    if (resolvedSystemId) {
+      const sysCheck = await query('SELECT id FROM systems WHERE id = $1', [resolvedSystemId]);
+      if (!sysCheck.rows.length) {
+        return NextResponse.json({ success: false, error: 'system_id does not reference a valid system' }, { status: 400 });
+      }
+    }
+
     // Check for backdated license warning
     if (effectiveIssueDate && !skip_backdated_warning) {
       const issueMs = new Date(effectiveIssueDate).getTime();
@@ -78,14 +130,29 @@ export async function POST(request) {
       }
     }
 
+    // Block duplicate license for same deal (unless it's historical)
+    if (deal_id && !is_historical) {
+      const existing = await query(
+        `SELECT id FROM licenses WHERE deal_id = $1 AND status != 'revoked' LIMIT 1`,
+        [deal_id]
+      );
+      if (existing.rows.length) {
+        return NextResponse.json({
+          success: false,
+          error: 'An active license already exists for this deal',
+          existing_license_id: existing.rows[0].id,
+        }, { status: 409 });
+      }
+    }
+
     const result = await query(
       `INSERT INTO licenses (
         system_id, deal_id, client_id, client_name, plan_id,
         license_type, issued_date, is_historical, start_date, end_date, status, notes
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
-        system_id || null, deal_id || null, client_id || null,
-        effectiveClientName, plan_id || null,
+        resolvedSystemId, deal_id || null, resolvedClientId,
+        resolvedClientName, resolvedPlanId,
         license_type || 'lifetime',
         effectiveIssueDate, is_historical || false,
         start_date || effectiveIssueDate || null,
@@ -99,8 +166,8 @@ export async function POST(request) {
         event_type: 'license_issued',
         entity_type: 'license',
         entity_id: result.rows[0].id,
-        description: `License issued to ${effectiveClientName}`,
-        metadata: { system_id, license_type: license_type || 'lifetime', is_historical },
+        description: `License issued to ${resolvedClientName}`,
+        metadata: { system_id: resolvedSystemId, license_type: license_type || 'lifetime', is_historical },
         created_by: auth.userId,
       });
     } catch { /* logEvent may not exist */ }
@@ -108,7 +175,7 @@ export async function POST(request) {
     await query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
       [auth.userId, 'CREATE', 'license', result.rows[0].id,
-       JSON.stringify({ client_name: effectiveClientName, system_id, license_type, is_historical })]
+       JSON.stringify({ client_name: resolvedClientName, system_id: resolvedSystemId, license_type, is_historical })]
     );
 
     return NextResponse.json({ success: true, data: result.rows[0] }, { status: 201 });

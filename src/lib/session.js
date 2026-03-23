@@ -27,13 +27,15 @@ export async function createSession(userId, deviceInfo = {}) {
   try {
     const sessionId = randomUUID();
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-    const { deviceName, ipAddress, userAgent } = deviceInfo;
+    const { deviceName, ipAddress, userAgent, browser, os } = deviceInfo;
 
     await query(
       `INSERT INTO sessions (id, user_id, expires_at, created_at, last_activity,
-                             device_name, ip_address, user_agent, inactivity_timeout_minutes, is_revoked)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $4, $5, $6, $7, false)`,
-      [sessionId, userId, expiresAt, deviceName ?? null, ipAddress ?? null, userAgent ?? null, INACTIVITY_TIMEOUT_MIN]
+                             device_name, ip_address, user_agent, browser, os,
+                             inactivity_timeout_minutes, is_revoked)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, false)`,
+      [sessionId, userId, expiresAt, deviceName ?? null, ipAddress ?? null,
+       userAgent ?? null, browser ?? null, os ?? null, INACTIVITY_TIMEOUT_MIN]
     );
 
     return sessionId;
@@ -143,18 +145,25 @@ export async function updateSessionActivity(sessionId) {
  */
 export async function updateUserLastSeen(userId) {
   try {
-    // Try to update both last_seen and is_online columns
-    // If they don't exist yet, the error will be caught and logged
     await query(
-      `UPDATE users 
-       SET last_seen = CURRENT_TIMESTAMP,
-           is_online = true
+      `UPDATE users
+       SET last_seen    = CURRENT_TIMESTAMP,
+           last_seen_at = CURRENT_TIMESTAMP,
+           is_online    = true
        WHERE id = $1`,
       [userId]
     );
+    // Also keep user_presence table in sync
+    await query(
+      `INSERT INTO user_presence (user_id, last_ping, last_seen, status, is_online, updated_at)
+       VALUES ($1, NOW(), NOW(), 'online', true, NOW())
+       ON CONFLICT (user_id) DO UPDATE
+       SET last_ping  = NOW(),
+           last_seen  = NOW(),
+           updated_at = NOW()`,
+      [userId]
+    );
   } catch (error) {
-    // Column might not exist yet if migration hasn't run
-    // This is safe to ignore during migration period
     if (error.code === '42703') {
       // Column does not exist error - migration not run yet
       return;
@@ -233,7 +242,7 @@ export function getSecureCookieOptions() {
 export async function getUserSessions(userId) {
   try {
     const result = await query(
-      `SELECT id, device_name, ip_address, created_at, last_activity, expires_at
+      `SELECT id, device_name, browser, os, ip_address, created_at, last_activity, expires_at
        FROM sessions
        WHERE user_id = $1
          AND expires_at > CURRENT_TIMESTAMP

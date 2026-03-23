@@ -3,6 +3,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
+import { logError } from '@/lib/system-logs.js';
 
 // GET /api/deals/[id]
 export async function GET(request, { params }) {
@@ -62,21 +63,35 @@ export async function PUT(request, { params }) {
     // AUTO-ISSUE LICENSE: If a system deal is marked closed_won or completed, auto-create a license
     if ((body.status === 'closed_won' || body.status === 'completed') && deal.system_id) {
       try {
-        // Get client name
-        const clientLabel = deal.client_name || 'Unknown Client';
-        const existing = await query(
-          `SELECT id FROM licenses WHERE deal_id = $1 LIMIT 1`, [id]
-        );
-        if (!existing.rows.length) {
-          await query(
-            `INSERT INTO licenses (system_id, deal_id, client_name, license_type, issued_date, status)
-             VALUES ($1,$2,$3,'lifetime',CURRENT_DATE,'active') RETURNING *`,
-            [deal.system_id, id, clientLabel]
+        // Validate: log failure loudly instead of silently swallowing it
+        if (!deal.system_id) {
+          console.warn('[Deals] Auto-license skipped: no system_id on deal', id);
+        } else {
+          const existing = await query(
+            `SELECT id FROM licenses WHERE deal_id = $1 AND status != 'revoked' LIMIT 1`, [id]
           );
+          if (!existing.rows.length) {
+            const clientLabel = deal.client_name || 'Unknown Client';
+            await query(
+              `INSERT INTO licenses (system_id, deal_id, client_id, client_name, license_type, issued_date, status, auto_issued)
+               VALUES ($1,$2,$3,$4,'lifetime',CURRENT_DATE,'active',true) RETURNING *`,
+              [deal.system_id, id, deal.client_id || null, clientLabel]
+            );
+            await query(
+              `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
+              [auth.userId, 'AUTO_CREATE', 'license', id,
+               JSON.stringify({ source: 'deal_close', system_id: deal.system_id, client: clientLabel })]
+            );
+          }
         }
       } catch (licErr) {
-        console.error('[Deals] license auto-issue error:', licErr);
-        // Do not fail the deal update if license creation fails
+        // Log to system_logs for visibility (do not fail the deal update)
+        console.error('[Deals] license auto-issue error:', licErr.message);
+        logError('licenses', 'auto_issue',
+          `Auto-license failed for deal ${id}: ${licErr.message}`,
+          { deal_id: id, system_id: deal.system_id, error: licErr.message },
+          auth.userId, 'deal', id
+        ).catch(() => {});
       }
     }
 

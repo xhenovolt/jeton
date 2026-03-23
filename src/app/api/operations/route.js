@@ -92,6 +92,8 @@ export async function POST(request) {
 
     const effectiveTitle = title || description || operation_type;
     const effectiveCategory = category || (VALID_CATEGORIES.includes(operation_type) ? operation_type : 'other');
+    // description must never be NULL — use title as fallback, then a safe default
+    const effectiveDescription = description?.trim() || effectiveTitle || 'No description provided';
 
     if (!effectiveTitle) {
       return NextResponse.json({ success: false, error: 'title or description is required' }, { status: 400 });
@@ -115,7 +117,7 @@ export async function POST(request) {
         related_system_id, related_deal_id, operation_type, created_by
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
       [
-        effectiveTitle, description || null, effectiveCategory,
+        effectiveTitle, effectiveDescription, effectiveCategory,
         expense_type || 'operational',
         amount ? parseFloat(amount) : null,
         currency || 'UGX',

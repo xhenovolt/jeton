@@ -2,7 +2,10 @@
  * GET /api/presence/status?userId=<uuid>   → single user status
  * GET /api/presence/status                 → all online users (admin only)
  *
- * A user is "online" if: NOW() - last_ping < 60 seconds
+ * Status logic (source of truth = last_ping):
+ *   online:  NOW() - last_ping < 60 seconds
+ *   away:    NOW() - last_ping between 60s and 5 minutes
+ *   offline: NOW() - last_ping > 5 minutes
  */
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/current-user';
@@ -28,8 +31,11 @@ export async function GET(request) {
            user_id,
            last_ping,
            last_seen,
+           current_route,
+           current_page_title,
            CASE
              WHEN NOW() - last_ping < INTERVAL '60 seconds' THEN 'online'
+             WHEN NOW() - last_ping < INTERVAL '5 minutes'  THEN 'away'
              ELSE 'offline'
            END AS status
          FROM user_presence
@@ -56,8 +62,11 @@ export async function GET(request) {
          u.email,
          up.last_ping,
          up.last_seen,
+         up.current_route,
+         up.current_page_title,
          CASE
            WHEN NOW() - up.last_ping < INTERVAL '60 seconds' THEN 'online'
+           WHEN NOW() - up.last_ping < INTERVAL '5 minutes'  THEN 'away'
            ELSE 'offline'
          END AS status
        FROM user_presence up

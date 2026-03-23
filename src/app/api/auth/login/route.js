@@ -1,13 +1,48 @@
-/**
- * POST /api/auth/login
- * Authenticate user and create session with HTTP-only cookie
- */
-
 import { NextResponse } from 'next/server.js';
 import { validateLogin } from '@/lib/validation.js';
 import { verifyCredentials, updateUserLastLogin } from '@/lib/auth.js';
 import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
 import { createSession, getSecureCookieOptions } from '@/lib/session.js';
+import { query } from '@/lib/db.js';
+
+/**
+ * Parse user-agent string into { deviceName, browser, os }
+ */
+function parseUserAgent(ua = '') {
+  // Browser detection (order matters — more specific first)
+  let browser = 'Unknown';
+  if (/Edg\//.test(ua))              browser = 'Edge';
+  else if (/OPR\/|Opera/.test(ua))   browser = 'Opera';
+  else if (/Firefox\//.test(ua))     browser = 'Firefox';
+  else if (/SamsungBrowser/.test(ua)) browser = 'Samsung Browser';
+  else if (/Chrome\//.test(ua))      browser = 'Chrome';
+  else if (/Safari\//.test(ua))      browser = 'Safari';
+  else if (/MSIE|Trident/.test(ua))  browser = 'Internet Explorer';
+
+  // OS detection
+  let os = 'Unknown';
+  if (/Windows NT 10/.test(ua))      os = 'Windows 10';
+  else if (/Windows NT 11/.test(ua)) os = 'Windows 11';
+  else if (/Windows NT/.test(ua))    os = 'Windows';
+  else if (/Android/.test(ua)) {
+    const m = ua.match(/Android ([\d.]+)/);
+    os = m ? `Android ${m[1]}` : 'Android';
+  }
+  else if (/iPhone|iPad/.test(ua)) {
+    const m = ua.match(/OS ([\d_]+)/);
+    os = m ? `iOS ${m[1].replace(/_/g, '.')}` : 'iOS';
+  }
+  else if (/Macintosh/.test(ua))     os = 'macOS';
+  else if (/Linux/.test(ua))         os = 'Linux';
+  else if (/CrOS/.test(ua))         os = 'Chrome OS';
+
+  // Device type
+  let deviceName = 'Desktop';
+  if (/Mobile|Android|iPhone/.test(ua))  deviceName = 'Mobile';
+  else if (/Tablet|iPad/.test(ua))        deviceName = 'Tablet';
+
+  return { deviceName, browser, os };
+}
 
 export async function POST(request) {
   try {
@@ -72,24 +107,48 @@ export async function POST(request) {
     await updateUserLastLogin(user.id);
 
     // Collect device metadata for session tracking
+    const rawUA = request.headers.get('user-agent') || '';
+    const ipAddress =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      null;
+    const { deviceName, browser, os } = parseUserAgent(rawUA);
     const deviceInfo = {
-      ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-        || request.headers.get('x-real-ip')
-        || null,
-      userAgent: request.headers.get('user-agent') || null,
-      deviceName: null, // Can be set by the client via a request header in the future
+      ipAddress,
+      userAgent: rawUA || null,
+      deviceName,
+      browser,
+      os,
     };
-    const ua = deviceInfo.userAgent ?? '';
-    if (ua.includes('Mobile') || ua.includes('Android') || ua.includes('iPhone')) {
-      deviceInfo.deviceName = 'Mobile';
-    } else if (ua.includes('Tablet') || ua.includes('iPad')) {
-      deviceInfo.deviceName = 'Tablet';
-    } else if (ua) {
-      deviceInfo.deviceName = 'Desktop';
-    }
 
     // Create session in database
     const sessionId = await createSession(user.id, deviceInfo);
+
+    // Update presence: mark user online immediately on login
+    try {
+      await query(
+        `INSERT INTO user_presence (user_id, last_ping, last_seen, status, is_online, updated_at)
+         VALUES ($1, NOW(), NOW(), 'online', true, NOW())
+         ON CONFLICT (user_id) DO UPDATE
+         SET last_ping  = NOW(),
+             last_seen  = NOW(),
+             status     = 'online',
+             is_online  = true,
+             updated_at = NOW()`,
+        [user.id]
+      );
+      await query(
+        `UPDATE users
+         SET is_online    = true,
+             last_seen    = NOW(),
+             last_seen_at = NOW(),
+             session_id   = $2
+         WHERE id = $1`,
+        [user.id, sessionId]
+      );
+    } catch (presenceErr) {
+      console.warn('[login] presence update failed:', presenceErr.message);
+    }
 
     // Log success
     await logAuthEvent({
