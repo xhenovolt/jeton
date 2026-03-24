@@ -6,19 +6,30 @@ const pool = new Pool({
 });
 
 /**
- * GET /api/systems/[systemId]/tech-stack
+ * GET /api/systems/[id]/tech-stack
  * Fetch tech stack for a system
  */
 export async function GET(req, { params }) {
-  const { systemId } = params;
+  const { id } = params;
+  const { searchParams } = new URL(req.url);
+  const stackId = searchParams.get('stackId');
   
   try {
-    const result = await pool.query(
-      'SELECT * FROM system_tech_stack WHERE system_id = $1 ORDER BY created_at DESC',
-      [systemId]
-    );
-    
-    return NextResponse.json(result.rows || null);
+    if (stackId) {
+      // Get specific tech stack entry
+      const result = await pool.query(
+        'SELECT * FROM system_tech_stack WHERE id = $1 AND system_id = $2',
+        [stackId, id]
+      );
+      return NextResponse.json(result.rows[0] || null);
+    } else {
+      // Get all tech stack entries for system
+      const result = await pool.query(
+        'SELECT * FROM system_tech_stack WHERE system_id = $1 ORDER BY created_at DESC',
+        [id]
+      );
+      return NextResponse.json(result.rows || []);
+    }
   } catch (error) {
     console.error('Error fetching tech stack:', error);
     return NextResponse.json(
@@ -29,11 +40,11 @@ export async function GET(req, { params }) {
 }
 
 /**
- * POST /api/systems/[systemId]/tech-stack
+ * POST /api/systems/[id]/tech-stack
  * Add/update tech stack for a system
  */
 export async function POST(req, { params }) {
-  const { systemId } = params;
+  const { id } = params;
   const { language, framework, database, platform, notes } = await req.json();
   
   try {
@@ -41,25 +52,35 @@ export async function POST(req, { params }) {
       `INSERT INTO system_tech_stack (system_id, language, framework, database, platform, notes)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [systemId, language, framework, database, platform, notes]
+      [id, language, framework, database, platform, notes]
     );
     
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating tech stack:', error);
     return NextResponse.json(
-      { error: 'Failed to create tech stack' },
+      { error: 'Failed to create tech stack: ' + error.message },
       { status: 500 }
     );
   }
 }
 
 /**
- * PUT /api/systems/[systemId]/tech-stack/[id]
+ * PUT /api/systems/[id]/tech-stack?stackId=X
  * Update tech stack entry
  */
 export async function PUT(req, { params }) {
-  const { systemId, id } = params;
+  const { id } = params;
+  const { searchParams } = new URL(req.url);
+  const stackId = searchParams.get('stackId');
+  
+  if (!stackId) {
+    return NextResponse.json(
+      { error: 'stackId query parameter required' },
+      { status: 400 }
+    );
+  }
+  
   const { language, framework, database, platform, notes } = await req.json();
   
   try {
@@ -73,7 +94,7 @@ export async function PUT(req, { params }) {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND system_id = $7
        RETURNING *`,
-      [id, language, framework, database, platform, notes, systemId]
+      [stackId, language, framework, database, platform, notes, id]
     );
     
     if (result.rowCount === 0) {
@@ -87,23 +108,32 @@ export async function PUT(req, { params }) {
   } catch (error) {
     console.error('Error updating tech stack:', error);
     return NextResponse.json(
-      { error: 'Failed to update tech stack' },
+      { error: 'Failed to update tech stack: ' + error.message },
       { status: 500 }
     );
   }
 }
 
 /**
- * DELETE /api/systems/[systemId]/tech-stack/[id]
+ * DELETE /api/systems/[id]/tech-stack?stackId=X
  * Delete tech stack entry
  */
 export async function DELETE(req, { params }) {
-  const { systemId, id } = params;
+  const { id } = params;
+  const { searchParams } = new URL(req.url);
+  const stackId = searchParams.get('stackId');
+  
+  if (!stackId) {
+    return NextResponse.json(
+      { error: 'stackId query parameter required' },
+      { status: 400 }
+    );
+  }
   
   try {
     const result = await pool.query(
       'DELETE FROM system_tech_stack WHERE id = $1 AND system_id = $2 RETURNING id',
-      [id, systemId]
+      [stackId, id]
     );
     
     if (result.rowCount === 0) {
@@ -117,7 +147,7 @@ export async function DELETE(req, { params }) {
   } catch (error) {
     console.error('Error deleting tech stack:', error);
     return NextResponse.json(
-      { error: 'Failed to delete tech stack' },
+      { error: 'Failed to delete tech stack: ' + error.message },
       { status: 500 }
     );
   }
