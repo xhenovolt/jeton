@@ -51,10 +51,14 @@ export async function POST(request) {
   if (perm instanceof NextResponse) return perm;
   try {
     const body = await request.json();
-    const { deal_id, account_id, amount, currency, method, reference, status, payment_date, notes } = body;
+    const { deal_id, account_id, amount, currency, method, reference, status, payment_date, notes, exchange_rate } = body;
     
     if (!deal_id || !account_id || !amount) {
       return NextResponse.json({ success: false, error: 'deal_id, account_id, and amount are required' }, { status: 400 });
+    }
+
+    if (!currency) {
+      return NextResponse.json({ success: false, error: 'Currency is required' }, { status: 400 });
     }
 
     // Validate deal exists and check remaining amount
@@ -62,14 +66,58 @@ export async function POST(request) {
     if (!deal.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
 
     const paymentStatus = status || 'completed';
+    const paymentCurrency = (currency || 'UGX').toUpperCase();
+    
+    // ── MULTI-CURRENCY LOGIC ───────────────────────────────────────────────
+    // Original amount = the amount in original currency
+    // amount_ugx = amount converted to UGX
+    
+    let original_amount = parseFloat(amount);
+    let original_currency = paymentCurrency;
+    let amount_ugx = original_amount;
+    let actual_exchange_rate = 1.0;
+    
+    // If not UGX, need to calculate UGX equivalent
+    if (paymentCurrency !== 'UGX') {
+      // If exchange_rate provided in request, use it
+      if (exchange_rate) {
+        actual_exchange_rate = parseFloat(exchange_rate);
+      } else {
+        // Fetch current exchange rate from database
+        const rateResult = await query(
+          `SELECT rate FROM exchange_rates 
+           WHERE from_currency = $1 AND to_currency = 'UGX' 
+           AND is_current = true 
+           ORDER BY effective_date DESC LIMIT 1`,
+          [paymentCurrency]
+        );
+        if (rateResult.rows.length > 0) {
+          actual_exchange_rate = parseFloat(rateResult.rows[0].rate);
+        } else {
+          // Default fallback rate (1:1 if not found - app should warn user)
+          actual_exchange_rate = 1.0;
+        }
+      }
+      amount_ugx = original_amount * actual_exchange_rate;
+    }
 
-    // Create payment
+    // Create payment with all multi-currency fields
     const payResult = await query(
-      `INSERT INTO payments (deal_id, account_id, amount, currency, method, reference, status, payment_date, notes, received_at, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [deal_id, account_id, amount, currency||'UGX', method||null, reference||null,
-       paymentStatus, payment_date||new Date().toISOString().split('T')[0],
-       notes||null, paymentStatus === 'completed' ? new Date() : null, auth.userId]
+      `INSERT INTO payments 
+       (deal_id, account_id, amount, currency, original_amount, original_currency, 
+        exchange_rate, amount_ugx, method, reference, status, payment_date, notes, 
+        received_at, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) 
+       RETURNING *`,
+      [
+        deal_id, account_id, original_amount, paymentCurrency,
+        original_amount, original_currency, actual_exchange_rate, amount_ugx,
+        method || null, reference || null, paymentStatus,
+        payment_date || new Date().toISOString().split('T')[0],
+        notes || null,
+        paymentStatus === 'completed' ? new Date() : null,
+        auth.userId
+      ]
     );
 
     const payment = payResult.rows[0];
@@ -77,11 +125,18 @@ export async function POST(request) {
     // If completed, create ledger entry (CREDIT to account)
     if (paymentStatus === 'completed') {
       const ledgerResult = await query(
-        `INSERT INTO ledger (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
-         VALUES ($1,$2,$3,'payment',$4,$5,'revenue',$6,$7) RETURNING id`,
-        [account_id, amount, currency||'UGX', payment.id,
-         `Payment from ${deal.rows[0].company_name} - ${deal.rows[0].title}`,
-         payment_date||new Date().toISOString().split('T')[0], auth.userId]
+        `INSERT INTO ledger 
+         (account_id, amount, currency, original_amount, original_currency, exchange_rate,
+          source_type, source_id, description, category, entry_date, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,'payment',$7,$8,'revenue',$9,$10) 
+         RETURNING id`,
+        [
+          account_id, amount_ugx, 'UGX', original_amount, original_currency, actual_exchange_rate,
+          payment.id,
+          `Payment from ${deal.rows[0].company_name} - ${deal.rows[0].title}`,
+          payment_date || new Date().toISOString().split('T')[0],
+          auth.userId
+        ]
       );
       // Link ledger entry back to payment
       await query(`UPDATE payments SET ledger_entry_id = $1 WHERE id = $2`, [ledgerResult.rows[0].id, payment.id]);

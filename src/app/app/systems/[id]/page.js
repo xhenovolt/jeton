@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor } from 'lucide-react';
+import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor, Code, Package, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { TechProfileModal } from '@/components/modals/TechProfileModal';
+import { SystemModuleModal } from '@/components/modals/SystemModuleModal';
 
 const ISSUE_STATUS_STYLES = {
   open: 'bg-red-100 text-red-700',
@@ -57,12 +59,18 @@ export default function SystemDetailPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showOpForm, setShowOpForm] = useState(false);
   const [showPlanForm, setShowPlanForm] = useState(false);
+  const [showTechModal, setShowTechModal] = useState(false);
+  const [showModuleModal, setShowModuleModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [issueForm, setIssueForm] = useState({ title: '', description: '', status: 'open' });
   const [changeForm, setChangeForm] = useState({ title: '', description: '', status: 'planned' });
   const [editForm, setEditForm] = useState({});
   const [opForm, setOpForm] = useState({ operation_type: 'development', description: '', status: 'completed' });
   const [planForm, setPlanForm] = useState({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
+  const [techProfiles, setTechProfiles] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [techLoading, setTechLoading] = useState(false);
+  const [modulesLoading, setModulesLoading] = useState(false);
   const toast = useToast();
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
@@ -72,6 +80,28 @@ export default function SystemDetailPage() {
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => { if (id) fetchSystem(); }, [id]);
+
+  useEffect(() => {
+    if (tab === 'tech' && id && techProfiles.length === 0) {
+      setTechLoading(true);
+      fetchWithAuth(`/api/systems/${id}/tech-profiles`)
+        .then(r => r.json())
+        .then(j => { setTechProfiles(j.data || []); })
+        .catch(console.error)
+        .finally(() => setTechLoading(false));
+    }
+  }, [tab, id]);
+
+  useEffect(() => {
+    if (tab === 'modules' && id && modules.length === 0) {
+      setModulesLoading(true);
+      fetchWithAuth(`/api/systems/${id}/modules`)
+        .then(r => r.json())
+        .then(j => { setModules(j.data || []); })
+        .catch(console.error)
+        .finally(() => setModulesLoading(false));
+    }
+  }, [tab, id]);
 
   useEffect(() => {
     if (tab === 'plans' && id && plans.length === 0) {
@@ -233,6 +263,36 @@ export default function SystemDetailPage() {
     } catch (err) { console.error(err); }
   };
 
+  const deleteTechProfile = async (profileId) => {
+    if (!confirm('Delete this tech profile?')) return;
+    try {
+      const res = await fetchWithAuth(`/api/systems/${id}/tech-profiles/${profileId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setTechProfiles(prev => prev.filter(p => p.id !== profileId));
+        toast.success('Tech profile deleted');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete tech profile');
+    }
+  };
+
+  const deleteModule = async (moduleId) => {
+    if (!confirm('Delete this module?')) return;
+    try {
+      const res = await fetchWithAuth(`/api/systems/${id}/modules/${moduleId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setModules(prev => prev.filter(m => m.id !== moduleId));
+        toast.success('Module deleted');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete module');
+    }
+  };
+
   const saveEdit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -322,6 +382,8 @@ export default function SystemDetailPage() {
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         <TabButton label={`Deals (${deals.length})`} active={tab === 'overview'} onClick={() => setTab('overview')} />
+        <TabButton label="Tech Stack" active={tab === 'tech'} onClick={() => setTab('tech')} />
+        <TabButton label="Modules" active={tab === 'modules'} onClick={() => setTab('modules')} />
         <TabButton label={`Licenses (${(data.licenses || []).length})`} active={tab === 'licenses'} onClick={() => setTab('licenses')} />
         <TabButton label={`Plans (${plans.length})`} active={tab === 'plans'} onClick={() => setTab('plans')} />
         <TabButton label={`Issues (${(data.issues || []).length})`} active={tab === 'issues'} onClick={() => setTab('issues')} />
@@ -366,6 +428,88 @@ export default function SystemDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TECH STACK TAB ── */}
+      {tab === 'tech' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">Technology Stack</h2>
+            <button onClick={() => setShowTechModal(true)} className="flex items-center gap-1 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition">
+              <Plus className="w-3.5 h-3.5" /> Add Tech Profile
+            </button>
+          </div>
+          {techLoading ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">Loading...</div>
+          ) : techProfiles.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">No technology stack defined</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {techProfiles.map(tech => (
+                <div key={tech.id} className="bg-card rounded-xl border border-border p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <Code className="w-5 h-5 text-blue-600" />
+                    <button onClick={() => deleteTechProfile(tech.id)} className="text-muted-foreground hover:text-foreground">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    {tech.language && <div><span className="text-muted-foreground">Language:</span> {tech.language}</div>}
+                    {tech.framework && <div><span className="text-muted-foreground">Framework:</span> {tech.framework} {tech.framework_version && `v${tech.framework_version}`}</div>}
+                    {tech.database && <div><span className="text-muted-foreground">Database:</span> {tech.database} {tech.db_version && `v${tech.db_version}`}</div>}
+                    {tech.platform && <div><span className="text-muted-foreground">Platform:</span> {tech.platform}</div>}
+                    {tech.hosting && <div><span className="text-muted-foreground">Hosting:</span> {tech.hosting}</div>}
+                    {tech.deployment_url && <div><span className="text-muted-foreground">Deploy:</span> <a href={tech.deployment_url} target="_blank" className="text-blue-600 hover:underline truncate">{tech.deployment_url}</a></div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MODULES TAB ── */}
+      {tab === 'modules' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">System Modules</h2>
+            <button onClick={() => setShowModuleModal(true)} className="flex items-center gap-1 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition">
+              <Plus className="w-3.5 h-3.5" /> Add Module
+            </button>
+          </div>
+          {modulesLoading ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">Loading...</div>
+          ) : modules.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">No modules defined</div>
+          ) : (
+            <div className="bg-card rounded-xl border border-border divide-y divide-border">
+              {modules.map(mod => (
+                <div key={mod.id} className="p-4 flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Package className="w-4 h-4 text-blue-600" />
+                      <p className="font-medium text-foreground">{mod.module_name}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        mod.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                        mod.status === 'inactive' ? 'bg-gray-100 text-gray-700' :
+                        mod.status === 'deprecated' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>{mod.status}</span>
+                    </div>
+                    {mod.description && <p className="text-sm text-muted-foreground mb-2">{mod.description}</p>}
+                    <div className="flex items-center gap-4 text-sm">
+                      {mod.version && <span className="text-muted-foreground">v{mod.version}</span>}
+                      {mod.module_url && <a href={mod.module_url} target="_blank" className="text-blue-600 hover:underline">Visit</a>}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteModule(mod.id)} className="text-muted-foreground hover:text-foreground ml-4">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -618,6 +762,20 @@ export default function SystemDetailPage() {
           )}
         </div>
       )}
+
+      <TechProfileModal
+        isOpen={showTechModal}
+        onClose={() => setShowTechModal(false)}
+        systemId={id}
+        onSuccess={() => { setTechProfiles([]); setTab('tech'); }}
+      />
+
+      <SystemModuleModal
+        isOpen={showModuleModal}
+        onClose={() => setShowModuleModal(false)}
+        systemId={id}
+        onSuccess={() => { setModules([]); setTab('modules'); }}
+      />
     </div>
   );
 }
