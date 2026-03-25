@@ -5,6 +5,7 @@ import LayoutClient from './layout-client';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { PermissionProvider } from '@/components/providers/PermissionProvider';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ErrorBoundary } from '@/components/providers/ErrorBoundary';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -75,21 +76,23 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground transition-colors duration-300`}
       >
-        <ThemeProvider>
-          <PermissionProvider>
-          <ToastProvider>
-          {/* Navigation Wrapper - Only shows on /app routes */}
-          <NavigationWrapper />
+        <ErrorBoundary>
+          <ThemeProvider>
+            <PermissionProvider>
+              <ToastProvider>
+                {/* Navigation Wrapper - Only shows on /app routes */}
+                <NavigationWrapper />
 
-          {/* Layout wrapper with state management for mobile drawer */}
-          <div className="flex min-h-screen flex-col">
-            <LayoutClient>
-              {children}
-            </LayoutClient>
-          </div>
-          </ToastProvider>
-          </PermissionProvider>
-        </ThemeProvider>
+                {/* Layout wrapper with state management for mobile drawer */}
+                <div className="flex min-h-screen flex-col">
+                  <LayoutClient>
+                    {children}
+                  </LayoutClient>
+                </div>
+              </ToastProvider>
+            </PermissionProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

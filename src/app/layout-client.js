@@ -7,6 +7,7 @@ import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { useHeartbeat } from '@/lib/use-heartbeat';
 import SplashScreen from '@/components/SplashScreen';
+import { initializeErrorLogger } from '@/lib/error-logger';
 
 const mockUser = {
   name: 'Admin User',
@@ -21,6 +22,11 @@ export default function LayoutClient({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const pathname = usePathname();
+
+  // ── Initialize global error logging on mount ──
+  useEffect(() => {
+    initializeErrorLogger();
+  }, []);
 
   // Show splash screen once per session on /app routes
   useEffect(() => {

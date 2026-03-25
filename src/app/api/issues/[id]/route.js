@@ -1,52 +1,112 @@
-import { Pool } from 'pg';
-import { NextResponse } from 'next/server';
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
 /**
  * GET /api/issues/[id]
  */
+
+import { getCurrentUser } from '@/lib/current-user.js';
+import { query } from '@/lib/db.js';
+
 export async function GET(req, { params }) {
-  const { id } = params;
-  
   try {
-    const result = await pool.query(
-      `SELECT 
-        i.*,
-        s.name as system_name,
-        u.username as assigned_to_username
-      FROM issues i
-      LEFT JOIN systems s ON i.system_id = s.id
-      LEFT JOIN users u ON i.assigned_to = u.id
-      WHERE i.id = $1`,
+    const user = await getCurrentUser();
+    if (!user) {
+      return Response.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = params;
+    
+    const result = await query(
+      'SELECT * FROM issues WHERE id = $1',
       [id]
     );
     
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Issue not found' },
+      return Response.json(
+        { success: false, error: 'Issue not found' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json(result.rows[0]);
+    return Response.json({
+      success: true,
+      data: result.rows[0],
+    });
   } catch (error) {
-    console.error('Error fetching issue:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch issue' },
+    console.error('[issue GET] Error:', error.message);
+    return Response.json(
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
 }
 
 /**
- * PUT /api/issues/[id]
+ * PATCH /api/issues/[id]
+ * Update issue status, assignment, resolution
  */
-export async function PUT(req, { params }) {
-  const { id } = params;
-  const { title, description, severity, status, assigned_to, resolved_at } = await req.json();
+export async function PATCH(req, { params }) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !['superadmin', 'admin'].includes(user.role)) {
+      return Response.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = params;
+    const body = await req.json();
+    const { status, assigned_to_user_id, resolution_notes } = body;
+
+    if (!status) {
+      return Response.json(
+        { success: false, error: 'status is required' },
+        { status: 400 }
+      );
+    }
+
+    // Build update query
+    let updateFields = ['status = $1', `updated_at = NOW()`];
+    let params = [status];
+    let paramIndex = 2;
+
+    if (assigned_to_user_id) {
+      updateFields.push(`assigned_to_user_id = $${paramIndex++}`);
+      params.push(assigned_to_user_id);
+    }
+
+    if (resolution_notes) {
+      updateFields.push(`resolution_notes = $${paramIndex++}`);
+      params.push(resolution_notes);
+    }
+
+    if (status === 'resolved') {
+      updateFields.push(`resolved_at = NOW()`);
+    }
+
+    params.push(id);
+    const sqlUpdateIndex = paramIndex;
+
+    const result = await query(
+      `UPDATE issues SET ${updateFields.join(', ')} WHERE id = $${sqlUpdateIndex} RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return Response.json(
+        { success: false, error: 'Issue not found' },
+        { status: 404 }
+      );
+    }
+
+    return Response.json({
+      success: true,
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error('[issue PATCH] Error:', error.message);
+    return Response.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
   
   try {
     let query = `UPDATE issues SET`;

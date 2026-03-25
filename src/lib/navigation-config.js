@@ -40,6 +40,7 @@ import {
   Code2,
   BookMarked,
   Bell,
+  MessageCircle,
   CreditCard,
   Tag,
   Grid3X3,
@@ -82,6 +83,13 @@ export const menuItems = [
     icon: Bell,
     category: 'primary',
     // Visible to all authenticated users — no permission required
+  },
+  {
+    label: 'Messages',
+    href: '/app/communication',
+    icon: MessageCircle,
+    category: 'primary',
+    permission: 'communication.view',
   },
 
   // === SYSTEMS (core IP) ===
