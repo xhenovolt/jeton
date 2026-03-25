@@ -42,6 +42,9 @@ import {
   Bell,
   CreditCard,
   Tag,
+  Grid3X3,
+  Banknote,
+  TrendingUp,
 } from 'lucide-react';
 
 /**
@@ -175,6 +178,10 @@ export const menuItems = [
       { label: 'Expenses', href: '/app/finance/expenses', description: 'Track spending', permission: 'expenses.view' },
       { label: 'Transfers', href: '/app/finance/transfers', description: 'Move between accounts', permission: 'finance.view' },
       { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits', permission: 'budgets.view' },
+      { label: '---', href: '#', description: '', permission: null },
+      { label: 'Banking', href: '/app/finance/banking', description: 'Internal banking system', permission: 'finance.manage' },
+      { label: 'Employee Loans', href: '/app/finance/loans', description: 'Peer-to-peer loans', permission: 'finance.manage' },
+      { label: 'Salary Advances', href: '/app/finance/advances', description: 'Advance disbursements', permission: 'finance.manage' },
     ],
   },
 
@@ -196,7 +203,8 @@ export const menuItems = [
     module: 'intelligence',
     submenu: [
       { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview', permission: 'intelligence.view' },
-      { label: 'Engineering', href: '/app/tech-intelligence', description: 'Bugs, features & tech stack', permission: 'bug_tracking.view' },
+      { label: 'Tech Stacks', href: '/app/tech-intelligence', description: 'Reusable technology stacks', permission: 'systems.view' },
+      { label: 'Engineering', href: '/app/engineering', description: 'Bugs, features & tech tracking', permission: 'bug_tracking.view' },
       { label: 'Issue Intelligence', href: '/app/issue-intelligence', description: 'Root causes & resolutions', permission: 'issue_intelligence.view' },
       { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue', permission: 'finance.view' },
       { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
