@@ -27,101 +27,141 @@ const JETON_MODULES = [
     name: 'Dashboard',
     path: 'dashboard',
     description: 'Central dashboard showing system overview, KPIs, and quick actions',
+    routes: ['/app/dashboard'],
+    dependencies: ['React', 'Recharts', 'Next.js'],
   },
   {
     name: 'Admin Panel',
     path: 'admin',
     description: 'Administrative controls, user management, system settings',
+    routes: ['/app/admin', '/app/admin/users', '/app/admin/roles', '/app/admin/settings'],
+    dependencies: ['RBAC', 'Permissions', 'User Service'],
   },
   {
     name: 'Deal Management',
     path: 'deals',
     description: 'Create, manage, track deals with clients - revenue tracking',
+    routes: ['/app/deals', '/app/deals/[id]', '/app/deals/new'],
+    dependencies: ['Finance Module', 'Client Service', 'Reporting'],
   },
   {
     name: 'Finance & Billing',
     path: 'finance',
     description: 'Financial tracking, invoices, payments, revenue reporting',
+    routes: ['/app/finance', '/app/finance/invoices', '/app/finance/reports'],
+    dependencies: ['Database', 'Reporting Engine', 'Currency Conversion'],
   },
   {
     name: 'Issue Intelligence',
     path: 'issue-intelligence',
     description: 'Track system issues, bugs, and fixes - integrated troubleshooting',
+    routes: ['/app/issue-intelligence', '/app/issues'],
+    dependencies: ['System Intelligence', 'Reporting'],
   },
   {
     name: 'Technical Intelligence',
     path: 'tech-intelligence',
     description: 'Central knowledge base for system documentation and architecture',
+    routes: ['/app/tech-intelligence', '/app/tech-intelligence/[id]'],
+    dependencies: ['system_intelligence', 'System Architecture'],
   },
   {
     name: 'Document Management',
     path: 'docs',
     description: 'Store, organize, and manage documents and files',
+    routes: ['/app/docs', '/app/documents'],
+    dependencies: ['Cloudinary', 'File Service'],
   },
   {
     name: 'Communication',
     path: 'communication',
     description: 'Messaging, calls, and communication logs',
+    routes: ['/app/communication'],
+    dependencies: ['Message Queue', 'Call Service'],
   },
   {
     name: 'HR & Management',
     path: 'hr',
     description: 'Human Resources management, team listings, rosters',
+    routes: ['/app/hr', '/app/hrm'],
+    dependencies: ['User Service', 'Admin Panel'],
   },
   {
     name: 'Invoicing System',
     path: 'invoices',
     description: 'Generate, track, and manage invoices for clients',
+    routes: ['/app/invoices'],
+    dependencies: ['Finance', 'PDF Generator'],
   },
   {
     name: 'Decision Log',
     path: 'decision-log',
     description: 'Record and track architectural and business decisions',
+    routes: ['/app/decision-log'],
+    dependencies: ['System Intelligence'],
   },
   {
     name: 'Client Management',
     path: 'clients',
     description: 'Manage client profiles, relationships, and information',
+    routes: ['/app/clients'],
+    dependencies: ['Database', 'Admin Panel'],
   },
   {
     name: 'Knowledge Base',
     path: 'knowledge',
     description: 'Centralized knowledge repository for organizational learning',
+    routes: ['/app/knowledge'],
+    dependencies: ['Technical Intelligence', 'Document Service'],
   },
   {
     name: 'Command Center',
     path: 'command-center',
     description: 'Central operations hub for command and control',
+    routes: ['/app/command-center'],
+    dependencies: ['Dashboard', 'Alerts'],
   },
   {
     name: 'Control Tower',
     path: 'control-tower',
     description: 'Operations control and monitoring interface',
+    routes: ['/app/control-tower'],
+    dependencies: ['Real-time Updates', 'Monitoring'],
   },
   {
     name: 'Asset Management',
     path: 'assets',
     description: 'Track and manage organizational assets',
+    routes: ['/app/assets'],
+    dependencies: ['Inventory System', 'Admin Panel'],
   },
   {
     name: 'Allocations',
     path: 'allocations',
     description: 'Resource and budget allocation management',
+    routes: ['/app/allocations'],
+    dependencies: ['Finance', 'HR'],
   },
   {
     name: 'Approval Pipeline',
     path: 'approval-pipeline',
     description: 'Workflow approvals and authorization management',
+    routes: ['/app/approval-pipeline'],
+    dependencies: ['RBAC', 'Workflow Engine'],
   },
   {
     name: 'Activity Tracking',
     path: 'activity',
     description: 'System-wide activity logs and audit trails',
+    routes: ['/app/activity'],
+    dependencies: ['Logging Service', 'Analytics'],
   },
   {
     name: 'Financial Intelligence',
     path: 'financial-intelligence',
     description: 'Financial analytics and business intelligence',
+    routes: ['/app/financial-intelligence'],
+    dependencies: ['Finance Module', 'Analytics', 'Recharts'],
   },
 ];
 
@@ -198,22 +238,24 @@ async function populateJetonSystem() {
         // Try to update first
         const updateResult = await pool.query(
           `UPDATE system_modules
-           SET description = $1, updated_at = NOW()
-           WHERE system_id = $2 AND module_name = $3
+           SET description = $1, routes = $2, dependencies = $3, updated_at = NOW()
+           WHERE system_id = $4 AND module_name = $5
            RETURNING id`,
-          [mod.description, JETON_SYSTEM_ID, mod.name]
+          [mod.description, JSON.stringify(mod.routes), JSON.stringify(mod.dependencies), JETON_SYSTEM_ID, mod.name]
         );
 
         // If no rows updated, insert
         if (updateResult.rows.length === 0) {
           await pool.query(
             `INSERT INTO system_modules
-             (system_id, module_name, description, version, status)
-             VALUES ($1, $2, $3, $4, $5)`,
+             (system_id, module_name, description, routes, dependencies, version, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               JETON_SYSTEM_ID,
               mod.name,
               mod.description,
+              JSON.stringify(mod.routes),
+              JSON.stringify(mod.dependencies),
               '1.0.0',
               'active',
             ]
