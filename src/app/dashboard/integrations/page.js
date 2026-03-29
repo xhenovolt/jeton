@@ -45,6 +45,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SecureConnectionCard from '@/components/integrations/SecureConnectionCard';
 
 export default function IntegrationsPage() {
   const router = useRouter();
@@ -394,131 +395,17 @@ export default function IntegrationsPage() {
           No connections yet. Create your first connection above.
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {connections.map((conn) => (
-            <Card
+            <SecureConnectionCard
               key={conn.id}
-              className={conn.is_active ? 'border-green-200 bg-green-50' : ''}
-            >
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-bold text-lg">{conn.name}</h3>
-                      {conn.is_active && (
-                        <Badge className="bg-green-600">Active</Badge>
-                      )}
-                      {conn.is_verified && (
-                        <Badge variant="outline" className="border-green-600 text-green-600">
-                          Verified
-                        </Badge>
-                      )}
-                    </div>
-
-                    {conn.description && (
-                      <p className="text-sm text-gray-600 mt-1">{conn.description}</p>
-                    )}
-
-                    <div className="space-y-2 mt-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">URL:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">
-                          {conn.base_url}
-                        </code>
-                      </div>
-
-                      <div>
-                        <span className="text-gray-600">API Key:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs font-mono">
-                          {showReveal[`key_${conn.id}`]
-                            ? 'sk_'
-                            : conn.api_key_masked || 'sk_****'}
-                        </code>
-                        <button
-                          onClick={() => toggleReveal(`key_${conn.id}`)}
-                          className="ml-2 text-gray-500 hover:text-gray-700"
-                        >
-                          {showReveal[`key_${conn.id}`] ? (
-                            <EyeOff className="h-4 w-4 inline" />
-                          ) : (
-                            <Eye className="h-4 w-4 inline" />
-                          )}
-                        </button>
-                      </div>
-
-                      {conn.last_tested_at && (
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="h-4 w-4" />
-                          Last tested:{' '}
-                          {new Date(conn.last_tested_at).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => testConnection(conn)}
-                      disabled={testing === conn.id}
-                      className="gap-2"
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 ${
-                          testing === conn.id ? 'animate-spin' : ''
-                        }`}
-                      />
-                      Test
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant={conn.is_active ? 'default' : 'outline'}
-                      onClick={() => toggleActive(conn)}
-                    >
-                      {conn.is_active ? 'Active' : 'Inactive'}
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setDeleting(conn)}
-                      className="gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              connection={conn}
+              onDelete={() => loadConnections()}
+              onToggleActive={() => loadConnections()}
+              onRefresh={() => loadConnections()}
+            />
           ))}
         </div>
-      )}
-
-      {/* Delete Confirmation */}
-      {deleting && (
-        <AlertDialog open={!!deleting}>
-          <AlertDialogContent>
-            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{deleting.name}"? This cannot be
-              undone.
-            </AlertDialogDescription>
-            <div className="flex gap-4 justify-end">
-              <AlertDialogCancel onClick={() => setDeleting(null)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => deleteConnection(deleting)}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete
-              </AlertDialogAction>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
       )}
     </div>
   );
