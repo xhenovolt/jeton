@@ -8,7 +8,7 @@
 
 import { getCurrentUser } from '@/lib/current-user.js';
 import { query } from '@/lib/db.js';
-import { logAudit } from '@/lib/audit.js';
+import { logAuthEvent } from '@/lib/audit.js';
 
 export async function POST(request) {
   try {
@@ -72,7 +72,7 @@ export async function POST(request) {
 
     // ── 6. Audit log ──
     if (user) {
-      await logAudit({
+      await logAuthEvent({
         userId: user.id,
         action: 'ERROR_AUTO_LOGGED',
         entityType: 'issue',

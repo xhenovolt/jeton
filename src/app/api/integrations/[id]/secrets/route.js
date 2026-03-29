@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/permissions.js';
 import { query } from '@/lib/db.js';
-import { decrypt } from '@/lib/encryption.js';
+import { decryptSecret } from '@/lib/encryption.js';
 
 export async function GET(request, { params }) {
   const perm = await requirePermission(request, 'integrations.view');
@@ -72,8 +72,8 @@ export async function GET(request, { params }) {
     // Decrypt credentials
     let api_key, api_secret;
     try {
-      api_key = decrypt(connection.api_key_encrypted);
-      api_secret = decrypt(connection.api_secret_encrypted);
+      api_key = decryptSecret(connection.api_key_encrypted);
+      api_secret = decryptSecret(connection.api_secret_encrypted);
     } catch (err) {
       console.error('[Integrations] Failed to decrypt:', err);
       return NextResponse.json(

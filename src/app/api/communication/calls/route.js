@@ -5,7 +5,7 @@ import {
   getCallPermissionsForRole,
   isParticipant,
 } from '@/lib/communication-utils.js';
-import { db } from '@/lib/db.js';
+import { query } from '@/lib/db.js';
 
 /**
  * POST /api/communication/calls

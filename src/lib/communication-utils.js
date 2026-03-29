@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { query } from './db.js';
 
 /**
  * Communication System Utilities

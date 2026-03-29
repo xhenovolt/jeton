@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/permissions.js';
 import { query } from '@/lib/db.js';
-import { encrypt, decrypt } from '@/lib/encryption.js';
+import { encryptSecret, decryptSecret } from '@/lib/encryption.js';
 import crypto from 'crypto';
 
 export async function POST(request, { params }) {
@@ -75,8 +75,8 @@ export async function POST(request, { params }) {
     // Decrypt old values to store as backup
     let old_api_key, old_api_secret;
     try {
-      old_api_key = decrypt(connection.api_key_encrypted);
-      old_api_secret = decrypt(connection.api_secret_encrypted);
+      old_api_key = decryptSecret(connection.api_key_encrypted);
+      old_api_secret = decryptSecret(connection.api_secret_encrypted);
     } catch (err) {
       return NextResponse.json(
         { success: false, error: 'Failed to process current credentials' },
@@ -111,8 +111,8 @@ export async function POST(request, { params }) {
     // Encrypt new values
     let new_key_encrypted, new_secret_encrypted;
     try {
-      new_key_encrypted = encrypt(new_key_for_db);
-      new_secret_encrypted = encrypt(new_secret_for_db);
+      new_key_encrypted = encryptSecret(new_key_for_db);
+      new_secret_encrypted = encryptSecret(new_secret_for_db);
     } catch (err) {
       console.error('[Integrations] Encryption failed:', err);
       return NextResponse.json(
