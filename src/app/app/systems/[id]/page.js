@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { TechProfileModal } from '@/components/modals/TechProfileModal';
 import { SystemModuleModal } from '@/components/modals/SystemModuleModal';
+import { SystemIntelligenceTab } from '@/components/SystemIntelligenceTab';
 
 const ISSUE_STATUS_STYLES = {
   open: 'bg-red-100 text-red-700',
@@ -382,6 +383,7 @@ export default function SystemDetailPage() {
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         <TabButton label={`Deals (${deals.length})`} active={tab === 'overview'} onClick={() => setTab('overview')} />
+        <TabButton label="Intelligence" active={tab === 'intelligence'} onClick={() => setTab('intelligence')} />
         <TabButton label="Tech Stack" active={tab === 'tech'} onClick={() => setTab('tech')} />
         <TabButton label="Modules" active={tab === 'modules'} onClick={() => setTab('modules')} />
         <TabButton label={`Licenses (${(data.licenses || []).length})`} active={tab === 'licenses'} onClick={() => setTab('licenses')} />
@@ -431,6 +433,11 @@ export default function SystemDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── INTELLIGENCE TAB ── */}
+      {tab === 'intelligence' && (
+        <SystemIntelligenceTab systemId={id} systemName={data.name} />
       )}
 
       {/* ── TECH STACK TAB ── */}
