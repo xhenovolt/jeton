@@ -243,6 +243,20 @@ export const menuItems = [
     permission: 'reports.view',
   },
 
+  // === DRAIS CONTROL ===
+  {
+    label: 'DRAIS Control',
+    icon: Workflow,
+    category: 'sections',
+    module: 'drais',
+    submenu: [
+      { label: 'Schools', href: '/app/dashboard/drais/schools', description: 'School management & control', permission: 'drais.view' },
+      { label: 'Pricing', href: '/app/dashboard/drais/pricing', description: 'Global pricing control', permission: 'drais.view' },
+      { label: 'Activity', href: '/app/dashboard/drais/activity', description: 'Real-time activity monitoring', permission: 'drais.view' },
+      { label: 'Integrations', href: '/app/dashboard/integrations', description: 'External system connections', permission: 'integrations.view' },
+    ],
+  },
+
   // === ADMIN ===
   {
     label: 'Admin',

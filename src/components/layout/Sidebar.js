@@ -71,6 +71,7 @@ export default function Sidebar() {
     Systems: false,
     Operations: false,
     Admin: false,
+    'DRAIS Control': false,
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
