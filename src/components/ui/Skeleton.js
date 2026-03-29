@@ -1,14 +1,15 @@
 'use client';
 
-/**
- * Skeleton loading components for Jeton.
- * Replace traditional loaders with content-shaped placeholders
- * for perceived speed and visual stability.
- */
+import { motion } from 'framer-motion';
 
-function Bone({ className = '' }) {
+function Bone({ className = '', delay = 0 }) {
   return (
-    <div className={`animate-pulse rounded-lg bg-muted ${className}`} />
+    <motion.div
+      initial={{ opacity: 0.4 }}
+      animate={{ opacity: [0.4, 0.7, 0.4] }}
+      transition={{ duration: 1.5, repeat: Infinity, delay }}
+      className={`rounded-lg bg-muted ${className}`}
+    />
   );
 }
 
@@ -95,4 +96,35 @@ export function SkeletonForm({ fields = 6 }) {
 
 export function SkeletonLine({ className = '' }) {
   return <Bone className={`h-4 ${className}`} />;
+}
+
+export function SkeletonDeals({ count = 5 }) {
+  return (
+    <div className="bg-card rounded-xl border border-border divide-y divide-border">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between p-4">
+          <div className="space-y-2 flex-1">
+            <Bone className="h-4 w-48" delay={i * 0.1} />
+            <Bone className="h-3 w-32" delay={i * 0.1 + 0.05} />
+          </div>
+          <Bone className="h-6 w-20 rounded-full" delay={i * 0.1} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonInvoices({ count = 5 }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Bone className="h-4 w-32" delay={i * 0.08} />
+          <Bone className="h-4 flex-1" delay={i * 0.08 + 0.03} />
+          <Bone className="h-4 w-24" delay={i * 0.08 + 0.06} />
+          <Bone className="h-4 w-20" delay={i * 0.08 + 0.09} />
+        </div>
+      ))}
+    </div>
+  );
 }

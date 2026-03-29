@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { registerToast } from '@/lib/api-client';
 
 const ToastContext = createContext(null);
 
@@ -73,7 +74,14 @@ export function ToastProvider({ children }) {
     warning: (msg, opts) => toast('warning', msg, opts),
     info:    (msg, opts) => toast('info', msg, opts),
     dismiss,
+    // Legacy addToast support
+    addToast: ({ type, title, message }) => toast(type, message, { title }),
   };
+
+  // Register globally so api-client can show toasts
+  useEffect(() => {
+    registerToast(api);
+  }, [api]);
 
   return (
     <ToastContext.Provider value={api}>
@@ -95,5 +103,6 @@ export function ToastProvider({ children }) {
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used within ToastProvider');
-  return ctx;
+  // Return both direct API and addToast for backward compat
+  return { ...ctx, addToast: ctx.addToast };
 }

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { FileText, Search, Download, Eye, Calendar, Filter, ChevronLeft, ChevronRight, DollarSign, Building2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
+import { SkeletonInvoices } from '@/components/ui/Skeleton';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 const STATUS_COLORS = {
   paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -62,6 +64,7 @@ export default function InvoicesPage() {
   };
 
   return (
+    <PageTransition>
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
@@ -115,15 +118,8 @@ export default function InvoicesPage() {
       {/* Invoice List */}
       <div className="bg-card rounded-xl border overflow-hidden">
         {loading ? (
-          <div className="p-8 space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse flex items-center gap-4">
-                <div className="h-4 bg-muted rounded w-32" />
-                <div className="h-4 bg-muted rounded w-48 flex-1" />
-                <div className="h-4 bg-muted rounded w-24" />
-                <div className="h-4 bg-muted rounded w-20" />
-              </div>
-            ))}
+          <div className="p-8">
+            <SkeletonInvoices count={5} />
           </div>
         ) : invoices.length === 0 ? (
           <div className="p-12 text-center">
@@ -182,5 +178,6 @@ export default function InvoicesPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   );
 }

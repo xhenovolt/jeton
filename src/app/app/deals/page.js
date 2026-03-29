@@ -5,6 +5,8 @@ import { Plus, Search, ChevronRight, DollarSign, CheckCircle, Clock, AlertCircle
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 import NewDealModal from '@/components/modals/NewDealModal';
+import { SkeletonDeals } from '@/components/ui/Skeleton';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 const STATUS_COLORS = {
   draft: 'bg-muted text-foreground', sent: 'bg-blue-100 text-blue-700', accepted: 'bg-cyan-100 text-cyan-700',
@@ -43,6 +45,7 @@ export default function DealsPage() {
   );
 
   return (
+    <PageTransition>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -62,7 +65,7 @@ export default function DealsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+        <SkeletonDeals count={5} />
       ) : deals.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No deals found</div>
       ) : (
@@ -103,5 +106,6 @@ export default function DealsPage() {
 
       <NewDealModal isOpen={showNewDeal} onClose={() => setShowNewDeal(false)} onCreated={() => { setLoading(true); fetchDeals(); }} />
     </div>
+    </PageTransition>
   );
 }

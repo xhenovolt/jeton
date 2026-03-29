@@ -10,6 +10,7 @@ import {
   logCommunicationAudit,
   getMediaPermissions,
 } from '@/lib/communication-utils.js';
+import { notifyNewMessage, notifyFileShared } from '@/lib/communication-notifications.js';
 
 /**
  * GET /api/communication/[conversationId]/messages
@@ -130,6 +131,23 @@ export async function POST(req, { params }) {
       replyToMessageId,
     });
     
+    // Notify other participants (async, non-blocking)
+    query(
+      `SELECT cp.user_id, u.name as sender_name FROM conversation_participants cp
+       JOIN users u ON u.id = $2
+       WHERE cp.conversation_id = $1 AND cp.user_id != $2`,
+      [conversationId, userId]
+    ).then(res => {
+      const senderName = res.rows[0]?.sender_name || 'Someone';
+      for (const row of res.rows) {
+        if (messageType !== 'text') {
+          notifyFileShared({ senderUserId: userId, senderName, recipientUserId: row.user_id, conversationId, fileName: content || mediaType });
+        } else {
+          notifyNewMessage({ senderUserId: userId, senderName, recipientUserId: row.user_id, conversationId, messagePreview: content });
+        }
+      }
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message,

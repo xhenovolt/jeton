@@ -25,6 +25,8 @@ import {
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import { usePermissions } from '@/components/providers/PermissionProvider';
+import { SkeletonDashboard } from '@/components/ui/Skeleton';
+import { PageTransition } from '@/components/ui/PageTransition';
 import Link from 'next/link';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -131,8 +133,8 @@ export default function DashboardPage() {
 
   if (loading || permLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+      <div className="p-6">
+        <SkeletonDashboard />
       </div>
     );
   }
@@ -152,6 +154,7 @@ export default function DashboardPage() {
   const isAdmin = user?.is_superadmin || user?.role === 'admin';
 
   return (
+    <PageTransition>
     <div className="space-y-6 p-6">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -434,5 +437,6 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   );
 }

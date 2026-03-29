@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight } from 'lucide-react';
+import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 
@@ -39,6 +39,7 @@ export default function SettingsPage() {
         {[
           { href: '/app/settings/financial', icon: DollarSign, label: 'Financial', desc: 'Currency & formatting' },
           { href: '/app/settings/appearance', icon: Palette, label: 'Appearance', desc: 'Theme & colors' },
+          { href: '/app/settings/communication', icon: MessageSquare, label: 'Communication', desc: 'Calls, chat & file sharing' },
         ].map(item => (
           <Link key={item.href} href={item.href} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted/50 transition group">
             <div className="flex items-center gap-3">
