@@ -37,3 +37,47 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
   }
 }
+
+export async function DELETE(request, { params }) {
+  try {
+    const perm = await requirePermission(request, 'users.delete');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
+    const { userId } = await params;
+
+    // Verify user exists and check staff linkage
+    const userResult = await query(
+      'SELECT id, email, name, role, staff_id FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userResult.rows[0]) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    const user = userResult.rows[0];
+
+    // Prevent deletion of superadmin users
+    if (user.role === 'superadmin') {
+      return NextResponse.json({ success: false, error: 'Cannot delete superadmin users' }, { status: 403 });
+    }
+
+    // Delete user (cascade will handle sessions and audit logs via database FK constraints)
+    const deleteResult = await query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+      [userId]
+    );
+
+    if (!deleteResult.rows[0]) {
+      return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `User ${user.email} deleted successfully`,
+      data: { id: deleteResult.rows[0].id, email: deleteResult.rows[0].email }
+    });
+  } catch (error) {
+    console.error('[admin/users/[userId]] DELETE error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
+  }
+}
