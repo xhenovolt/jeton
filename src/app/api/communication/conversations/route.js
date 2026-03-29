@@ -1,48 +1,98 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db.js';
+import { requirePermission } from '@/lib/permissions.js';
+import {
+  createConversation,
+  getUserConversations,
+  getConversationDetails,
+  logCommunicationAudit,
+  isParticipant,
+} from '@/lib/communication-utils.js';
+
 /**
- * API: Create or get conversations
- * GET /api/communication/conversations - List user's conversations
- * POST /api/communication/conversations - Create new conversation
+ * GET /api/communication/conversations
+ * Get all conversations for current user
  */
-
-import { getCurrentUser } from '@/lib/current-user.js';
-import { query } from '@/lib/db.js';
-
-export async function GET(request) {
+export async function GET(req) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 403 });
-    }
-
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit')) || 50;
-    const offset = parseInt(url.searchParams.get('offset')) || 0;
-
-    // Get user's conversations (ordered by last message)
-    const result = await query(
-      `
-      SELECT 
-        c.id, c.type, c.name, c.description, c.avatar_url,
-        c.created_by_user_id, c.created_at, c.last_message_at,
-        (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id AND is_active = true) as member_count,
-        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND sender_id != $1 AND is_deleted = false) as unread_count
-      FROM conversations c
-      INNER JOIN conversation_members cm ON c.id = cm.conversation_id
-      WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_archived = false
-      ORDER BY c.last_message_at DESC NULLS LAST
-      LIMIT $2 OFFSET $3
-      `,
-      [user.id, limit, offset]
-    );
-
-    return Response.json({
+    const auth = await requirePermission(req, 'communication.view_conversations');
+    if (auth.status === 403) return auth;
+    
+    const { userId } = auth;
+    
+    const conversations = await getUserConversations(userId);
+    
+    return NextResponse.json({
       success: true,
-      data: result.rows,
-      count: result.rows.length,
+      conversations,
+      count: conversations.length,
     });
   } catch (error) {
-    console.error('[conversations GET] Error:', error.message);
-    return Response.json(
+    console.error('Error fetching conversations:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/communication/conversations
+ * Create a new conversation
+ */
+export async function POST(req) {
+  try {
+    const auth = await requirePermission(req, 'communication.create_conversation');
+    if (auth.status === 403) return auth;
+    
+    const { userId } = auth;
+    const body = await req.json();
+    const { type, name, participants } = body;
+    
+    // Validation
+    if (!type || !['direct', 'group', 'department'].includes(type)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid conversation type' },
+        { status: 400 }
+      );
+    }
+    
+    if (type === 'direct') {
+      if (!participants || participants.length !== 1) {
+        return NextResponse.json(
+          { success: false, error: 'Direct conversation requires exactly 1 other participant' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    if (type === 'group' || type === 'department') {
+      if (!name) {
+        return NextResponse.json(
+          { success: false, error: 'Group/department conversation requires a name' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Create conversation
+    const conversation = await createConversation({
+      type,
+      name: type !== 'direct' ? name : null,
+      createdBy: userId,
+      participants: participants || [userId],
+    });
+    
+    // Fetch full details
+    const details = await getConversationDetails(conversation.id, userId);
+    
+    return NextResponse.json({
+      success: true,
+      conversation: details,
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
