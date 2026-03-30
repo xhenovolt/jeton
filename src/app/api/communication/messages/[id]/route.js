@@ -12,11 +12,11 @@ import { query } from '@/lib/db.js';
  */
 export async function PUT(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.edit_message');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.edit_message');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
-    const { id: messageId } = params;
+    const { id: messageId } = await params;
     const body = await req.json();
     const { content } = body;
     
@@ -28,7 +28,7 @@ export async function PUT(req, { params }) {
     }
     
     // Verify user is message sender
-    const message = await db.query(
+    const message = await query(
       'SELECT sender_id FROM messages WHERE id = $1',
       [messageId]
     );
@@ -47,7 +47,7 @@ export async function PUT(req, { params }) {
       );
     }
     
-    const result = await db.query(
+    const result = await query(
       `UPDATE messages SET content = $1, edited_at = NOW()
        WHERE id = $2
        RETURNING *`,
@@ -80,11 +80,11 @@ export async function PUT(req, { params }) {
  */
 export async function DELETE(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.delete_message');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.delete_message');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
-    const { id: messageId } = params;
+    const { id: messageId } = await params;
     
     const message = await deleteMessage(messageId, userId);
     

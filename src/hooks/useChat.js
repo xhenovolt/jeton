@@ -15,6 +15,8 @@ export function useChat() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState(null);
 
+  const clearError = useCallback(() => setError(null), []);
+
   // ── Fetch conversations ──
   const fetchConversations = useCallback(async () => {
     setIsLoadingConvs(true);
@@ -155,6 +157,7 @@ export function useChat() {
     fetchMessages,
     sendMessage,
     createConversation,
+    clearError,
   };
 }
 

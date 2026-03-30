@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { userId } = auth;
-    const { conversationId } = params;
+    const { conversationId } = await params;
     const url = new URL(req.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit')) || 30, 100);
     const offset = parseInt(url.searchParams.get('offset')) || 0;
@@ -63,7 +63,7 @@ export async function POST(req, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { userId } = auth;
-    const { conversationId } = params;
+    const { conversationId } = await params;
     
     // Verify user is participant
     const isParticipantRes = await isParticipant(conversationId, userId);
@@ -121,7 +121,7 @@ export async function POST(req, { params }) {
     
     // Create message
     const message = await createMessage({
-      conversationId: parseInt(conversationId),
+      conversationId,
       senderId: userId,
       content,
       messageType,

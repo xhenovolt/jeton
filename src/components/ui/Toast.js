@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { registerToast } from '@/lib/api-client';
@@ -68,7 +68,7 @@ export function ToastProvider({ children }) {
     return id;
   }, []);
 
-  const api = {
+  const api = useMemo(() => ({
     success: (msg, opts) => toast('success', msg, opts),
     error:   (msg, opts) => toast('error', msg, opts),
     warning: (msg, opts) => toast('warning', msg, opts),
@@ -76,7 +76,7 @@ export function ToastProvider({ children }) {
     dismiss,
     // Legacy addToast support
     addToast: ({ type, title, message }) => toast(type, message, { title }),
-  };
+  }), [toast, dismiss]);
 
   // Register globally so api-client can show toasts
   useEffect(() => {

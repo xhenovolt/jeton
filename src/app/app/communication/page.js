@@ -34,12 +34,14 @@ export default function CommunicationPage() {
     });
   }, []);
 
-  // Show chat errors as toasts
+  // Show chat errors as toasts — clear error immediately to prevent re-fire
   useEffect(() => {
     if (chat.error) {
       toast.error(chat.error);
+      chat.clearError();
     }
-  }, [chat.error, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.error]);
 
   const handleCreateConversation = useCallback(
     async (type, name, memberIds) => {

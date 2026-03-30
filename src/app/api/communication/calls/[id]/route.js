@@ -15,11 +15,11 @@ import { query } from '@/lib/db.js';
  */
 export async function GET(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
-    const { id: callId } = params;
+    const { id: callId } = await params;
     
     const call = await getCallDetails(callId);
     
@@ -58,11 +58,11 @@ export async function GET(req, { params }) {
  */
 export async function PUT(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.start_call');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.start_call');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
-    const { id: callId } = params;
+    const { id: callId } = await params;
     const body = await req.json();
     const { status, recordingUrl, endTime } = body;
     
@@ -85,7 +85,7 @@ export async function PUT(req, { params }) {
     }
     
     // Update call
-    const result = await db.query(
+    const result = await query(
       `UPDATE calls SET status = $1 ${recordingUrl ? ', recording_url = $3' : ''} ${endTime ? ', ended_at = NOW()' : ''}
        WHERE id = $2
        RETURNING *`,

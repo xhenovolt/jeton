@@ -13,7 +13,7 @@ export async function PATCH(req, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { userId } = auth;
-    const { conversationId } = params;
+    const { conversationId } = await params;
 
     const isMember = await isParticipant(conversationId, userId);
     if (!isMember) {
@@ -77,7 +77,7 @@ export async function DELETE(req, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { userId } = auth;
-    const { conversationId } = params;
+    const { conversationId } = await params;
 
     // Check ownership or superadmin
     const conv = await query(
