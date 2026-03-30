@@ -24,7 +24,7 @@ export async function GET(req) {
     
     return NextResponse.json({
       success: true,
-      conversations,
+      data: conversations,
       count: conversations.length,
     });
   } catch (error) {
@@ -47,7 +47,8 @@ export async function POST(req) {
     
     const { userId } = auth;
     const body = await req.json();
-    const { type, name, participants } = body;
+    const { type, name, participants: rawParticipants, member_ids } = body;
+    const participants = rawParticipants || member_ids || [];
     
     // Validation
     if (!type || !['direct', 'group', 'department'].includes(type)) {
@@ -88,7 +89,7 @@ export async function POST(req) {
     
     return NextResponse.json({
       success: true,
-      conversation: details,
+      data: details,
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating conversation:', error);

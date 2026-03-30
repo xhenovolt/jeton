@@ -18,9 +18,9 @@ export async function GET(request) {
 
     let sql = `
       SELECT 
-        u.id, u.email, u.full_name, u.role, u.status,
+        u.id, u.email, COALESCE(u.full_name, u.name) as full_name, u.role, u.status,
         u.profile_image_url, u.avatar_id, u.department, u.hierarchy_level,
-        s.id as staff_id, s.full_name as staff_name
+        s.id as staff_id, s.name as staff_name
       FROM users u
       LEFT JOIN staff s ON s.user_id = u.id
       WHERE u.id != $1 AND u.status = 'active'
@@ -29,7 +29,7 @@ export async function GET(request) {
     let paramIdx = 2;
 
     if (search) {
-      sql += ` AND (u.full_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR s.full_name ILIKE $${paramIdx})`;
+      sql += ` AND (u.full_name ILIKE $${paramIdx} OR u.name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR s.name ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
       paramIdx++;
     }

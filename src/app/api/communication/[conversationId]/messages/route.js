@@ -40,7 +40,7 @@ export async function GET(req, { params }) {
     
     return NextResponse.json({
       success: true,
-      messages,
+      data: messages,
       count: messages.length,
       hasMore: messages.length === limit,
     });
@@ -150,7 +150,7 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message,
+      data: message,
     }, { status: 201 });
   } catch (error) {
     console.error('Error sending message:', error);

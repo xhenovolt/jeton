@@ -108,7 +108,7 @@ export function useChat() {
         body: JSON.stringify({
           type,
           name,
-          member_ids: memberIds,
+          participants: memberIds,
         }),
       });
 

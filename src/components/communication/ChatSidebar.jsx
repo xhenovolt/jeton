@@ -16,7 +16,11 @@ export function ChatSidebar({
   onSelectConversation,
   onCreateNew,
   onSettings,
+  onArchive,
+  onDelete,
   isLoadingConvs = false,
+  showArchived = false,
+  onToggleArchived,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredConvs, setFilteredConvs] = useState(conversations);
@@ -54,6 +58,15 @@ export function ChatSidebar({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-foreground">Messages</h2>
           <div className="flex gap-2">
+            {onToggleArchived && (
+              <button
+                onClick={onToggleArchived}
+                className={`p-2 rounded-lg transition ${showArchived ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}
+                title={showArchived ? 'Show active chats' : 'Show archived chats'}
+              >
+                <Archive className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={onCreateNew}
               className="p-2 hover:bg-muted rounded-lg transition text-primary hover:text-primary/80"
@@ -112,14 +125,34 @@ export function ChatSidebar({
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
         {isLoadingConvs ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">
-            Loading conversations...
+          <div className="p-3 space-y-2">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex items-start gap-3 p-3 animate-pulse">
+                <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredConvs.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">
-            {conversations.length === 0
-              ? 'No conversations yet. Start one!'
-              : 'No conversations match your search'}
+          <div className="p-6 text-center text-muted-foreground text-sm space-y-2">
+            <p>
+              {conversations.length === 0
+                ? showArchived
+                  ? 'No archived conversations'
+                  : 'No conversations yet. Start one!'
+                : 'No conversations match your search'}
+            </p>
+            {conversations.length === 0 && !showArchived && (
+              <button
+                onClick={onCreateNew}
+                className="text-primary hover:text-primary/80 font-medium text-sm"
+              >
+                + Start a conversation
+              </button>
+            )}
           </div>
         ) : (
           <AnimatePresence>
@@ -194,11 +227,17 @@ export function ChatSidebar({
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onMouseLeave={() => setContextMenu(null)}
           >
-            <button className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2">
+            <button
+              onClick={() => { onArchive?.(contextMenu.convId); setContextMenu(null); }}
+              className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
+            >
               <Archive className="w-4 h-4" />
-              Archive
+              {showArchived ? 'Unarchive' : 'Archive'}
             </button>
-            <button className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-muted flex items-center gap-2">
+            <button
+              onClick={() => { onDelete?.(contextMenu.convId); setContextMenu(null); }}
+              className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-muted flex items-center gap-2"
+            >
               <X className="w-4 h-4" />
               Delete
             </button>

@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ChatSidebar } from '@/components/communication/ChatSidebar';
 import { ChatWindow } from '@/components/communication/ChatWindow';
 import useChat from '@/hooks/useChat';
-import { api } from '@/lib/api-client';
+import { api, confirmAction } from '@/lib/api-client';
 import { PageTransition } from '@/components/ui/PageTransition';
 
 // Lazy load heavy modals — only loaded when user opens them
@@ -22,6 +22,7 @@ export default function CommunicationPage() {
   const [showNewConvModal, setShowNewConvModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [showCallUI, setShowCallUI] = useState(null); // { type: 'audio'|'video', conversationId }
+  const [showArchived, setShowArchived] = useState(false);
   const chat = useChat();
 
   // Fetch current user ID
@@ -32,6 +33,13 @@ export default function CommunicationPage() {
       }
     });
   }, []);
+
+  // Show chat errors as toasts
+  useEffect(() => {
+    if (chat.error) {
+      toast.error(chat.error);
+    }
+  }, [chat.error, toast]);
 
   const handleCreateConversation = useCallback(
     async (type, name, memberIds) => {
@@ -67,16 +75,76 @@ export default function CommunicationPage() {
   // Get selected conversation name
   const selectedConv = chat.conversations.find(c => c.id === chat.selectedConvId);
 
+  // Archive/unarchive handler
+  const handleArchive = useCallback(async (convId) => {
+    const conv = chat.conversations.find(c => c.id === convId);
+    const archiving = !conv?.is_archived;
+    const confirmed = await confirmAction(
+      archiving ? 'Archive Conversation?' : 'Unarchive Conversation?',
+      archiving ? 'This will hide the conversation from your main list.' : 'This will move the conversation back to your main list.',
+      archiving ? 'Archive' : 'Unarchive',
+      'question'
+    );
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/communication/conversations/${convId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_archived: archiving }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success(data.message || (archiving ? 'Conversation archived' : 'Conversation unarchived'));
+      chat.fetchConversations();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update conversation');
+    }
+  }, [chat, toast]);
+
+  // Delete handler
+  const handleDelete = useCallback(async (convId) => {
+    const confirmed = await confirmAction(
+      'Delete Conversation?',
+      'This action cannot be undone. All messages will be hidden.',
+      'Delete',
+      'warning'
+    );
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/communication/conversations/${convId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast.success('Conversation deleted');
+      if (chat.selectedConvId === convId) chat.setSelectedConvId(null);
+      chat.fetchConversations();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete conversation');
+    }
+  }, [chat, toast]);
+
+  // Filter conversations based on archived state
+  const visibleConversations = chat.conversations.filter(c =>
+    showArchived ? c.is_archived : !c.is_archived
+  );
+
   return (
     <PageTransition className="h-screen">
       <div className="flex h-full bg-background">
         {/* Sidebar */}
         <div className="w-80 border-r border-border flex-shrink-0 hidden md:flex flex-col">
           <ChatSidebar
-            conversations={chat.conversations}
+            conversations={visibleConversations}
             selectedConversationId={chat.selectedConvId}
             onSelectConversation={chat.setSelectedConvId}
             onCreateNew={() => setShowNewConvModal(true)}
+            onArchive={handleArchive}
+            onDelete={handleDelete}
+            showArchived={showArchived}
+            onToggleArchived={() => setShowArchived(prev => !prev)}
             isLoadingConvs={chat.isLoadingConvs}
           />
         </div>
