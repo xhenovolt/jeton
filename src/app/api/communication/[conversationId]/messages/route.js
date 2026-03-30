@@ -18,9 +18,9 @@ import { notifyNewMessage, notifyFileShared } from '@/lib/communication-notifica
  */
 export async function GET(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     const { conversationId } = params;
     const url = new URL(req.url);
@@ -59,9 +59,9 @@ export async function GET(req, { params }) {
  */
 export async function POST(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.send_message');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.send_message');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     const { conversationId } = params;
     

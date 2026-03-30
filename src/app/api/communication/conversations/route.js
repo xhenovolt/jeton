@@ -15,9 +15,9 @@ import {
  */
 export async function GET(req) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     
     const conversations = await getUserConversations(userId);
@@ -42,9 +42,9 @@ export async function GET(req) {
  */
 export async function POST(req) {
   try {
-    const auth = await requirePermission(req, 'communication.create_conversation');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.create_conversation');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     const body = await req.json();
     const { type, name, participants: rawParticipants, member_ids } = body;

@@ -9,9 +9,9 @@ import { isParticipant, logCommunicationAudit } from '@/lib/communication-utils.
  */
 export async function PATCH(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     const { conversationId } = params;
 
@@ -73,9 +73,9 @@ export async function PATCH(req, { params }) {
  */
 export async function DELETE(req, { params }) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
     const { conversationId } = params;
 
