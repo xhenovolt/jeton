@@ -5,6 +5,7 @@
 
 import LoginForm from '@/components/auth/LoginForm';
 import AnimatedAuthBackground from '@/components/auth/AnimatedAuthBackground';
+import { JetonIcon } from '@/components/Logo';
 
 export const metadata = {
   title: 'Sign In - Jeton',
@@ -19,8 +20,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/25 mb-4">
-            <span className="text-2xl font-bold text-white">J</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <JetonIcon size={64} />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Welcome Back

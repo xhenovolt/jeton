@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { JetonIcon } from '@/components/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
@@ -176,9 +177,7 @@ export default function Sidebar() {
             exit={{ opacity: 0 }}
             className="flex items-center gap-2"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <span className="text-sm font-bold text-white">J</span>
-            </div>
+            <JetonIcon size={32} />
             <span className="font-bold text-lg" style={{ color: 'var(--sidebar-text)' }}>Jeton</span>
           </motion.div>
         )}
