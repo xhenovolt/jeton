@@ -221,6 +221,18 @@ export const menuItems = [
     ],
   },
 
+  // === DESIGNS ===
+  {
+    label: 'Designs',
+    icon: Palette,
+    category: 'sections',
+    module: 'designs',
+    submenu: [
+      { label: 'My Designs', href: '/app/designs', description: 'Design gallery & templates', permission: 'designs.view' },
+      { label: 'New Design', href: '/app/designs/editor/new', description: 'Open blank canvas editor', permission: 'designs.create' },
+    ],
+  },
+
   // === PRICING & SUBSCRIPTIONS ===
   {
     label: 'Pricing',
