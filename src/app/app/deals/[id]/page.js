@@ -47,6 +47,7 @@ export default function DealDetailPage() {
   // Delete state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [payError, setPayError] = useState('');
   const toast = useToast();
 
   useEffect(() => { fetchDeal(); fetchAccounts(); fetchTimeline(); fetchInvoices(); }, [id]);
@@ -137,7 +138,7 @@ export default function DealDetailPage() {
   };
 
   const submitPayment = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault(); setSaving(true); setPayError('');
     try {
       const body = {
         deal_id: id,
@@ -151,13 +152,17 @@ export default function DealDetailPage() {
         notes: payForm.notes || undefined,
       };
       const res = await fetchWithAuth('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) {
+      const json = await res.json();
+      if (json.success) {
         toast.success('Payment recorded');
         setShowPayForm(false);
+        setPayError('');
         setPayForm({ amount: '', account_id: '', method: 'mobile_money', reference: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
         fetchDeal(); fetchTimeline(); fetchInvoices();
+      } else {
+        setPayError(json.error || 'Failed to record payment');
       }
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+    } catch (err) { console.error(err); setPayError('Network error. Please try again.'); } finally { setSaving(false); }
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
@@ -194,7 +199,7 @@ export default function DealDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${STATUS_COLORS[deal.status] || 'bg-muted text-foreground'}`}>{deal.status?.replace(/_/g, ' ')}</span>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${DEAL_STATUS[deal.status] || 'bg-muted text-foreground'}`}>{deal.status?.replace(/_/g, ' ')}</span>
           <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit deal"><Edit2 className="w-4 h-4" /></button>
           <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600" title="Delete deal"><Trash2 className="w-4 h-4" /></button>
         </div>
@@ -306,6 +311,7 @@ export default function DealDetailPage() {
                 </div>
               </div>
               {parseFloat(payForm.amount) > remaining && <p className="text-xs text-red-500">Warning: Amount exceeds remaining balance of {fmtCurrency(remaining, cur)}</p>}
+              {payError && <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{payError}</p>}
               <button type="submit" disabled={saving} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">{saving ? 'Recording...' : `Record ${fmtCurrency(payForm.amount || 0, cur)} Payment`}</button>
             </form>
           )}

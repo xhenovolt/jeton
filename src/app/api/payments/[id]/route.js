@@ -10,8 +10,8 @@ export async function GET(request, { params }) {
     const { auth } = perm;
     const { id } = await params;
     const result = await query(
-      `SELECT p.*, d.title as deal_title, a.name as account_name, c.company_name as client_name
-       FROM payments p JOIN deals d ON p.deal_id = d.id JOIN accounts a ON p.account_id = a.id JOIN clients c ON d.client_id = c.id
+      `SELECT p.*, d.title as deal_title, a.name as account_name, COALESCE(c.company_name, d.client_name) as client_name
+       FROM payments p JOIN deals d ON p.deal_id = d.id JOIN accounts a ON p.account_id = a.id LEFT JOIN clients c ON d.client_id = c.id
        WHERE p.id = $1`, [id]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: result.rows[0] });

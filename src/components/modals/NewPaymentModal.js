@@ -113,7 +113,7 @@ export default function NewPaymentModal({ isOpen, onClose, onCreated, prefillDea
           <select value={form.deal_id} onChange={e => setForm(f => ({ ...f, deal_id: e.target.value }))} className={selectClass}>
             <option value="">Select a deal...</option>
             {deals.filter(d => d.status !== 'completed' && d.status !== 'cancelled').map(d => (
-              <option key={d.id} value={d.id}>{d.title} — {d.client_name || 'Unknown client'} ({d.currency || 'UGX'} {Math.round(parseFloat(d.total_amount || 0)).toLocaleString()})</option>
+              <option key={d.id} value={d.id}>{d.title} — {d.client_label || d.client_name || 'Unknown client'} ({d.currency || 'UGX'} {Math.round(parseFloat(d.total_amount || 0)).toLocaleString()})</option>
             ))}
           </select>
           {selectedDeal && remaining !== null && (

@@ -26,7 +26,7 @@ export default function PaymentsPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const totalCompleted = payments.filter(p => p.status === 'completed').reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+  const totalCompleted = payments.filter(p => p.status === 'completed').reduce((s, p) => s + parseFloat(p.amount_ugx || p.amount || 0), 0);
 
   return (
     <div className="p-6 space-y-6">

@@ -42,10 +42,10 @@ export default function FinancePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Balance" value={formatCurrency(data?.total_balance)} icon={Wallet} color="blue" href="/app/finance/accounts" />
-        <StatCard label="Total Income" value={formatCurrency(data?.total_income)} icon={TrendingUp} color="emerald" href="/app/finance/ledger" />
-        <StatCard label="Total Expenses" value={formatCurrency(data?.total_expenses)} icon={TrendingDown} color="red" href="/app/finance/expenses" />
-        <StatCard label="Net Position" value={formatCurrency((data?.total_income || 0) - Math.abs(data?.total_expenses || 0))} icon={DollarSign} color="purple" />
+        <StatCard label="Total Balance" value={formatCurrency(data?.accounts?.reduce((s, a) => s + parseFloat(a.balance || 0), 0) || 0)} icon={Wallet} color="blue" href="/app/finance/accounts" />
+        <StatCard label="Total Income" value={formatCurrency(data?.financial?.total_income)} icon={TrendingUp} color="emerald" href="/app/finance/ledger" />
+        <StatCard label="Total Expenses" value={formatCurrency(data?.financial?.total_expenses)} icon={TrendingDown} color="red" href="/app/finance/expenses" />
+        <StatCard label="Net Position" value={formatCurrency(data?.financial?.net_position)} icon={DollarSign} color="purple" />
       </div>
 
       {/* Quick Links */}
