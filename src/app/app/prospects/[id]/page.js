@@ -186,12 +186,14 @@ export default function ProspectDetailPage() {
           {/* Actions */}
           <div className="flex gap-2 shrink-0">
             {form.stage !== 'won' && form.stage !== 'lost' && (
-              <button onClick={convertToClient} className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs hover:bg-emerald-700 transition">
-                <UserCheck className="w-3.5 h-3.5" /> Convert
-              </button>
-            <Link href={`/app/prospects/${id}/proposal`} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs hover:bg-blue-700 transition">
-                <FileText className="w-3.5 h-3.5" /> Generate Proposal
-              </Link>
+              <>
+                <button onClick={convertToClient} className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs hover:bg-emerald-700 transition">
+                  <UserCheck className="w-3.5 h-3.5" /> Convert
+                </button>
+                <Link href={`/app/prospects/${id}/proposal`} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs hover:bg-blue-700 transition">
+                  <FileText className="w-3.5 h-3.5" /> Generate Proposal
+                </Link>
+              </>
             )}
             <button onClick={deleteProspect} className="p-2 rounded-lg border border-border hover:bg-red-50 dark:hover:bg-red-900/20 transition">
               <Trash2 className="w-4 h-4 text-red-500" />
