@@ -4,8 +4,7 @@ import { requirePermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/drais/systems
- * Returns all DRAIS systems with their pricing plans and features.
- * Used by the proposal generator UI.
+ * Returns all DRAIS systems with plans, features, extended content, and comparison matrix.
  */
 export async function GET(request) {
   const perm = await requirePermission(request, 'prospects.view');
@@ -13,7 +12,16 @@ export async function GET(request) {
 
   try {
     const systemsResult = await query(`
-      SELECT * FROM drais_systems WHERE is_active = TRUE ORDER BY name
+      SELECT ds.*,
+             sec.problem_block,
+             sec.solution_block,
+             sec.why_attendance_first,
+             sec.cost_of_inaction_block,
+             sec.transformation_block
+      FROM drais_systems ds
+      LEFT JOIN systems_extended_content sec ON sec.system_id = ds.id
+      WHERE ds.is_active = TRUE
+      ORDER BY ds.name
     `);
 
     const systems = await Promise.all(
@@ -21,9 +29,7 @@ export async function GET(request) {
         const plansResult = await query(`
           SELECT pp.*,
             COALESCE(
-              json_agg(
-                pf ORDER BY pf.display_order
-              ) FILTER (WHERE pf.id IS NOT NULL),
+              json_agg(pf ORDER BY pf.display_order) FILTER (WHERE pf.id IS NOT NULL),
               '[]'
             ) AS features
           FROM pricing_plans pp

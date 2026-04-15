@@ -69,7 +69,8 @@ export async function GET(request) {
 
 /**
  * POST /api/proposals
- * Create a new proposal with snapshot
+ * Create a new proposal with multi-plan snapshot.
+ * Accepts selected_plan_ids[] + recommended_plan_id (new) OR selected_plan_id (compat).
  */
 export async function POST(request) {
   const perm = await requirePermission(request, 'prospects.view');
@@ -78,11 +79,32 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { prospect_id, system_id, selected_plan_id, custom_notes, discount_percent, payment_terms } = body;
+    const {
+      prospect_id,
+      system_id,
+      // Multi-plan (new)
+      selected_plan_ids,
+      recommended_plan_id,
+      // Compat (old single-plan)
+      selected_plan_id,
+      // Form fields
+      custom_notes,
+      discount_percent,
+      payment_terms,
+      student_count,
+      school_type,
+    } = body;
 
-    if (!prospect_id || !system_id || !selected_plan_id) {
+    // Normalise plan IDs — support both old and new format
+    const planIds = Array.isArray(selected_plan_ids) && selected_plan_ids.length
+      ? selected_plan_ids
+      : selected_plan_id ? [selected_plan_id] : [];
+
+    const recPlanId = recommended_plan_id || planIds[0] || null;
+
+    if (!prospect_id || !system_id || !planIds.length) {
       return NextResponse.json(
-        { success: false, error: 'prospect_id, system_id, and selected_plan_id are required' },
+        { success: false, error: 'prospect_id, system_id, and at least one plan are required' },
         { status: 400 }
       );
     }
@@ -93,75 +115,101 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Prospect not found' }, { status: 404 });
     }
 
-    // Validate plan exists and belongs to the right system
-    const planRes = await query(
-      `SELECT pp.*, ds.name AS system_name, ds.positioning, ds.description AS system_description
+    // Validate all plans exist and belong to the system
+    const plansRes = await query(
+      `SELECT pp.*, ds.name AS system_name, ds.positioning, ds.description AS system_description,
+              ds.comparison_matrix,
+              sec.problem_block, sec.solution_block, sec.why_attendance_first,
+              sec.cost_of_inaction_block, sec.transformation_block
        FROM pricing_plans pp
        JOIN drais_systems ds ON ds.id = pp.system_id
-       WHERE pp.id = $1 AND pp.system_id = $2`,
-      [selected_plan_id, system_id]
+       LEFT JOIN systems_extended_content sec ON sec.system_id = ds.id
+       WHERE pp.id = ANY($1::uuid[]) AND pp.system_id = $2`,
+      [planIds, system_id]
     );
-    if (!planRes.rows[0]) {
-      return NextResponse.json({ success: false, error: 'Plan not found or does not belong to the specified system' }, { status: 404 });
+    if (plansRes.rows.length !== planIds.length) {
+      return NextResponse.json(
+        { success: false, error: 'One or more plans not found or do not belong to the specified system' },
+        { status: 404 }
+      );
     }
 
-    // Get features for the plan
+    // Fetch features for all plans
     const featuresRes = await query(
-      `SELECT * FROM pricing_features WHERE plan_id = $1 ORDER BY display_order`,
-      [selected_plan_id]
+      `SELECT * FROM pricing_features WHERE plan_id = ANY($1::uuid[]) ORDER BY plan_id, display_order`,
+      [planIds]
     );
+    const featuresByPlan = {};
+    for (const f of featuresRes.rows) {
+      if (!featuresByPlan[f.plan_id]) featuresByPlan[f.plan_id] = [];
+      featuresByPlan[f.plan_id].push(f);
+    }
 
-    // Create the proposal
+    const sysRow = plansRes.rows[0]; // system data same across all rows
+    const recPlan = plansRes.rows.find(p => p.id === recPlanId) || plansRes.rows[0];
+
+    // Create the proposal — selected_plan_id = recommended plan (for FK compat)
     const proposalRes = await query(
       `INSERT INTO proposals
-         (prospect_id, system_id, selected_plan_id, custom_notes, discount_percent, payment_terms, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, 'generated', $7)
+         (prospect_id, system_id, selected_plan_id, selected_plan_ids, recommended_plan_id,
+          custom_notes, discount_percent, payment_terms, student_count, school_type,
+          status, created_by)
+       VALUES ($1, $2, $3, $4::uuid[], $5, $6, $7, $8, $9, $10, 'generated', $11)
        RETURNING *`,
       [
-        prospect_id,
-        system_id,
-        selected_plan_id,
-        custom_notes || null,
-        discount_percent || 0,
-        payment_terms || null,
+        prospect_id, system_id, recPlan.id, planIds, recPlanId,
+        custom_notes || null, parseFloat(discount_percent) || 0, payment_terms || null,
+        student_count ? parseInt(student_count) : null, school_type || null,
         auth.userId,
       ]
     );
     const proposal = proposalRes.rows[0];
     const prospect = prospectRes.rows[0];
-    const plan = planRes.rows[0];
 
-    // Build full snapshot payload
-    const discountAmt = (parseFloat(plan.installation_fee) + parseFloat(plan.annual_subscription)) * (parseFloat(discount_percent || 0) / 100);
+    // Build full multi-plan snapshot
+    const plans = plansRes.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      installation_fee:    parseFloat(p.installation_fee),
+      annual_subscription: parseFloat(p.annual_subscription),
+      student_limit:       p.student_limit,
+      is_popular:          p.is_popular,
+      is_recommended:      p.id === recPlanId,
+      features:            featuresByPlan[p.id] || [],
+    }));
+
+    const discPct = parseFloat(discount_percent || 0);
     const snapshot = {
-      proposal_id:         proposal.id,
-      generated_at:        new Date().toISOString(),
-      school_name:         prospect.company_name,
-      contact_name:        prospect.contact_name,
-      email:               prospect.email,
-      phone:               prospect.phone,
+      proposal_id:      proposal.id,
+      generated_at:     new Date().toISOString(),
+      school_name:      prospect.company_name,
+      contact_name:     prospect.contact_name,
+      email:            prospect.email,
+      phone:            prospect.phone,
+      student_count:    student_count || null,
+      school_type:      school_type || null,
       system: {
         id:          system_id,
-        name:        plan.system_name,
-        positioning: plan.positioning,
-        description: plan.system_description,
+        name:        sysRow.system_name,
+        positioning: sysRow.positioning,
+        description: sysRow.system_description,
       },
-      plan: {
-        id:                  plan.id,
-        name:                plan.name,
-        installation_fee:    parseFloat(plan.installation_fee),
-        annual_subscription: parseFloat(plan.annual_subscription),
-        student_limit:       plan.student_limit,
-        is_popular:          plan.is_popular,
+      extended_content: {
+        problem_block:          sysRow.problem_block          || '',
+        solution_block:         sysRow.solution_block         || '',
+        why_attendance_first:   sysRow.why_attendance_first   || '',
+        cost_of_inaction_block: sysRow.cost_of_inaction_block || '',
+        transformation_block:   sysRow.transformation_block   || '',
       },
-      features:        featuresRes.rows,
-      discount_percent: parseFloat(discount_percent || 0),
-      discount_amount:  discountAmt,
-      custom_notes:    custom_notes || null,
-      payment_terms:   payment_terms || null,
+      comparison_matrix:    sysRow.comparison_matrix || [],
+      plans,
+      recommended_plan_id:  recPlanId,
+      discount_percent:     discPct,
+      custom_notes:         custom_notes || null,
+      payment_terms:        payment_terms || null,
     };
 
-    // Save the snapshot (immutable record)
+    // Save snapshot
     await query(
       `INSERT INTO proposal_snapshots (proposal_id, full_payload) VALUES ($1, $2)`,
       [proposal.id, JSON.stringify(snapshot)]
@@ -171,12 +219,12 @@ export async function POST(request) {
     await query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
        VALUES ($1, 'CREATE', 'proposal', $2, $3)`,
-      [auth.userId, proposal.id, JSON.stringify({ prospect_id, plan: plan.name })]
+      [auth.userId, proposal.id, JSON.stringify({ prospect_id, plans: plans.map(p => p.name) })]
     ).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      data: { ...proposal, snapshot, features: featuresRes.rows, plan, prospect },
+      data: { ...proposal, snapshot, plans, prospect },
     }, { status: 201 });
   } catch (error) {
     console.error('[Proposals] POST error:', error);
