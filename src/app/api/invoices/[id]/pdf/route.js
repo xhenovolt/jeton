@@ -3,6 +3,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
 import { requirePermission } from '@/lib/permissions.js';
+import { getCompanySettings } from '@/lib/company-settings.js';
 
 /**
  * GET /api/invoices/[id]/pdf
@@ -16,7 +17,10 @@ export async function GET(request, { params }) {
     const { auth } = perm;
 
     const { id } = await params;
-    const result = await query(`SELECT * FROM invoices WHERE id = $1`, [id]);
+    const [result, co] = await Promise.all([
+      query(`SELECT * FROM invoices WHERE id = $1`, [id]),
+      getCompanySettings(),
+    ]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Invoice not found' }, { status: 404 });
 
     const inv = result.rows[0];
@@ -87,11 +91,15 @@ export async function GET(request, { params }) {
   <button class="print-btn no-print" onclick="window.print()">Print / Save PDF</button>
 
   <div class="header">
-    <div class="company-info">
-      <h1>${inv.company_name || 'Xhenvolt Uganda SMC Limited'}</h1>
-      <p>${inv.company_address || 'Bulubandi, Iganga, Uganda'}</p>
-      <p>${inv.company_phone || ''} ${inv.company_email ? '· ' + inv.company_email : ''}</p>
-      <p>Software Development & Digital Solutions</p>
+    <div class="company-info" style="display:flex;align-items:flex-start;gap:12px">
+      ${co.company_logo ? `<img src="${co.company_logo}" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;display:block;margin-top:2px">` : ''}
+      <div>
+        <h1>${co.company_name}</h1>
+        ${co.company_address ? `<p>${co.company_address}</p>` : ''}
+        <p>${[co.company_phone_1, co.company_phone_2, co.company_phone_3].filter(Boolean).join(' · ')}${co.company_email ? ' · ' + co.company_email : ''}</p>
+        ${co.company_tagline ? `<p>${co.company_tagline}</p>` : ''}
+        ${co.company_tin ? `<p>TIN: ${co.company_tin}</p>` : ''}
+      </div>
     </div>
     <div class="invoice-meta">
       <div class="invoice-label">INVOICE</div>

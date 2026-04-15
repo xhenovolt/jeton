@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare } from 'lucide-react';
+import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare, Building2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 
@@ -37,6 +37,7 @@ export default function SettingsPage() {
       {/* Quick nav to sub-settings */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
+          { href: '/app/settings/company', icon: Building2, label: 'Company Branding', desc: 'Logo, address & contact info' },
           { href: '/app/settings/financial', icon: DollarSign, label: 'Financial', desc: 'Currency & formatting' },
           { href: '/app/settings/appearance', icon: Palette, label: 'Appearance', desc: 'Theme & colors' },
           { href: '/app/settings/communication', icon: MessageSquare, label: 'Communication', desc: 'Calls, chat & file sharing' },

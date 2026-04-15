@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
+import { getCompanySettings } from '@/lib/company-settings.js';
 
 const fmt = (n) => {
   const num = parseFloat(n || 0);
@@ -32,11 +33,14 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
 
-    // Prefer snapshot for immutability
-    const snapshotRes = await query(
-      `SELECT full_payload FROM proposal_snapshots WHERE proposal_id = $1 ORDER BY created_at DESC LIMIT 1`,
-      [id]
-    );
+    // Load company branding + proposal data in parallel
+    const [co, snapshotRes] = await Promise.all([
+      getCompanySettings(),
+      query(
+        `SELECT full_payload FROM proposal_snapshots WHERE proposal_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [id]
+      ),
+    ]);
 
     let data;
     if (snapshotRes.rows[0]) {
@@ -159,9 +163,17 @@ export async function GET(request, { params }) {
 
 <!-- HEADER -->
 <div class="brand">
-  <div class="brand-left">
-    <h1>Xhenvolt Technologies</h1>
-    <p>Intelligent Software Solutions for Africa</p>
+  <div class="brand-left" style="display:flex;align-items:center;gap:12px">
+    ${co.company_logo ? `<img src="${co.company_logo}" alt="Logo" style="max-height:54px;max-width:120px;object-fit:contain;display:block">` : ''}
+    <div>
+      <h1>${co.company_name}</h1>
+      <p>${co.company_tagline}</p>
+      ${co.company_address ? `<p style="font-size:11px;color:#888;margin-top:2px">${co.company_address}</p>` : ''}
+      <p style="font-size:11px;color:#888;margin-top:2px">
+        ${[co.company_phone_1, co.company_phone_2, co.company_phone_3].filter(Boolean).join(' · ')}
+        ${co.company_email ? ` · ${co.company_email}` : ''}
+      </p>
+    </div>
   </div>
   <div class="brand-right">
     <div class="doc-type">PROPOSAL</div>
@@ -286,13 +298,14 @@ ${d.custom_notes ? `
     We look forward to partnering with ${schoolName}.
   </p>
   <div class="contact-row">
-    ${d.email ? `<span><b>Email:</b> ${d.email}</span>` : ''}
-    ${d.phone ? `<span><b>Phone:</b> ${d.phone}</span>` : ''}
+    ${[co.company_phone_1, co.company_phone_2, co.company_phone_3].filter(Boolean).map(p => `<span><b>📞</b> ${p}</span>`).join('')}
+    ${co.company_email ? `<span><b>✉</b> ${co.company_email}</span>` : ''}
+    ${co.company_website ? `<span><b>🌐</b> ${co.company_website}</span>` : ''}
   </div>
 </div>
 
 <div class="footer-note">
-  <span>Xhenvolt Technologies &middot; DRAIS School Management System</span>
+  <span>${co.company_name} &middot; DRAIS School Management System</span>
   <span>Generated: ${today}</span>
 </div>
 
