@@ -49,6 +49,7 @@ export async function GET(request) {
 export async function POST(request) {
   const perm = await requirePermission(request, 'payments.create');
   if (perm instanceof NextResponse) return perm;
+  const { auth } = perm;
   try {
     const body = await request.json();
     const { deal_id, account_id, amount, currency, method, reference, status, payment_date, notes, exchange_rate } = body;

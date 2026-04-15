@@ -125,6 +125,7 @@ export const menuItems = [
     submenu: [
       { label: 'Pipeline Board', href: '/app/pipeline', description: 'Visual pipeline intelligence', permission: 'pipeline.view' },
       { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads', permission: 'prospects.view' },
+      { label: 'Proposals', href: '/app/proposals', description: 'DRAIS sales proposals', permission: 'prospects.view' },
       { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints', permission: 'prospects.view' },
       { label: 'Clients', href: '/app/clients', description: 'Converted prospects', permission: 'clients.view' },
     ],
