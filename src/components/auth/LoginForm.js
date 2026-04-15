@@ -1,13 +1,14 @@
 /**
  * Login Form Component - Futuristic Glassmorphism
- * Handles user authentication with email and password
+ * Handles user authentication with email and password,
+ * and biometric (passkey) authentication via WebAuthn.
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowRight, Fingerprint } from 'lucide-react';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -24,7 +25,18 @@ export default function LoginForm() {
   }, [router]);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBioLoading, setIsBioLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bioSupported, setBioSupported] = useState(false);
+
+  // Detect platform authenticator support
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(ok => setBioSupported(ok))
+        .catch(() => setBioSupported(false));
+    }
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -62,6 +74,67 @@ export default function LoginForm() {
   }
 
   const inputClasses = 'w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground dark:bg-white/[0.06] dark:border-white/[0.1] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50';
+
+  // ── Biometric login ─────────────────────────────────────────────────────
+  async function handleBiometricLogin() {
+    setError('');
+    setIsBioLoading(true);
+    try {
+      let startAuthentication;
+      try {
+        const mod = await import('@simplewebauthn/browser');
+        startAuthentication = mod.startAuthentication;
+      } catch {
+        setError('WebAuthn library unavailable. Please use password login.');
+        return;
+      }
+
+      // 1. Get authentication options (optionally pass email to scope credentials)
+      const params = email ? `?email=${encodeURIComponent(email)}` : '';
+      const optRes = await fetch(`/api/auth/passkeys/authenticate-options${params}`, {
+        credentials: 'include',
+      });
+      const optData = await optRes.json();
+      if (!optData.success) {
+        setError(optData.error || 'Failed to start biometric login');
+        return;
+      }
+
+      // 2. Invoke platform authenticator
+      let credential;
+      try {
+        credential = await startAuthentication({ optionsJSON: optData.options });
+      } catch (err) {
+        if (err.name === 'NotAllowedError') {
+          setError('Biometric prompt was dismissed. Please try again or use your password.');
+        } else if (err.name === 'NotSupportedError') {
+          setError('No registered biometric found for this device. Use password login.');
+        } else {
+          setError(`Biometric error: ${err.message}`);
+        }
+        return;
+      }
+
+      // 3. Verify on server → creates session → sets cookie
+      const authRes = await fetch('/api/auth/passkeys/authenticate', {
+        method:      'POST',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ credential, email }),
+      });
+      const authData = await authRes.json();
+      if (!authRes.ok || !authData.success) {
+        setError(authData.error || 'Biometric authentication failed');
+        return;
+      }
+
+      router.push('/app/dashboard');
+    } catch {
+      setError('Biometric authentication failed. Please try again.');
+    } finally {
+      setIsBioLoading(false);
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 w-full">
@@ -132,6 +205,32 @@ export default function LoginForm() {
           </>
         )}
       </button>
+
+      {/* Biometric login — only shown when platform authenticator is available */}
+      {bioSupported && (
+        <>
+          <div className="relative flex items-center gap-3 my-1">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={handleBiometricLogin}
+            disabled={isBioLoading || isLoading}
+            className="w-full py-3 px-4 border border-border bg-muted/30 hover:bg-muted/60 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-foreground font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isBioLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Fingerprint className="w-5 h-5 text-blue-500" />
+                Sign in with Fingerprint / Face
+              </>
+            )}
+          </button>
+        </>
+      )}
 
       {/* Register link */}
       <p className="text-center text-sm text-muted-foreground">

@@ -11,6 +11,14 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const API_URL = process.env.API_URL || 'http://localhost:3000';
 export const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
+// WebAuthn / Passkeys configuration
+// WEBAUTHN_RP_ID     — hostname only (e.g. "jeton.xhenvolt.com" or "localhost")
+// WEBAUTHN_ORIGIN    — full origin  (e.g. "https://jeton.xhenvolt.com" or "http://localhost:3000")
+// WEBAUTHN_RP_NAME   — human-readable app name shown in authenticator dialog
+export const WEBAUTHN_RP_ID   = process.env.WEBAUTHN_RP_ID   || (NODE_ENV === 'production' ? 'jeton.xhenvolt.com' : 'localhost');
+export const WEBAUTHN_ORIGIN  = process.env.WEBAUTHN_ORIGIN  || (NODE_ENV === 'production' ? 'https://jeton.xhenvolt.com' : `http://localhost:${process.env.PORT || 3000}`);
+export const WEBAUTHN_RP_NAME = process.env.WEBAUTHN_RP_NAME || 'Jeton';
+
 /**
  * Check if running in production
  */
@@ -38,6 +46,9 @@ export default {
   NODE_ENV,
   API_URL,
   LOG_LEVEL,
+  WEBAUTHN_RP_ID,
+  WEBAUTHN_ORIGIN,
+  WEBAUTHN_RP_NAME,
   isProduction,
   isDevelopment,
   isTesting,

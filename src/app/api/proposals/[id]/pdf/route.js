@@ -191,7 +191,7 @@ export async function GET(request, { params }) {
 <div class="rec-box">
   <div class="rec-box-title">★ Our Recommendation: ${esc(recPlan.name)} Plan</div>
   <p style="font-size:13px;opacity:.9;margin-top:6px">
-    Based on ${d.student_count ? `${parseInt(d.student_count).toLocaleString()} students` : 'your institution's profile'},
+    Based on ${d.student_count ? `${parseInt(d.student_count).toLocaleString()} students` : "your institution's profile"},
     the <strong>${esc(recPlan.name)}</strong> plan delivers the best balance of capability and investment for ${esc(schoolName)}.
   </p>
 </div>` : '';
