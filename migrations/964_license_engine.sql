@@ -188,7 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_license_audit_logs_created_at ON license_audit_lo
 -- ============================================================
 -- 9. Permissions: extend RBAC for granular license actions
 -- ============================================================
-INSERT INTO permissions (module, action, description, api_endpoint)
+INSERT INTO permissions (module, action, description, route_path)
 VALUES
   ('licenses','issue',     'Issue new licenses',         '/api/licenses'),
   ('licenses','activate',  'Activate licenses',          '/api/licenses'),

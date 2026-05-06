@@ -182,7 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_design_exports_design_id ON design_exports(design
 -- ============================================================
 -- 9. Permissions
 -- ============================================================
-INSERT INTO permissions (module, action, description, api_endpoint) VALUES
+INSERT INTO permissions (module, action, description, route_path) VALUES
   ('designs','view',     'View designs',           '/api/designs'),
   ('designs','create',   'Create designs',         '/api/designs'),
   ('designs','update',   'Update designs',         '/api/designs'),

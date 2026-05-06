@@ -184,7 +184,7 @@ END $$;
 -- ============================================================
 -- 10. Permissions
 -- ============================================================
-INSERT INTO permissions (module, action, description, api_endpoint) VALUES
+INSERT INTO permissions (module, action, description, route_path) VALUES
   ('documents','view',     'View documents',         '/api/documents'),
   ('documents','create',   'Create documents',       '/api/documents'),
   ('documents','edit',     'Edit documents',         '/api/documents'),

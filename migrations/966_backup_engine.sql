@@ -2,6 +2,30 @@
 -- Phase 3 of enterprise hardening. Idempotent.
 
 -- ============================================================
+-- 0. system_backups — create base table if migration 800 wasn't applied
+-- ============================================================
+CREATE TABLE IF NOT EXISTS system_backups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  file_url TEXT,
+  cloudinary_public_id VARCHAR(500),
+  file_size BIGINT DEFAULT 0,
+  backup_type VARCHAR(30) DEFAULT 'full',
+  status VARCHAR(20) DEFAULT 'completed',
+  tags TEXT[] DEFAULT '{}',
+  table_count INTEGER DEFAULT 0,
+  row_count INTEGER DEFAULT 0,
+  schema_version VARCHAR(20),
+  created_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT backup_type_check CHECK (backup_type IN ('full', 'schema_only', 'data_only', 'incremental')),
+  CONSTRAINT backup_status_check CHECK (status IN ('in_progress', 'completed', 'failed', 'uploaded'))
+);
+CREATE INDEX IF NOT EXISTS idx_backups_created ON system_backups(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_backups_status  ON system_backups(status);
+
+-- ============================================================
 -- 1. system_backups — extend with integrity + lifecycle columns
 -- ============================================================
 ALTER TABLE system_backups ADD COLUMN IF NOT EXISTS checksum         VARCHAR(128);
@@ -111,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_backup_restores_backup ON backup_restores(backup_
 -- ============================================================
 -- 6. Permissions
 -- ============================================================
-INSERT INTO permissions (module, action, description, api_endpoint) VALUES
+INSERT INTO permissions (module, action, description, route_path) VALUES
   ('backups','view',    'View backups',         '/api/backups'),
   ('backups','create',  'Create backups',       '/api/backups'),
   ('backups','restore', 'Restore from backup',  '/api/backups/restore'),

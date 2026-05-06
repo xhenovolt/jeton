@@ -217,7 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_pause_history_sub ON subscription_pa
 -- ============================================================
 -- 12. Permissions: subscription lifecycle actions
 -- ============================================================
-INSERT INTO permissions (module, action, description, api_endpoint) VALUES
+INSERT INTO permissions (module, action, description, route_path) VALUES
   ('subscriptions','pause',   'Pause subscriptions',  '/api/subscriptions'),
   ('subscriptions','resume',  'Resume subscriptions', '/api/subscriptions'),
   ('subscriptions','upgrade', 'Upgrade subscriptions','/api/subscriptions'),
