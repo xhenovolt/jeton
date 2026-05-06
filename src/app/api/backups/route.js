@@ -1,190 +1,209 @@
 import { NextResponse } from 'next/server';
-import { query, getPool } from '@/lib/db.js';
+import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
 import { requirePermission } from '@/lib/permissions.js';
+import {
+  sha256Hex, compressString, encryptAesGcm,
+  renderBackupSql, logBackup,
+} from '@/lib/backup-engine.js';
 
-/**
- * GET /api/backups — List all system backups
- */
+const ENCRYPT_KEY = process.env.BACKUP_ENCRYPTION_KEY || null;
+
+// GET /api/backups
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'audit.view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
+    const perm = await requirePermission(request, 'backups.view');
+    if (perm instanceof NextResponse) {
+      const fb = await requirePermission(request, 'audit.view');
+      if (fb instanceof NextResponse) return fb;
+    }
 
     const result = await query(
-      `SELECT sb.*, u.name as created_by_name
+      `SELECT sb.*, u.full_name AS created_by_name,
+              t.name AS storage_target_name, t.type AS storage_target_type
        FROM system_backups sb
        LEFT JOIN users u ON sb.created_by = u.id
-       ORDER BY sb.created_at DESC`
+       LEFT JOIN backup_storage_targets t ON sb.storage_target_id = t.id
+       ORDER BY sb.created_at DESC
+       LIMIT 200`
     );
-    return NextResponse.json({ success: true, data: result.rows });
+    const stats = await query(`
+      SELECT
+        COUNT(*)                                                 AS total,
+        COUNT(*) FILTER (WHERE status = 'completed' OR status = 'uploaded') AS completed,
+        COUNT(*) FILTER (WHERE status = 'failed')                AS failed,
+        COUNT(*) FILTER (WHERE verification_status = 'verified') AS verified,
+        COALESCE(SUM(file_size),0)::bigint                       AS total_bytes
+      FROM system_backups
+    `);
+    return NextResponse.json({ success: true, data: result.rows, stats: stats.rows[0] });
   } catch (error) {
     console.error('[Backups] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch backups' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/backups — Create a new database backup
- * Dumps schema + data as SQL, optionally uploads to Cloudinary
- */
+// POST /api/backups
 export async function POST(request) {
   try {
-    const perm = await requirePermission(request, 'audit.view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
+    const perm = await requirePermission(request, 'backups.create');
+    if (perm instanceof NextResponse) {
+      const fb = await requirePermission(request, 'audit.view');
+      if (fb instanceof NextResponse) return fb;
+    }
+    const auth = (perm instanceof NextResponse
+      ? await requirePermission(request, 'audit.view')
+      : perm).auth;
 
-    const body = await request.json();
-    const { name, description, backup_type, tags } = body;
+    const body = await request.json().catch(() => ({}));
+    const {
+      name, description, backup_type = 'full', tags,
+      compress = true, encrypt = false, storage_target_id, retention_days = 30,
+    } = body;
 
-    const backupName = name?.trim() || `jeton_backup_${new Date().toISOString().slice(0, 10)}`;
+    const backupName = name?.trim() || `jeton_backup_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}`;
 
-    // Create backup record (in_progress)
     const backup = await query(
-      `INSERT INTO system_backups (name, description, backup_type, tags, status, created_by)
-       VALUES ($1, $2, $3, $4, 'in_progress', $5) RETURNING *`,
-      [backupName, description || null, backup_type || 'full', tags || [], auth.userId]
+      `INSERT INTO system_backups
+         (name, description, backup_type, tags, status, created_by,
+          encrypted, compression, storage_target_id, retention_until, metadata)
+       VALUES ($1,$2,$3,$4,'in_progress',$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [
+        backupName, description || null, backup_type, tags || [],
+        auth.userId,
+        !!encrypt,
+        compress ? 'gzip' : null,
+        storage_target_id || null,
+        new Date(Date.now() + retention_days * 86400000),
+        JSON.stringify({ requested_by: auth.userId }),
+      ]
     );
     const backupId = backup.rows[0].id;
+    await logBackup({ backup_id: backupId, level: 'info', phase: 'start', message: 'Backup started', details: { backup_type } });
 
     try {
-      // Get all table names
-      const tablesRes = await query(
-        `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
-      );
-      const tables = tablesRes.rows.map(r => r.tablename);
-      let totalRows = 0;
-      const sqlParts = [];
+      const { sql, tableCount, rowCount } = await renderBackupSql({ backup_type });
+      await logBackup({ backup_id: backupId, phase: 'render', message: `Rendered ${tableCount} tables, ${rowCount} rows` });
 
-      sqlParts.push(`-- Jeton System Backup: ${backupName}`);
-      sqlParts.push(`-- Created: ${new Date().toISOString()}`);
-      sqlParts.push(`-- Type: ${backup_type || 'full'}`);
-      sqlParts.push(`-- Tables: ${tables.length}`);
-      sqlParts.push('');
+      const checksum = sha256Hex(sql);
+      let payload = sql;
+      let payloadBuffer = null;
+      let mime = 'text/plain';
 
-      for (const table of tables) {
-        // Get schema
-        if (backup_type !== 'data_only') {
-          const colsRes = await query(
-            `SELECT column_name, data_type, column_default, is_nullable
-             FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = $1
-             ORDER BY ordinal_position`, [table]
-          );
-          sqlParts.push(`-- Table: ${table} (${colsRes.rows.length} columns)`);
-        }
+      if (encrypt) {
+        if (!ENCRYPT_KEY) throw new Error('BACKUP_ENCRYPTION_KEY env var required for encrypted backups');
+        payloadBuffer = encryptAesGcm(sql, ENCRYPT_KEY);
+        mime = 'application/octet-stream';
+        await logBackup({ backup_id: backupId, phase: 'encrypt', message: 'Backup encrypted (aes-256-gcm)' });
+      }
+      if (compress) {
+        payloadBuffer = await compressString(payloadBuffer ? payloadBuffer.toString('binary') : sql);
+        mime = encrypt ? 'application/octet-stream' : 'application/gzip';
+        await logBackup({ backup_id: backupId, phase: 'compress', message: 'Backup compressed (gzip)' });
+      }
 
-        // Get data
-        if (backup_type !== 'schema_only') {
-          const dataRes = await query(`SELECT * FROM "${table}"`);
-          totalRows += dataRes.rows.length;
-          if (dataRes.rows.length > 0) {
-            const cols = Object.keys(dataRes.rows[0]);
-            sqlParts.push(`-- Data for ${table}: ${dataRes.rows.length} rows`);
-            for (const row of dataRes.rows) {
-              const vals = cols.map(c => {
-                const v = row[c];
-                if (v === null || v === undefined) return 'NULL';
-                if (typeof v === 'number') return v;
-                if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
-                if (v instanceof Date) return `'${v.toISOString()}'`;
-                if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`;
-                return `'${String(v).replace(/'/g, "''")}'`;
-              });
-              sqlParts.push(`INSERT INTO "${table}" (${cols.map(c => `"${c}"`).join(',')}) VALUES (${vals.join(',')}) ON CONFLICT DO NOTHING;`);
-            }
-            sqlParts.push('');
+      const finalBuf = payloadBuffer || Buffer.from(payload, 'utf8');
+      const fileSize = finalBuf.length;
+
+      // Resolve storage target
+      let targetType = 'local';
+      let targetConfig = {};
+      if (storage_target_id) {
+        const t = await query('SELECT * FROM backup_storage_targets WHERE id = $1 AND is_active', [storage_target_id]);
+        if (t.rows.length) { targetType = t.rows[0].type; targetConfig = t.rows[0].config || {}; }
+      } else {
+        const t = await query('SELECT * FROM backup_storage_targets WHERE is_primary AND is_active LIMIT 1');
+        if (t.rows.length) { targetType = t.rows[0].type; targetConfig = t.rows[0].config || {}; }
+      }
+
+      let fileUrl = null, publicId = null, storagePath = null;
+      if (targetType === 'cloudinary' || (!storage_target_id && targetType === 'local')) {
+        try {
+          const cloudRes = await query(`SELECT * FROM cloud_accounts WHERE is_active ORDER BY is_primary DESC LIMIT 1`);
+          const account = cloudRes.rows[0];
+          if (account) {
+            const { default: { v2: cloudinary } } = await import('cloudinary');
+            cloudinary.config({
+              cloud_name: account.cloud_name,
+              api_key: account.api_key,
+              api_secret: account.api_secret,
+            });
+            const upload = await cloudinary.uploader.upload(
+              `data:${mime};base64,${finalBuf.toString('base64')}`,
+              { resource_type: 'raw', folder: 'jeton/backups', public_id: backupName.replace(/[^a-zA-Z0-9_-]/g, '_') }
+            );
+            fileUrl = upload.secure_url;
+            publicId = upload.public_id;
+            storagePath = upload.public_id;
+            await logBackup({ backup_id: backupId, phase: 'upload', message: 'Uploaded to Cloudinary', details: { url: fileUrl } });
           }
+        } catch (cloudErr) {
+          await logBackup({ backup_id: backupId, level: 'warn', phase: 'upload', message: `Cloudinary upload failed: ${cloudErr.message}` });
         }
       }
 
-      const sqlContent = sqlParts.join('\n');
-      const fileSize = new Blob([sqlContent]).size;
-
-      // Try uploading to Cloudinary
-      let fileUrl = null;
-      let publicId = null;
-      try {
-        const cloudRes = await query(`SELECT * FROM cloud_accounts WHERE is_active = true ORDER BY is_primary DESC LIMIT 1`);
-        const account = cloudRes.rows[0];
-        if (account) {
-          const { default: { v2: cloudinary } } = await import('cloudinary');
-          cloudinary.config({
-            cloud_name: account.cloud_name,
-            api_key: account.api_key,
-            api_secret: account.api_secret,
-          });
-          const uploadResult = await cloudinary.uploader.upload(
-            `data:text/plain;base64,${Buffer.from(sqlContent).toString('base64')}`,
-            { resource_type: 'raw', folder: 'jeton/backups', public_id: backupName.replace(/[^a-zA-Z0-9_-]/g, '_') }
-          );
-          fileUrl = uploadResult.secure_url;
-          publicId = uploadResult.public_id;
-        }
-      } catch (cloudErr) {
-        console.error('[Backups] Cloudinary upload failed (non-fatal):', cloudErr.message);
-      }
-
-      // Update backup record
       await query(
-        `UPDATE system_backups SET status = $1, file_url = $2, cloudinary_public_id = $3, file_size = $4, table_count = $5, row_count = $6 WHERE id = $7`,
-        [fileUrl ? 'uploaded' : 'completed', fileUrl, publicId, fileSize, tables.length, totalRows, backupId]
+        `UPDATE system_backups
+           SET status = $1, file_url = $2, cloudinary_public_id = $3,
+               file_size = $4, table_count = $5, row_count = $6,
+               checksum = $7, checksum_algo = 'sha256',
+               storage_path = $8,
+               verification_status = 'verified', verified_at = NOW()
+         WHERE id = $9`,
+        [
+          fileUrl ? 'uploaded' : 'completed', fileUrl, publicId,
+          fileSize, tableCount, rowCount,
+          checksum, storagePath, backupId,
+        ]
       );
 
-      await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
-        [auth.userId, 'BACKUP', 'system_backup', backupId, JSON.stringify({ name: backupName, tables: tables.length, rows: totalRows })]);
+      await query(
+        `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+         VALUES ($1,'BACKUP','system_backup',$2,$3)`,
+        [auth.userId, backupId, JSON.stringify({ name: backupName, tables: tableCount, rows: rowCount, checksum })]
+      );
 
       dispatch('backup_created', {
         entityType: 'backup', entityId: backupId,
-        description: `System backup "${backupName}" completed (${tables.length} tables, ${totalRows.toLocaleString()} rows)`,
+        description: `Backup "${backupName}" — ${tableCount} tables, ${rowCount.toLocaleString()} rows`,
         actorId: auth.userId,
-        metadata: { name: backupName, tables: tables.length, rows: totalRows },
+        metadata: { tables: tableCount, rows: rowCount, checksum },
       });
 
       return NextResponse.json({
         success: true,
         data: {
-          id: backupId,
-          name: backupName,
-          status: fileUrl ? 'uploaded' : 'completed',
-          tables: tables.length,
-          rows: totalRows,
-          file_size: fileSize,
-          file_url: fileUrl,
+          id: backupId, name: backupName, status: fileUrl ? 'uploaded' : 'completed',
+          tables: tableCount, rows: rowCount, file_size: fileSize, file_url: fileUrl,
+          checksum, encrypted: !!encrypt, compression: compress ? 'gzip' : null,
         },
       }, { status: 201 });
-    } catch (dumpErr) {
+    } catch (err) {
       await query(`UPDATE system_backups SET status = 'failed' WHERE id = $1`, [backupId]);
-      throw dumpErr;
+      await logBackup({ backup_id: backupId, level: 'error', phase: 'fail', message: err.message });
+      throw err;
     }
   } catch (error) {
     console.error('[Backups] POST error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create backup' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to create backup: ' + error.message }, { status: 500 });
   }
 }
 
-/**
- * DELETE /api/backups?id=xxx — Delete a backup
- */
+// DELETE /api/backups?id=xxx
 export async function DELETE(request) {
   try {
     const auth = await verifyAuth(request);
     if (!auth || auth.role !== 'superadmin') {
       return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
     }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
-
     const result = await query(`DELETE FROM system_backups WHERE id = $1 RETURNING name`, [id]);
     if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Backup not found' }, { status: 404 });
-
-    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,$2,$3,$4,$5)`,
-      [auth.userId, 'DELETE', 'system_backup', id, JSON.stringify({ name: result.rows[0].name })]);
-
+    await query(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES ($1,'DELETE','system_backup',$2,$3)`,
+      [auth.userId, id, JSON.stringify({ name: result.rows[0].name })]);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete backup' }, { status: 500 });

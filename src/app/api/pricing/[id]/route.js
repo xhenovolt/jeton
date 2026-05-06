@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import { isStructuralChange, snapshotCurrentVersion, logPlanChange } from '@/lib/pricing-engine.js';
 
 // GET /api/pricing/[id] — get single plan with cycles
 export async function GET(request, { params }) {
@@ -54,18 +55,25 @@ export async function PATCH(request, { params }) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, system, description, features, display_order, is_active } = body;
+    const allowed = [
+      'name', 'system', 'description', 'features', 'display_order', 'is_active',
+      'setup_fee', 'trial_days', 'grace_days', 'max_users', 'max_students', 'sms_limit',
+      'support_tier', 'deployment_type', 'implementation_complexity', 'onboarding_hours',
+    ];
+
+    const before = await query('SELECT * FROM pricing_plans WHERE id = $1', [id]);
+    if (!before.rows[0]) return NextResponse.json({ success: false, error: 'Plan not found' }, { status: 404 });
 
     const setClauses = [];
     const values = [];
-
-    if (name          !== undefined) { values.push(name);                       setClauses.push(`name = $${values.length}`); }
-    if (system        !== undefined) { values.push(system.toLowerCase());        setClauses.push(`system = $${values.length}`); }
-    if (description   !== undefined) { values.push(description);                setClauses.push(`description = $${values.length}`); }
-    if (features      !== undefined) { values.push(JSON.stringify(features));   setClauses.push(`features = $${values.length}`); }
-    if (display_order !== undefined) { values.push(display_order);              setClauses.push(`display_order = $${values.length}`); }
-    if (is_active     !== undefined) { values.push(is_active);                  setClauses.push(`is_active = $${values.length}`); }
-
+    const fieldChanges = {};
+    for (const k of allowed) {
+      if (body[k] === undefined) continue;
+      const v = k === 'system' ? body[k].toLowerCase() : k === 'features' ? JSON.stringify(body[k]) : body[k];
+      values.push(v);
+      setClauses.push(`${k} = $${values.length}`);
+      fieldChanges[k] = { from: before.rows[0][k], to: body[k] };
+    }
     if (setClauses.length === 0) {
       return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
     }
@@ -76,13 +84,30 @@ export async function PATCH(request, { params }) {
       values
     );
 
-    if (!result.rows[0]) {
-      return NextResponse.json({ success: false, error: 'Plan not found' }, { status: 404 });
+    // Snapshot a new version when structural fields change
+    let newVersion = null;
+    if (isStructuralChange(body)) {
+      try {
+        const v = await snapshotCurrentVersion(id, auth.userId, body.version_reason || 'Plan updated');
+        newVersion = v.version;
+      } catch (e) {
+        console.error('[Pricing] snapshot failed:', e.message);
+      }
     }
 
-    await dispatch('pricing.plan_updated', { planId: id, changes: body, actorId: auth.userId });
+    await logPlanChange({
+      plan_id: id,
+      from_version: before.rows[0].current_version || 1,
+      to_version: newVersion || before.rows[0].current_version || 1,
+      change_type: newVersion ? 'structural_update' : 'cosmetic_update',
+      field_changes: fieldChanges,
+      reason: body.version_reason,
+      actor_id: auth.userId,
+    });
 
-    return NextResponse.json({ success: true, data: result.rows[0] });
+    await dispatch('pricing.plan_updated', { planId: id, changes: body, version: newVersion, actorId: auth.userId });
+
+    return NextResponse.json({ success: true, data: result.rows[0], new_version: newVersion });
   } catch (error) {
     if (error.code === '23505') {
       return NextResponse.json({ success: false, error: 'Plan name already exists for this system' }, { status: 409 });
