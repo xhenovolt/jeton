@@ -126,7 +126,14 @@ export async function POST(request) {
   try {
     await client.query('BEGIN');
 
-    // Step 1: Create user account
+    // Step 1: Create user account.
+    //
+    // CRITICAL: `users.role` is a coarse class enum
+    // ('superadmin','admin','staff','user','viewer','customer','system') —
+    // it is NOT the role name. Writing the dynamic role name here used to
+    // violate users_role_check and roll back the entire transaction.
+    // The actual role lives in role_id; we write 'staff' here.
+    const userClass = role.authority_level && role.authority_level <= 10 ? 'admin' : 'staff';
     const userResult = await client.query(
       `INSERT INTO users
          (email, username, name, password_hash, role, role_id,
@@ -134,7 +141,7 @@ export async function POST(request) {
        VALUES ($1,$2,$3,$4,$5,$6,'active',true,true,false,$7)
        RETURNING id, email, username, name, role, authority_level`,
       [cleanEmail, cleanUsername, name.trim(), passwordHash,
-       role.name, role_id, role.authority_level ?? 10]
+       userClass, role_id, role.authority_level ?? 10]
     );
     newUser = userResult.rows[0];
 
@@ -272,22 +279,72 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE /api/staff — staff.delete
+// DELETE /api/staff?id=...&cascade_user=true|false
+//
+// When cascade_user is true (default), the linked user account is also
+// disabled (status=disabled, is_active=false), all sessions are revoked,
+// and an identity_audit_logs row is written. The user row is NOT hard-deleted
+// to preserve audit trails — use /api/users DELETE for that.
 export async function DELETE(request) {
   const perm = await requirePermission(request, 'staff.delete');
   if (perm instanceof NextResponse) return perm;
+  const { auth } = perm;
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  const cascadeUser = searchParams.get('cascade_user') !== 'false';
+  if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
+
+  const reports = await query(`SELECT COUNT(*)::int AS n FROM staff WHERE manager_id = $1`, [id]);
+  if (reports.rows[0].n > 0) {
+    return NextResponse.json({ success: false, error: 'Cannot delete: other staff members report to this person' }, { status: 409 });
+  }
+
+  const client = await getPool().connect();
   try {
-    const auth = await verifyAuth(request);
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
-    const reports = await query(`SELECT COUNT(*) FROM staff WHERE manager_id = $1`, [id]);
-    if (parseInt(reports.rows[0].count) > 0) {
-      return NextResponse.json({ success: false, error: 'Cannot delete: other staff members report to this person' }, { status: 409 });
+    await client.query('BEGIN');
+
+    const staffRow = await client.query('SELECT * FROM staff WHERE id = $1', [id]);
+    if (!staffRow.rows.length) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ success: false, error: 'Staff not found' }, { status: 404 });
     }
-    await query(`DELETE FROM staff WHERE id=$1`, [id]);
-    return NextResponse.json({ success: true });
+    const staffSnapshot = staffRow.rows[0];
+    const linkedUserId = staffSnapshot.user_id || staffSnapshot.linked_user_id || null;
+
+    let userSnapshot = null;
+    if (cascadeUser && linkedUserId) {
+      const u = await client.query('SELECT * FROM users WHERE id = $1', [linkedUserId]);
+      userSnapshot = u.rows[0] || null;
+      if (userSnapshot) {
+        await client.query(
+          `UPDATE users SET status = 'disabled', is_active = FALSE, staff_id = NULL WHERE id = $1`,
+          [linkedUserId]
+        );
+        // Revoke sessions
+        try { await client.query('DELETE FROM user_sessions WHERE user_id = $1', [linkedUserId]); } catch {}
+      }
+    }
+
+    await client.query('DELETE FROM staff WHERE id = $1', [id]);
+
+    await client.query(
+      `INSERT INTO identity_audit_logs (action, user_id, staff_id, actor_id, before_state, metadata)
+       VALUES ('delete_staff', $1, $2, $3, $4, $5)`,
+      [
+        linkedUserId, id, auth.userId,
+        JSON.stringify({ staff: staffSnapshot, user: userSnapshot }),
+        JSON.stringify({ cascade_user: cascadeUser }),
+      ]
+    );
+
+    await client.query('COMMIT');
+    return NextResponse.json({ success: true, cascaded_user: cascadeUser && !!linkedUserId });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to delete staff member' }, { status: 500 });
+    await client.query('ROLLBACK');
+    console.error('[Staff] DELETE error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete staff: ' + error.message }, { status: 500 });
+  } finally {
+    client.release();
   }
 }
