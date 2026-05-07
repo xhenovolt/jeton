@@ -201,7 +201,7 @@ export default function DealDetailPage() {
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${DEAL_STATUS[deal.status] || 'bg-muted text-foreground'}`}>{deal.status?.replace(/_/g, ' ')}</span>
           <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit deal"><Edit2 className="w-4 h-4" /></button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600" title="Delete deal"><Trash2 className="w-4 h-4" /></button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 dark:bg-red-900/30 dark:text-red-300" title="Delete deal"><Trash2 className="w-4 h-4" /></button>
         </div>
       </div>
 
@@ -311,7 +311,7 @@ export default function DealDetailPage() {
                 </div>
               </div>
               {parseFloat(payForm.amount) > remaining && <p className="text-xs text-red-500">Warning: Amount exceeds remaining balance of {fmtCurrency(remaining, cur)}</p>}
-              {payError && <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{payError}</p>}
+              {payError && <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{payError}</p>}
               <button type="submit" disabled={saving} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">{saving ? 'Recording...' : `Record ${fmtCurrency(payForm.amount || 0, cur)} Payment`}</button>
             </form>
           )}
@@ -374,7 +374,7 @@ export default function DealDetailPage() {
           </div>
 
           {editError && (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-600 px-3 py-2 rounded-lg text-sm">
+            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg text-sm">
               <AlertTriangle className="w-3.5 h-3.5" /> {editError}
             </div>
           )}
@@ -476,7 +476,7 @@ export default function DealDetailPage() {
                 <div className="pt-4 border-t">
                   <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">License</h3>
                   <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium">{deal.license.status}</span>
+                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium dark:bg-emerald-900/30 dark:text-emerald-300">{deal.license.status}</span>
                     <span className="text-sm">{deal.license.license_type} · Issued {new Date(deal.license.issued_date).toLocaleDateString()}</span>
                     {deal.license.license_key && <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{deal.license.license_key}</span>}
                   </div>

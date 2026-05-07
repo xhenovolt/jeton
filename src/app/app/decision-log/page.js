@@ -291,7 +291,7 @@ export default function DecisionLogPage() {
               </div>
               <div className="flex gap-2 mt-3">
                 <button onClick={startEditing} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted"><Edit3 className="w-3 h-3" /> Edit</button>
-                <button onClick={() => deleteDecision(detail.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-border hover:bg-red-50"><Trash2 className="w-3 h-3" /> Delete</button>
+                <button onClick={() => deleteDecision(detail.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-border hover:bg-red-50 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20"><Trash2 className="w-3 h-3" /> Delete</button>
               </div>
             </div>
 

@@ -122,7 +122,7 @@ export default function ExpensesPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-red-600">-{formatCurrency(e.amount)}</span>
-                <button onClick={() => deleteExpense(e.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
+                <button onClick={() => deleteExpense(e.id)} className="p-1 hover:bg-red-50 rounded dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
               </div>
             </div>
           ))}

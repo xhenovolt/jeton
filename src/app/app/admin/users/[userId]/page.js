@@ -150,7 +150,7 @@ export default function UserDetailPage({ params }) {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded dark:bg-red-900/30 dark:text-red-300">
           {error}
         </div>
       )}
@@ -379,7 +379,7 @@ export default function UserDetailPage({ params }) {
             <h2 className="text-xl font-bold mb-4">Roles</h2>
 
             {user.is_superadmin ? (
-              <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 rounded text-sm">
+              <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 rounded text-sm dark:bg-purple-900/30 dark:text-purple-300">
                 Superadmin (immutable)
               </div>
             ) : (

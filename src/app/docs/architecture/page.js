@@ -72,7 +72,7 @@ export default async function ArchitecturePage() {
         </div>
         <div className="flex items-center gap-3 mb-3">
           <h1 className="text-3xl font-bold text-foreground">System Architecture</h1>
-          <span className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+          <span className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium dark:bg-red-900/30 dark:text-red-300">
             <Shield size={11} /> Superadmin Only
           </span>
         </div>

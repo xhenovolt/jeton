@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node run-migration-964.mjs)",
+      "Bash(PGPASSWORD='' psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/964_license_engine.sql)",
+      "Bash(node --check src/lib/license-engine.js)",
+      "Bash(node --check src/lib/pricing-engine.js)",
+      "Bash(node --check src/lib/backup-engine.js)",
+      "Bash(node --check src/app/app/licenses/page.js)",
+      "Bash(node --check 'src/app/app/licenses/[id]/page.js')",
+      "Bash(timeout 60 node _inspect.mjs)",
+      "Bash(timeout 60 node _inspect.mjs \"SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name='permissions' ORDER BY ordinal_position\")",
+      "Bash(timeout 180 node _run-migration.mjs migrations/966_backup_engine.sql)",
+      "Bash(timeout 180 node _run-migration.mjs migrations/968_documents_knowledge_core.sql)",
+      "Bash(timeout 60 node _inspect.mjs \"SELECT COUNT\\(*\\)::int AS folders FROM document_folders\")",
+      "Bash(timeout 60 node _inspect.mjs \"SELECT column_name FROM information_schema.columns WHERE table_name='documents' AND column_name IN \\('approval_status','folder_id','body','current_version'\\)\")",
+      "Bash(node _inspect.mjs \"SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name='staff_roles' ORDER BY ordinal_position\")",
+      "Bash(node _inspect.mjs \"SELECT conname, pg_get_constraintdef\\(oid\\) FROM pg_constraint WHERE conrelid='staff_roles'::regclass\")",
+      "Bash(node _inspect.mjs \"SELECT * FROM users WHERE staff_id IS NULL\")",
+      "Bash(node _inspect.mjs \"SELECT indexname, indexdef FROM pg_indexes WHERE tablename IN \\('staff','users'\\) ORDER BY tablename, indexname\")",
+      "Bash(node _inspect.mjs \"SELECT t.tgname, t.tgrelid::regclass AS table_name, pg_get_triggerdef\\(t.oid\\) FROM pg_trigger t WHERE t.tgrelid IN \\('users'::regclass,'staff'::regclass\\) AND NOT t.tgisinternal\")",
+      "Bash(node _run-migration.mjs migrations/969_identity_architecture.sql)",
+      "Bash(node _darkmode_scan.mjs)",
+      "Bash(node _darkmode_codemod.mjs)"
+    ]
+  }
+}

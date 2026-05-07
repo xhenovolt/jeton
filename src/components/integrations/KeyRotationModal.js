@@ -103,7 +103,7 @@ export default function KeyRotationModal({
               Rotation Mode
             </label>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-blue-50"
+              <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 style={{ borderColor: mode === 'auto' ? '#3b82f6' : '#e5e7eb' }}
               >
                 <input
@@ -121,7 +121,7 @@ export default function KeyRotationModal({
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-blue-50"
+              <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 style={{ borderColor: mode === 'manual' ? '#3b82f6' : '#e5e7eb' }}
               >
                 <input
@@ -203,7 +203,7 @@ export default function KeyRotationModal({
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-300 rounded p-2 text-xs text-red-700">
+            <div className="bg-red-50 border border-red-300 rounded p-2 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
               {error}
             </div>
           )}

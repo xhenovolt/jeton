@@ -23,11 +23,11 @@ function formatSize(bytes) {
 }
 
 function FileIcon({ mime }) {
-  if (!mime) return <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">?</div>;
-  if (mime.startsWith('image/')) return <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 text-xs font-bold">IMG</div>;
-  if (mime.startsWith('video/')) return <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 text-xs font-bold">VID</div>;
-  if (mime.includes('pdf')) return <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 text-xs font-bold">PDF</div>;
-  return <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xs font-bold">FILE</div>;
+  if (!mime) return <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">?</div>;
+  if (mime.startsWith('image/')) return <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-300 text-xs font-bold">IMG</div>;
+  if (mime.startsWith('video/')) return <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-300 text-xs font-bold">VID</div>;
+  if (mime.includes('pdf')) return <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-300 text-xs font-bold">PDF</div>;
+  return <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-300 text-xs font-bold">FILE</div>;
 }
 
 export default function MediaPage() {

@@ -89,7 +89,7 @@ export default function ClientDetailPage() {
               <Link key={d.id} href={`/app/deals/${d.id}`} className="flex items-center justify-between py-3 hover:bg-muted px-2 rounded">
                 <div>
                   <span className="text-sm font-medium">{d.title}</span>
-                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full capitalize ${d.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{d.status}</span>
+                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full capitalize ${d.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'} dark:bg-blue-900/30 dark:text-blue-300 dark:bg-emerald-900/30 dark:text-emerald-300`}>{d.status}</span>
                 </div>
                 <span className="text-sm font-medium">{formatCurrency(d.total_amount)}</span>
               </Link>

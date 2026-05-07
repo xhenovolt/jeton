@@ -214,7 +214,7 @@ export default function IdentityHealthPage() {
                           </button>
                           <button onClick={() => repair('delete_phantom_user', { user_id: u.id })}
                             disabled={busyId === `delete_phantom_user_${u.id}`}
-                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer" title="Delete phantom">
+                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer dark:bg-red-900/30 dark:text-red-300" title="Delete phantom">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </>
@@ -238,7 +238,7 @@ export default function IdentityHealthPage() {
                       )}
                       {u.role !== 'superadmin' && !u.staff_id && (
                         <button onClick={() => deleteUser(u.id)} disabled={busyId === u.id}
-                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer" title="Hard delete">
+                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer dark:bg-red-900/30 dark:text-red-300" title="Hard delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}

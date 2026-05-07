@@ -27,7 +27,7 @@ export default function UnauthorizedPage() {
         </p>
 
         {/* Explanation callout */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 mb-8 text-left">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 mb-8 text-left dark:bg-amber-900/30 dark:text-amber-300">
           <p className="font-medium mb-1">Why am I seeing this?</p>
           <p>
             Jeton uses role-based access control (RBAC). Your current role does not

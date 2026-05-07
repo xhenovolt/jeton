@@ -326,7 +326,7 @@ export default function ObligationsPage() {
                   </select>
                 )}
                 <button onClick={() => deleteObligation(o.id)}
-                  className="p-1 rounded hover:bg-red-50 text-red-500 text-xs">Del</button>
+                  className="p-1 rounded hover:bg-red-50 text-red-500 text-xs dark:hover:bg-red-900/20">Del</button>
               </div>
             </div>
           ))}

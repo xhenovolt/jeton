@@ -113,7 +113,7 @@ export default function ProductsPage() {
                 {p.description && <p className="text-sm text-muted-foreground">{p.description}</p>}
                 {p.price && <p className="text-sm font-medium text-foreground mt-1">{formatCurr(p.price, p.currency)}</p>}
               </div>
-              <button onClick={() => remove(p.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition ml-4">
+              <button onClick={() => remove(p.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition ml-4 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

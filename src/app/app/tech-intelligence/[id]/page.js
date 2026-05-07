@@ -116,7 +116,7 @@ export default function TechStackDetailPage({ params }) {
               <Link
                 key={sys.id}
                 href={`/app/systems/${sys.id}`}
-                className="p-3 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                className="p-3 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
               >
                 {sys.system_name}
               </Link>
@@ -206,7 +206,7 @@ export default function TechStackDetailPage({ params }) {
                     </div>
                     <button
                       onClick={() => deleteItem(item.id)}
-                      className="text-red-600 hover:bg-red-50 p-1 rounded"
+                      className="text-red-600 hover:bg-red-50 p-1 rounded dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -466,9 +466,9 @@ export default function ItemsPage() {
               </div>
               <div className="flex gap-1 shrink-0">
                 <button onClick={() => startEdit(item)}
-                  className="p-1.5 rounded hover:bg-blue-50 text-blue-500 text-xs">Edit</button>
+                  className="p-1.5 rounded hover:bg-blue-50 text-blue-500 text-xs dark:hover:bg-blue-900/20">Edit</button>
                 <button onClick={() => deleteItem(item.id)}
-                  className="p-1.5 rounded hover:bg-red-50 text-red-500 text-xs">Delete</button>
+                  className="p-1.5 rounded hover:bg-red-50 text-red-500 text-xs dark:hover:bg-red-900/20">Delete</button>
               </div>
             </div>
           ))}

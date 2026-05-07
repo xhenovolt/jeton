@@ -70,7 +70,7 @@ export default function AuditPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground mb-4">Access</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            The full audit log is accessible at <code className="bg-muted px-1 rounded font-mono text-xs">/app/audit</code>. Access requires the <span className="font-mono text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">admin</span> or <span className="font-mono text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">superadmin</span> role. Members and viewers cannot access audit logs.
+            The full audit log is accessible at <code className="bg-muted px-1 rounded font-mono text-xs">/app/audit</code>. Access requires the <span className="font-mono text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded dark:bg-orange-900/30 dark:text-orange-300">admin</span> or <span className="font-mono text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded dark:bg-red-900/30 dark:text-red-300">superadmin</span> role. Members and viewers cannot access audit logs.
           </p>
         </section>
       </div>

@@ -96,7 +96,7 @@ export default function SessionsPage() {
           </button>
           {otherSessions.length > 0 && (
             <button onClick={revokeAll} disabled={!!revoking}
-              className="px-3 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition font-medium disabled:opacity-50">
+              className="px-3 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition font-medium disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300">
               Sign out of all other devices
             </button>
           )}

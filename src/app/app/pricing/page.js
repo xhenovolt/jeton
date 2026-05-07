@@ -25,7 +25,7 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, onAddCycle, onEditCycle, o
             <h3 className="font-semibold text-foreground text-lg">{plan.name}</h3>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${color}`}>{plan.system}</span>
             {!plan.is_active && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Inactive</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300">Inactive</span>
             )}
           </div>
           {plan.description && <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>}
@@ -46,7 +46,7 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, onAddCycle, onEditCycle, o
               ? <ToggleRight className="w-5 h-5 text-emerald-500" />
               : <ToggleLeft  className="w-5 h-5 text-muted-foreground" />}
           </button>
-          <button onClick={() => onDelete(plan)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Delete plan">
+          <button onClick={() => onDelete(plan)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20" title="Delete plan">
             <Trash2 className="w-4 h-4" />
           </button>
           <button onClick={() => setExpanded(e => !e)} className="p-1.5 rounded hover:bg-muted text-muted-foreground">
@@ -61,7 +61,7 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, onAddCycle, onEditCycle, o
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pricing Cycles</p>
             <button
               onClick={() => onAddCycle(plan)}
-              className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded-lg font-medium"
+              className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded-lg font-medium dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/20"
             >
               <Plus className="w-3 h-3" /> Add Cycle
             </button>
@@ -79,7 +79,7 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, onAddCycle, onEditCycle, o
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-foreground">{fmtCurrency(cycle.price, cycle.currency)}</span>
                     <button onClick={() => onEditCycle(plan, cycle)} className="p-1 rounded hover:bg-muted text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => onDeleteCycle(plan, cycle)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => onDeleteCycle(plan, cycle)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -129,7 +129,7 @@ function PlanModal({ plan, onClose, onSaved }) {
           <h2 className="text-lg font-bold text-foreground">{isEdit ? 'Edit Plan' : 'New Pricing Plan'}</h2>
         </div>
         <form onSubmit={save} className="p-6 space-y-4">
-          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:text-red-300">{error}</div>}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Plan Name *</label>
             <input required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" placeholder="e.g. Basic, Pro, Enterprise" />
@@ -207,7 +207,7 @@ function CycleModal({ plan, cycle, onClose, onSaved }) {
           <p className="text-xs text-muted-foreground mt-0.5">System: {plan.system}</p>
         </div>
         <form onSubmit={save} className="p-5 space-y-4">
-          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:text-red-300">{error}</div>}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Cycle Name *</label>
             <div className="flex gap-1 mb-2 flex-wrap">
@@ -333,7 +333,7 @@ export default function PricingPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex justify-between dark:bg-red-900/30 dark:text-red-300">
           {error}
           <button onClick={() => setError('')} className="font-bold ml-4">×</button>
         </div>

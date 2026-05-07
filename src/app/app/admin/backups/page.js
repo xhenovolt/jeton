@@ -250,8 +250,8 @@ export default function AdminBackupsPage() {
                     <tr key={b.id} className="hover:bg-muted/20">
                       <td className="px-4 py-3 text-foreground font-medium">
                         {b.name}
-                        {b.encrypted && <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-700">enc</span>}
-                        {b.compression && <span className="ml-1 px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700">{b.compression}</span>}
+                        {b.encrypted && <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">enc</span>}
+                        {b.compression && <span className="ml-1 px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{b.compression}</span>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground capitalize">{b.backup_type}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[b.status] || 'bg-muted'}`}>{b.status}</span></td>
@@ -276,7 +276,7 @@ export default function AdminBackupsPage() {
                           </>
                         )}
                         <button title="Delete" disabled={busyId === b.id} onClick={() => deleteBackup(b)}
-                                className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer">
+                                className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50 cursor-pointer dark:bg-red-900/30 dark:text-red-300">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -325,7 +325,7 @@ export default function AdminBackupsPage() {
                   <span key="n" className="font-medium">{t.name}</span>,
                   <span key="t" className="capitalize">{t.type}</span>,
                   t.is_active ? 'yes' : 'no',
-                  t.is_primary ? <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">primary</span> : '—',
+                  t.is_primary ? <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">primary</span> : '—',
                   formatDate(t.created_at),
                 ])}
               />

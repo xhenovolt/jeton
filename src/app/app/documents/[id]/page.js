@@ -315,7 +315,7 @@ export default function DocumentDetailPage({ params }) {
                     a.status === 'rejected' ? 'bg-red-100 text-red-700' :
                     a.status === 'pending'  ? 'bg-yellow-100 text-yellow-700' :
                     'bg-slate-100 text-slate-700'
-                  }`}>{a.status}</span>
+                  } dark:bg-red-900/30 dark:text-red-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:bg-yellow-900/30 dark:text-yellow-300`}>{a.status}</span>
                   {a.status === 'pending' && (
                     <div className="flex gap-1">
                       <button onClick={() => decideApproval(a.id, 'approved')} className="px-2 py-1 bg-emerald-600 text-white rounded text-xs cursor-pointer">Approve</button>
@@ -341,7 +341,7 @@ export default function DocumentDetailPage({ params }) {
                 <li key={p.id} className="flex items-center justify-between text-sm border-b border-border py-1.5 last:border-0">
                   <span><strong className="capitalize">{p.principal_type}</strong> <code className="text-xs">{p.principal_id}</code></span>
                   <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 capitalize">{p.permission}</span>
-                  <button onClick={() => removeACL(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeACL(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded cursor-pointer dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
                 </li>
               ))}
             </ul>
@@ -360,7 +360,7 @@ export default function DocumentDetailPage({ params }) {
                 <li key={l.id} className="flex items-center justify-between text-sm border-b border-border py-1.5 last:border-0">
                   <span><strong className="capitalize">{l.entity_type}</strong> <code className="text-xs">{l.entity_id}</code></span>
                   <span className="text-xs text-muted-foreground">{l.relationship}</span>
-                  <button onClick={() => removeLink(l.id)} className="text-red-500 hover:bg-red-50 p-1 rounded cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeLink(l.id)} className="text-red-500 hover:bg-red-50 p-1 rounded cursor-pointer dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
                 </li>
               ))}
             </ul>

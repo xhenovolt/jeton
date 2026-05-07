@@ -181,7 +181,7 @@ export default function NotificationsPage() {
                 {!n.is_read && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markRead(n.id); }}
-                    className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                    className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition dark:bg-blue-900/30 dark:text-blue-300"
                     title="Mark as read"
                   >
                     <CheckCheck className="w-4 h-4" />

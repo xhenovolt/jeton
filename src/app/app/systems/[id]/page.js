@@ -351,7 +351,7 @@ export default function SystemDetailPage() {
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-2xl font-bold text-foreground">{data.name}</h1>
                 {data.version && <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">v{data.version}</span>}
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${data.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{data.status}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${data.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'} dark:bg-emerald-900/30 dark:text-emerald-300`}>{data.status}</span>
               </div>
               {data.description && <p className="text-muted-foreground">{data.description}</p>}
             </div>
@@ -504,7 +504,7 @@ export default function SystemDetailPage() {
                         mod.status === 'inactive' ? 'bg-gray-100 text-gray-700' :
                         mod.status === 'deprecated' ? 'bg-orange-100 text-orange-700' :
                         'bg-blue-100 text-blue-700'
-                      }`}>{mod.status}</span>
+                      } dark:bg-blue-900/30 dark:text-blue-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:bg-orange-900/30 dark:text-orange-300`}>{mod.status}</span>
                     </div>
                     {mod.description && <p className="text-sm text-muted-foreground mb-2">{mod.description}</p>}
                     <div className="flex items-center gap-4 text-sm">
@@ -539,7 +539,7 @@ export default function SystemDetailPage() {
                     <p className="text-sm text-muted-foreground capitalize">{l.license_type} license · {l.start_date ? new Date(l.start_date).toLocaleDateString() : 'No start date'}</p>
                     {l.notes && <p className="text-xs text-muted-foreground mt-0.5">{l.notes}</p>}
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{l.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'} dark:bg-emerald-900/30 dark:text-emerald-300`}>{l.status}</span>
                 </div>
               ))}
             </div>
@@ -552,7 +552,7 @@ export default function SystemDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground">Issues</h2>
-            <button onClick={() => setShowIssueForm(!showIssueForm)} className="flex items-center gap-1 text-sm bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition">
+            <button onClick={() => setShowIssueForm(!showIssueForm)} className="flex items-center gap-1 text-sm bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20">
               <Plus className="w-3.5 h-3.5" /> Report Issue
             </button>
           </div>
@@ -608,7 +608,7 @@ export default function SystemDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground">Improvements & Changes</h2>
-            <button onClick={() => setShowChangeForm(!showChangeForm)} className="flex items-center gap-1 text-sm bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
+            <button onClick={() => setShowChangeForm(!showChangeForm)} className="flex items-center gap-1 text-sm bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/20">
               <Plus className="w-3.5 h-3.5" /> Add Change
             </button>
           </div>
@@ -664,7 +664,7 @@ export default function SystemDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground">System Operations</h2>
-            <button onClick={() => setShowOpForm(!showOpForm)} className="flex items-center gap-1 text-sm bg-purple-50 text-purple-600 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition">
+            <button onClick={() => setShowOpForm(!showOpForm)} className="flex items-center gap-1 text-sm bg-purple-50 text-purple-600 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/20">
               <Plus className="w-3.5 h-3.5" /> Log Operation
             </button>
           </div>
@@ -703,7 +703,7 @@ export default function SystemDetailPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">{op.operation_type?.replace(/_/g, ' ')}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${op.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{op.status}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${op.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'} dark:bg-emerald-900/30 dark:text-emerald-300`}>{op.status}</span>
                     </div>
                     <p className="text-sm text-foreground">{op.description}</p>
                     <p className="text-xs text-muted-foreground mt-1">{new Date(op.created_at).toLocaleDateString()}</p>

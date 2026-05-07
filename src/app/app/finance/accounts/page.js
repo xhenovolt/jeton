@@ -244,7 +244,7 @@ export default function AccountsPage() {
                   <Wallet className={`w-5 h-5 flex-shrink-0 ${!a.is_active ? 'text-muted-foreground/50' : 'text-muted-foreground'}`} />
                   <span className="font-medium text-foreground truncate">{a.name}</span>
                   {!a.is_active && (
-                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0">DISABLED</span>
+                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0 dark:bg-red-900/30 dark:text-red-300">DISABLED</span>
                   )}
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize flex-shrink-0 ${TYPE_COLORS[a.type] || TYPE_COLORS.other}`}>
@@ -263,14 +263,14 @@ export default function AccountsPage() {
               <div className="mt-4 pt-3 border-t border-border flex items-center gap-1 flex-wrap">
                 <button
                   onClick={() => openEdit(a)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-blue-50 hover:text-blue-700 transition text-muted-foreground"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-blue-50 hover:text-blue-700 transition text-muted-foreground dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/20"
                   title="Edit account details"
                 >
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
                 <button
                   onClick={() => openAdjust(a)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-amber-50 hover:text-amber-700 transition text-muted-foreground"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-amber-50 hover:text-amber-700 transition text-muted-foreground dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/20"
                   title="Manually adjust balance (flagged for audit)"
                 >
                   <AlertTriangle className="w-3.5 h-3.5" /> Adjust
@@ -278,7 +278,7 @@ export default function AccountsPage() {
                 <div className="flex-1" />
                 <button
                   onClick={() => handleToggle(a)}
-                  className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md transition ${a.is_active ? 'bg-muted hover:bg-orange-50 hover:text-orange-700 text-muted-foreground' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md transition ${a.is_active ? 'bg-muted hover:bg-orange-50 hover:text-orange-700 text-muted-foreground' : 'bg-green-50 text-green-700 hover:bg-green-100'} dark:bg-green-900/30 dark:text-green-300 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-green-900/20 dark:hover:bg-orange-900/20`}
                   title={a.is_active ? 'Disable account' : 'Enable account'}
                 >
                   {a.is_active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
@@ -286,7 +286,7 @@ export default function AccountsPage() {
                 </button>
                 <button
                   onClick={() => handleDelete(a)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-red-50 hover:text-red-700 transition text-muted-foreground"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-muted hover:bg-red-50 hover:text-red-700 transition text-muted-foreground dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20"
                   title="Delete account"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete

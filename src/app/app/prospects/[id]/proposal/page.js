@@ -433,7 +433,7 @@ export default function ProposalGeneratorPage() {
               <ExternalLink className="w-4 h-4" /> Download PDF
             </button>
             <Link href={`/app/proposals/${generated.id}`}
-              className="flex items-center gap-1.5 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition">
+              className="flex items-center gap-1.5 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition dark:bg-emerald-900/30">
               View Proposal
             </Link>
           </div>
@@ -584,7 +584,7 @@ export default function ProposalGeneratorPage() {
 
             {generated && (
               <button onClick={() => window.open(`/api/proposals/${generated.id}/pdf`, '_blank')}
-                className="w-full mt-2 flex items-center justify-center gap-2 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 font-medium py-2.5 rounded-xl transition text-sm hover:bg-blue-50 dark:hover:bg-blue-950/30">
+                className="w-full mt-2 flex items-center justify-center gap-2 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 font-medium py-2.5 rounded-xl transition text-sm hover:bg-blue-50 dark:hover:bg-blue-950/30 dark:bg-blue-900/30">
                 <ExternalLink className="w-4 h-4" /> Download PDF
               </button>
             )}

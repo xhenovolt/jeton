@@ -267,7 +267,7 @@ export default function SubscriptionDetailPage({ params }) {
                 c.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
                 c.status === 'overdue' ? 'bg-red-100 text-red-700' :
                 'bg-slate-100 text-slate-700'
-              }`}>{c.status}</span>,
+              } dark:bg-red-900/30 dark:text-red-300 dark:bg-emerald-900/30 dark:text-emerald-300`}>{c.status}</span>,
               c.paid_at ? fmtDateTime(c.paid_at) : '—',
             ])}
           />

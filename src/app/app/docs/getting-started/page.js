@@ -91,7 +91,7 @@ export default function GettingStartedPage() {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold dark:bg-green-900/30 dark:text-green-300">1</span>
                 Add Your First System/Product
               </h3>
               <p className="text-foreground ml-8 mb-2">
@@ -107,7 +107,7 @@ export default function GettingStartedPage() {
 
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold dark:bg-green-900/30 dark:text-green-300">2</span>
                 Add Your First Prospect
               </h3>
               <p className="text-foreground ml-8 mb-2">
@@ -123,7 +123,7 @@ export default function GettingStartedPage() {
 
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold dark:bg-green-900/30 dark:text-green-300">3</span>
                 Read the Founder Manual
               </h3>
               <p className="text-foreground ml-8 mb-2">
@@ -211,21 +211,21 @@ export default function GettingStartedPage() {
           <div className="space-y-3">
             <Link
               href="/app/docs/founder"
-              className="block p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition"
+              className="block p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition dark:hover:bg-green-900/20"
             >
               <div className="font-semibold text-green-900">Read the Founder Operating Manual</div>
               <div className="text-green-700 text-sm">Your daily playbook for running Jeton</div>
             </Link>
             <Link
               href="/app/docs/guides"
-              className="block p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+              className="block p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition dark:hover:bg-blue-900/20"
             >
               <div className="font-semibold text-blue-900">Browse User Guides</div>
               <div className="text-blue-700 text-sm">Step-by-step tutorials for common tasks</div>
             </Link>
             <Link
               href="/app/docs/modules"
-              className="block p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+              className="block p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition dark:hover:bg-purple-900/20"
             >
               <div className="font-semibold text-purple-900">Explore Module Documentation</div>
               <div className="text-purple-700 text-sm">Deep dive into each system component</div>

@@ -168,7 +168,7 @@ export default function SecureConnectionCard({
         <Button
           size="sm"
           variant="outline"
-          className="gap-2 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50"
+          className="gap-2 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/20"
           onClick={() => setShowPasswordModal(true)}
           onClickCapture={() => {
             // Store intent to rotate after password verification

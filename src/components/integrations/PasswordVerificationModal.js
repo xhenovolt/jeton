@@ -81,7 +81,7 @@ export default function PasswordVerificationModal({
         </AlertDialogDescription>
 
         <div className="space-y-4 my-4">
-          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-900">
+          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-900 dark:bg-amber-900/30 dark:text-amber-300">
             <strong>⚠️ Security Notice:</strong> API keys and secrets are sensitive. Never share them.
           </div>
 
@@ -119,7 +119,7 @@ export default function PasswordVerificationModal({
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
+            <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
               {error}
             </div>
           )}

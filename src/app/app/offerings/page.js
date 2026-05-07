@@ -113,11 +113,11 @@ export default function OfferingsPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => startEdit(o)} className="p-1 hover:bg-muted rounded"><Edit className="w-4 h-4 text-muted-foreground" /></button>
-                  <button onClick={() => deleteOffering(o.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
+                  <button onClick={() => deleteOffering(o.id)} className="p-1 hover:bg-red-50 rounded dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
                 </div>
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 capitalize">{o.type}</span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 capitalize dark:bg-blue-900/30 dark:text-blue-300">{o.type}</span>
                 {o.deal_count > 0 && <span className="text-xs text-muted-foreground">{o.deal_count} deals</span>}
               </div>
               {o.description && <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{o.description}</p>}

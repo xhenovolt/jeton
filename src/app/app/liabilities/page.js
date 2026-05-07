@@ -114,7 +114,7 @@ export default function LiabilitiesPage() {
                 {l.description && <p className="text-sm text-muted-foreground">{l.description}</p>}
                 {l.amount && <p className="text-sm font-semibold text-red-600 mt-1">{formatCurr(l.amount, l.currency)}</p>}
               </div>
-              <button onClick={() => remove(l.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition ml-4">
+              <button onClick={() => remove(l.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition ml-4 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

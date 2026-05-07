@@ -293,7 +293,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
             onClick={async () => {
               await handleLogout();
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm dark:bg-red-900/30"
           >
             <LogOut size={18} />
             <span>Logout</span>

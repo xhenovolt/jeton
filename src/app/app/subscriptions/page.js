@@ -60,7 +60,7 @@ function NewSubscriptionModal({ onClose, onCreated }) {
           <h2 className="text-lg font-bold text-foreground">New Subscription</h2>
         </div>
         <form onSubmit={save} className="p-6 space-y-4">
-          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:text-red-300">{error}</div>}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Client *</label>
             <select required value={form.client_id} onChange={e => setForm(f => ({...f, client_id: e.target.value}))} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground">
@@ -82,7 +82,7 @@ function NewSubscriptionModal({ onClose, onCreated }) {
                 {cycles.map(c => (
                   <button key={c.id} type="button"
                     onClick={() => setForm(f => ({...f, pricing_cycle_id: c.id}))}
-                    className={`text-sm rounded-xl border p-3 text-left transition-all ${form.pricing_cycle_id === c.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-border hover:border-blue-300'}`}
+                    className={`text-sm rounded-xl border p-3 text-left transition-all ${form.pricing_cycle_id === c.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-border hover:border-blue-300'} dark:bg-blue-900/30 dark:text-blue-300`}
                   >
                     <div className="font-medium capitalize">{c.name}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{fmtCurrency(c.price, c.currency)}</div>
@@ -189,13 +189,13 @@ export default function SubscriptionsPage() {
       </div>
 
       {expiringSoon > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
           ⚠ <strong>{expiringSoon}</strong> subscription{expiringSoon > 1 ? 's' : ''} expiring within 14 days.
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex justify-between dark:bg-red-900/30 dark:text-red-300">
           {error}
           <button onClick={() => setError('')} className="font-bold ml-4">×</button>
         </div>
@@ -290,12 +290,12 @@ export default function SubscriptionsPage() {
                             <Eye className="w-4 h-4" />
                           </Link>
                           {sub.status !== 'cancelled' && (
-                            <button onClick={() => handleRenew(sub)} className="p-1 rounded hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600" title="Renew">
+                            <button onClick={() => handleRenew(sub)} className="p-1 rounded hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/20" title="Renew">
                               <RefreshCw className="w-4 h-4" />
                             </button>
                           )}
                           {sub.status !== 'cancelled' && (
-                            <button onClick={() => handleCancel(sub)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Cancel">
+                            <button onClick={() => handleCancel(sub)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/20" title="Cancel">
                               <XCircle className="w-4 h-4" />
                             </button>
                           )}

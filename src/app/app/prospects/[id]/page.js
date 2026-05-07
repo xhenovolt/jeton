@@ -321,7 +321,7 @@ export default function ProspectDetailPage() {
             { label: 'Next week', days: 7 },
             { label: '1 month', days: 30 },
           ].map(({ label, days }) => (
-            <button key={label} onClick={() => setFollowupQuick(days)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300 transition">
+            <button key={label} onClick={() => setFollowupQuick(days)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300 transition dark:bg-blue-900/30 dark:text-blue-300">
               {label}
             </button>
           ))}
@@ -329,7 +329,7 @@ export default function ProspectDetailPage() {
             Custom date
           </button>
           {form.next_followup_date && (
-            <button onClick={() => { updateField('next_followup_date', ''); updateField('next_followup_time', ''); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+            <button onClick={() => { updateField('next_followup_date', ''); updateField('next_followup_time', ''); }} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition dark:bg-red-900/30 dark:text-red-300">
               Clear
             </button>
           )}
@@ -381,7 +381,7 @@ export default function ProspectDetailPage() {
               <div key={f.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div>
                   <span className="text-sm font-medium capitalize">{f.type}</span>
-                  <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${f.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40' : f.status === 'scheduled' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40' : 'bg-muted text-muted-foreground'}`}>{f.status}</span>
+                  <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${f.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : f.status === 'scheduled' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>{f.status}</span>
                   {f.summary && <span className="text-xs text-muted-foreground ml-2">{f.summary}</span>}
                 </div>
                 <span className="text-xs text-muted-foreground">{new Date(f.scheduled_at).toLocaleDateString()}</span>

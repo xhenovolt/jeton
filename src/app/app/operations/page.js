@@ -362,7 +362,7 @@ export default function OperationsPage() {
                   </div>
                   {!hasExpense && (
                     <button onClick={() => linkExpense(op)} title="Link expense"
-                      className="p-1.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 transition">
+                      className="p-1.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 transition dark:bg-amber-900/30 dark:text-amber-300">
                       <Link className="w-3.5 h-3.5" />
                     </button>
                   )}

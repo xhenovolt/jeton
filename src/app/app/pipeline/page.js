@@ -241,7 +241,7 @@ export default function PipelinePage() {
                             {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
                           <button onClick={() => deleteEntry(entry.id)}
-                            className="text-red-500 text-xs px-1 hover:bg-red-50 rounded">✕</button>
+                            className="text-red-500 text-xs px-1 hover:bg-red-50 rounded dark:hover:bg-red-900/20">✕</button>
                         </div>
                       </div>
                     ))}
@@ -277,7 +277,7 @@ export default function PipelinePage() {
                   {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 <button onClick={() => deleteEntry(entry.id)}
-                  className="text-red-500 text-xs px-2 py-1 hover:bg-red-50 rounded">Remove</button>
+                  className="text-red-500 text-xs px-2 py-1 hover:bg-red-50 rounded dark:hover:bg-red-900/20">Remove</button>
               </div>
             </div>
           ))}

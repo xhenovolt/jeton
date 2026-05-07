@@ -215,7 +215,7 @@ function ModuleCard({ module }) {
               <h4 className="font-semibold text-foreground mb-2 text-sm">Database Views</h4>
               <div className="flex flex-wrap gap-1">
                 {module.views.map((view, i) => (
-                  <span key={i} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono">
+                  <span key={i} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono dark:bg-blue-900/30 dark:text-blue-300">
                     {view}
                   </span>
                 ))}

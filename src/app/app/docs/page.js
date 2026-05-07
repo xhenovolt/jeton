@@ -114,7 +114,7 @@ export default function DocsHomePage() {
               </p>
               <Link
                 href="/app/docs/founder"
-                className="inline-flex items-center px-6 py-3 bg-card text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                className="inline-flex items-center px-6 py-3 bg-card text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/20"
               >
                 Read Founder Manual →
               </Link>

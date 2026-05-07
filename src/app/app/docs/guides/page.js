@@ -402,7 +402,7 @@ export default function UserGuidesPage() {
               'VIEW DASHBOARD',
             ].map((step, i, arr) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 font-semibold rounded">
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 font-semibold rounded dark:bg-blue-900/30 dark:text-blue-300">
                   {i + 1}. {step}
                 </span>
                 {i < arr.length - 1 && <span className="text-muted-foreground">→</span>}

@@ -178,7 +178,7 @@ export default function SystemMapPage() {
                       <Link
                         key={j}
                         href={route}
-                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition font-mono text-sm text-blue-800"
+                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition font-mono text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/20"
                       >
                         {route}
                       </Link>
@@ -201,7 +201,7 @@ export default function SystemMapPage() {
               <div key={i} className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">{group.category}</h3>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium dark:bg-green-900/30 dark:text-green-300">
                     {group.count} endpoints
                   </span>
                 </div>

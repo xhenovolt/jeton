@@ -103,7 +103,7 @@ export default function RecordComments({ entityType, entityId }) {
   const CommentItem = ({ comment, isReply = false }) => (
     <div className={`${isReply ? 'ml-8 pl-3 border-l-2 border-border' : ''} py-3`}>
       <div className="flex items-start gap-3">
-        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0 dark:bg-blue-900/30 dark:text-blue-300">
           {comment.author_name?.charAt(0) || '?'}
         </div>
         <div className="flex-1 min-w-0">

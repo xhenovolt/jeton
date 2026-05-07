@@ -131,7 +131,7 @@ export default function IssueIntelligencePage() {
                     {r.is_verified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${r.severity === 'critical' ? 'bg-red-100 text-red-700' : r.severity === 'high' ? 'bg-yellow-100 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>{r.severity}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${r.severity === 'critical' ? 'bg-red-100 text-red-700' : r.severity === 'high' ? 'bg-yellow-100 text-yellow-700' : 'bg-muted text-muted-foreground'} dark:bg-red-900/30 dark:text-red-300 dark:bg-yellow-900/30 dark:text-yellow-300`}>{r.severity}</span>
                     <span>{r.resolution_type?.replace(/_/g, ' ')}</span>
                     {r.resolved_by_name && <span>by {r.resolved_by_name}</span>}
                     {r.time_to_resolve_hours && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{parseFloat(r.time_to_resolve_hours).toFixed(1)}h</span>}

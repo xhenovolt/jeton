@@ -328,14 +328,14 @@ export default function WorkflowPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <Link
               href="/app/docs/founder"
-              className="p-6 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition"
+              className="p-6 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition dark:hover:bg-green-900/20"
             >
               <div className="font-bold text-green-900 text-lg mb-2">Read Founder Manual</div>
               <div className="text-green-700 text-sm">Daily playbook with exact actions to take</div>
             </Link>
             <Link
               href="/app/docs/guides"
-              className="p-6 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+              className="p-6 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition dark:hover:bg-blue-900/20"
             >
               <div className="font-bold text-blue-900 text-lg mb-2">Browse Step-by-Step Guides</div>
               <div className="text-blue-700 text-sm">Detailed instructions for each workflow stage</div>

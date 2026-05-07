@@ -194,7 +194,7 @@ export default function AuthorityInspectorPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+        <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-xl p-3 text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
@@ -220,7 +220,7 @@ export default function AuthorityInspectorPage() {
                   onClick={() => setExpanded(prev => ({ ...prev, [u.id]: !prev[u.id] }))}
                 >
                   {/* User icon */}
-                  <div className="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm flex-shrink-0 dark:bg-violet-900/30 dark:text-violet-300">
                     {u.name?.charAt(0) || u.email?.charAt(0) || '?'}
                   </div>
 
@@ -232,12 +232,12 @@ export default function AuthorityInspectorPage() {
                       {/* Account link status */}
                       {u.staff_id ? (
                         u.linked_user_id
-                          ? <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded"><UserCheck className="w-2.5 h-2.5" />Staff linked</span>
-                          : <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded"><UserX className="w-2.5 h-2.5" />Staff unlinked</span>
+                          ? <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded dark:bg-emerald-900/30 dark:text-emerald-300"><UserCheck className="w-2.5 h-2.5" />Staff linked</span>
+                          : <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded dark:bg-amber-900/30 dark:text-amber-300"><UserX className="w-2.5 h-2.5" />Staff unlinked</span>
                       ) : null}
                       {/* First login */}
                       {!u.first_login_completed && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded">
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded dark:bg-orange-900/30 dark:text-orange-300">
                           <Lock className="w-2.5 h-2.5" />First login pending
                         </span>
                       )}

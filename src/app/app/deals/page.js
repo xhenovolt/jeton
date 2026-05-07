@@ -83,7 +83,7 @@ export default function DealsPage() {
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                     <span>{d.client_label}</span>
-                    {d.system_name && <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{d.system_name}</span>}
+                    {d.system_name && <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded dark:bg-blue-900/30 dark:text-blue-300">{d.system_name}</span>}
                     {d.offering_name && <span>{d.offering_name}</span>}
                     {d.payment_count > 0 && <span>{d.payment_count} payments</span>}
                   </div>

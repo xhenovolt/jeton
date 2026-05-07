@@ -74,7 +74,7 @@ export default function DRAISConnectionSelector() {
 
   if (draclConnections.length === 0) {
     return (
-      <div className="px-4 py-2 text-xs bg-red-50 border border-red-200 rounded text-red-700 flex gap-2 items-center">
+      <div className="px-4 py-2 text-xs bg-red-50 border border-red-200 rounded text-red-700 flex gap-2 items-center dark:bg-red-900/30 dark:text-red-300">
         <AlertCircle className="h-4 w-4 flex-shrink-0" />
         <span>No DRAIS connections configured. Go to Integrations to add one.</span>
       </div>
@@ -106,7 +106,7 @@ export default function DRAISConnectionSelector() {
                 onClick={() => switchConnection(conn.id)}
                 className={`w-full text-left px-4 py-3 border-b hover:bg-blue-50 transition ${
                   activeConnection?.id === conn.id ? 'bg-blue-100 font-semibold' : ''
-                }`}
+                } dark:hover:bg-blue-900/20`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

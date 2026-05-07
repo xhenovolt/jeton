@@ -490,21 +490,21 @@ npm start
           <div className="grid md:grid-cols-3 gap-4">
             <Link
               href="/app/docs/modules"
-              className="p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+              className="p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition dark:hover:bg-purple-900/20"
             >
               <div className="font-semibold text-purple-900">Module Documentation</div>
               <div className="text-purple-700 text-sm mt-1">Detailed module reference</div>
             </Link>
             <Link
               href="/app/docs/system-map"
-              className="p-4 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition"
+              className="p-4 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition dark:hover:bg-teal-900/20"
             >
               <div className="font-semibold text-teal-900">System Route Map</div>
               <div className="text-teal-700 text-sm mt-1">All routes & endpoints</div>
             </Link>
             <Link
               href="/app/docs/workflow"
-              className="p-4 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
+              className="p-4 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition dark:hover:bg-orange-900/20"
             >
               <div className="font-semibold text-orange-900">Workflow Guide</div>
               <div className="text-orange-700 text-sm mt-1">Business process flow</div>

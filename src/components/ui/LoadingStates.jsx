@@ -115,7 +115,7 @@ export function FormError({ error, message }) {
   if (!error && !message) return null;
   
   return (
-    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm dark:bg-red-900/30 dark:text-red-300">
       {message || error?.message || 'An error occurred'}
     </div>
   );

@@ -302,7 +302,7 @@ export default function TechIntelligencePage() {
                   </div>
                   <button
                     onClick={() => deleteStack(stack.id)}
-                    className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded ml-2 transition"
+                    className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded ml-2 transition dark:bg-red-900/30 dark:text-red-300"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

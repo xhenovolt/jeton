@@ -117,7 +117,7 @@ export default function BudgetsPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => startEdit(b)} className="p-1 hover:bg-muted rounded"><Edit className="w-4 h-4 text-muted-foreground" /></button>
-                    <button onClick={() => deleteBudget(b.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
+                    <button onClick={() => deleteBudget(b.id)} className="p-1 hover:bg-red-50 rounded dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" /></button>
                   </div>
                 </div>
                 <div className="flex items-end justify-between mb-2">

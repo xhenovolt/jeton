@@ -145,8 +145,8 @@ export default function DocumentCenterPage() {
               <div className="flex items-center gap-2">
                 {doc.file_url && (
                   <>
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Eye className="w-4 h-4" /></a>
-                    <a href={doc.file_url} download className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"><Download className="w-4 h-4" /></a>
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg dark:bg-blue-900/30 dark:text-blue-300"><Eye className="w-4 h-4" /></a>
+                    <a href={doc.file_url} download className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg dark:bg-emerald-900/30 dark:text-emerald-300"><Download className="w-4 h-4" /></a>
                   </>
                 )}
               </div>
