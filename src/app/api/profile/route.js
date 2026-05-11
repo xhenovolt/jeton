@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUserOrThrow } from '@/lib/current-user';
 
+// Sensitive identity fields require an approval workflow rather than
+// direct mutation. Editing these from the profile page creates an
+// approval_requests row that a manager must approve before the change
+// is applied. Free-edit fields are cosmetic / preference only.
+const FREE_EDIT_FIELDS      = ['profile_image_url', 'avatar_id', 'cover_image_url', 'bio', 'timezone'];
+const APPROVAL_NEEDED_FIELDS = ['full_name', 'phone'];
+
 /**
  * GET /api/profile — Fetch current user's full profile
  */
@@ -85,48 +92,81 @@ export async function PATCH(request) {
     const user = await getCurrentUserOrThrow();
     const body = await request.json();
 
-    const allowedFields = [
-      'full_name', 'profile_image_url', 'avatar_id', 'cover_image_url',
-      'bio', 'phone', 'timezone',
-    ];
-
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
-
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        updates.push(`${field} = $${paramIndex}`);
-        values.push(body[field]);
-        paramIndex++;
-      }
+    // Split incoming edits into free vs. needs-approval.
+    const freeChanges    = {};
+    const pendingChanges = {};
+    for (const k of Object.keys(body)) {
+      if (FREE_EDIT_FIELDS.includes(k))       freeChanges[k]    = body[k];
+      else if (APPROVAL_NEEDED_FIELDS.includes(k)) pendingChanges[k] = body[k];
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(freeChanges).length === 0 && Object.keys(pendingChanges).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    updates.push(`updated_at = NOW()`);
-    values.push(user.id);
+    let updated = null;
 
-    const result = await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING
-        id, email, full_name, role, status, profile_image_url, avatar_id,
-        cover_image_url, department, bio, phone, timezone, updated_at`,
-      values
-    );
+    // Apply the free changes immediately.
+    if (Object.keys(freeChanges).length > 0) {
+      const sets = [];
+      const values = [];
+      let i = 1;
+      for (const f of Object.keys(freeChanges)) {
+        sets.push(`${f} = $${i++}`);
+        values.push(freeChanges[f]);
+      }
+      sets.push('updated_at = NOW()');
+      values.push(user.id);
+      const r = await query(
+        `UPDATE users SET ${sets.join(', ')} WHERE id = $${i} RETURNING
+           id, email, full_name, role, status, profile_image_url, avatar_id,
+           cover_image_url, department, bio, phone, timezone, updated_at`,
+        values
+      );
+      updated = r.rows[0];
 
-    // Log activity
-    await query(
-      `INSERT INTO user_activity_log (user_id, action, entity_type, details)
-       VALUES ($1, 'profile_updated', 'user', $2)`,
-      [user.id, JSON.stringify({ fields: Object.keys(body).filter(k => allowedFields.includes(k)) })]
-    ).catch(() => {}); // Don't fail on activity log errors
+      await query(
+        `INSERT INTO user_activity_log (user_id, action, entity_type, details)
+         VALUES ($1, 'profile_updated', 'user', $2)`,
+        [user.id, JSON.stringify({ fields: Object.keys(freeChanges) })]
+      ).catch(() => {});
+    }
+
+    // For sensitive changes, create an approval request rather than mutating.
+    let approval = null;
+    if (Object.keys(pendingChanges).length > 0) {
+      const r = await query(
+        `INSERT INTO approval_requests
+           (requester_user_id, target_record_type, target_record_id,
+            action_requested, reason, required_permission,
+            replay_path, replay_method, payload)
+         VALUES ($1,'user',$1,$2,$3,'profile.edit_sensitive','/api/profile','PATCH',$4)
+         RETURNING *`,
+        [
+          user.id,
+          'Edit sensitive profile fields',
+          'Self-service profile edit requiring approval',
+          JSON.stringify(pendingChanges),
+        ]
+      );
+      approval = r.rows[0];
+
+      await query(
+        `INSERT INTO user_activity_log (user_id, action, entity_type, entity_id, details)
+         VALUES ($1, 'profile_edit_requested', 'approval_request', $2, $3)`,
+        [user.id, approval.id, JSON.stringify({ fields: Object.keys(pendingChanges) })]
+      ).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
-      data: result.rows[0],
-      message: 'Profile updated successfully',
+      data: updated,
+      pending_approval: approval ? {
+        id: approval.id,
+        fields: Object.keys(pendingChanges),
+        message: 'Sensitive changes were submitted for approval. They will apply once a manager approves.',
+      } : null,
+      message: updated ? 'Profile updated.' : 'Sensitive changes submitted for approval.',
     });
   } catch (err) {
     if (err.message === 'Not authenticated') {
