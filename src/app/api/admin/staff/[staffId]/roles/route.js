@@ -10,7 +10,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
 import { dispatch } from '@/lib/system-events.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
@@ -54,8 +54,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, error: 'role_ids must be an array' }, { status: 400 });
     }
 
-    // Authority check — non-superadmin can't assign roles at or above their own authority
-    if (auth.role !== 'superadmin' && roleIds.length > 0) {
+    // Authority check — a role with staff.assign_any_role (superadmins
+    // satisfy this via the cache bypass) can assign any role. Without it,
+    // the assigner can only grant roles strictly BELOW their own authority.
+    const canAssignAny = await hasPermission(auth.userId, 'staff', 'assign_any_role', auth.role);
+    if (!canAssignAny && roleIds.length > 0) {
       const assignerAuth = await query(
         `SELECT MAX(r.authority_level) AS max_authority
          FROM users u

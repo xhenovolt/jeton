@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
+import { hasPermission } from '@/lib/permissions.js';
+
+// "Can this user moderate other people's comments?" Returns true for any
+// role with comments.moderate OR comments.manage_others (and superadmins
+// because hasPermission bypasses them internally).
+async function canModerateComments(auth) {
+  return (await hasPermission(auth.userId, 'comments', 'moderate', auth.role))
+      || (await hasPermission(auth.userId, 'comments', 'manage_others', auth.role));
+}
 
 const VALID_ENTITY_TYPES = [
   'deal', 'prospect', 'client', 'system', 'invoice', 'payment',
@@ -126,7 +135,7 @@ export async function PATCH(request) {
     // Only author can edit their own comment
     const existing = await query(`SELECT author_id FROM record_comments WHERE id = $1`, [id]);
     if (!existing.rows[0]) return NextResponse.json({ success: false, error: 'Comment not found' }, { status: 404 });
-    if (existing.rows[0].author_id !== auth.userId && auth.role !== 'superadmin') {
+    if (existing.rows[0].author_id !== auth.userId && !(await canModerateComments(auth))) {
       return NextResponse.json({ success: false, error: 'You can only edit your own comments' }, { status: 403 });
     }
 
@@ -158,7 +167,7 @@ export async function DELETE(request) {
     // Only author or superadmin can delete
     const existing = await query(`SELECT author_id FROM record_comments WHERE id = $1`, [id]);
     if (!existing.rows[0]) return NextResponse.json({ success: false, error: 'Comment not found' }, { status: 404 });
-    if (existing.rows[0].author_id !== auth.userId && auth.role !== 'superadmin') {
+    if (existing.rows[0].author_id !== auth.userId && !(await canModerateComments(auth))) {
       return NextResponse.json({ success: false, error: 'You can only delete your own comments' }, { status: 403 });
     }
 

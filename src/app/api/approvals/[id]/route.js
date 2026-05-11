@@ -5,9 +5,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
-import { getUserHierarchyLevel } from '@/lib/permissions.js';
+import { getUserHierarchyLevel, hasPermission, requirePermission } from '@/lib/permissions.js';
 import { logRbacEvent, extractRbacMetadata } from '@/lib/rbac-audit.js';
-import { requirePermission } from '@/lib/permissions.js';
 
 export async function GET(request, { params }) {
   try {
@@ -32,9 +31,14 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, error: 'Approval request not found' }, { status: 404 });
     }
 
-    // Only allow the requester or someone with higher authority to view
+    // Allow the requester themselves, anyone with approvals.view_all, or
+    // anyone with strictly higher hierarchy than the requester. The legacy
+    // hardcoded 'superadmin' check is now redundant — superadmin satisfies
+    // approvals.view_all via the perm-cache bypass.
     const req = result.rows[0];
-    if (req.requester_user_id !== auth.userId && auth.role !== 'superadmin') {
+    const isOwner = req.requester_user_id === auth.userId;
+    const canViewAll = await hasPermission(auth.userId, 'approvals', 'view_all', auth.role);
+    if (!isOwner && !canViewAll) {
       const myLevel = await getUserHierarchyLevel(auth.userId);
       const requesterLevel = await getUserHierarchyLevel(req.requester_user_id);
       if (myLevel >= requesterLevel) {
@@ -84,8 +88,11 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Verify authority: approver must have higher authority than requester
-    if (auth.role !== 'superadmin') {
+    // Verify authority: approver must either have approvals.override
+    // (granted to superadmins via perm-cache bypass) OR strictly higher
+    // hierarchy than the requester. No hardcoded role string.
+    const canOverride = await hasPermission(auth.userId, 'approvals', 'override', auth.role);
+    if (!canOverride) {
       const [approverLevel, requesterLevel] = await Promise.all([
         getUserHierarchyLevel(auth.userId),
         getUserHierarchyLevel(approvalReq.requester_user_id),

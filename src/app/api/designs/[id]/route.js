@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
 
 // GET /api/designs/[id]
 export async function GET(request, { params }) {
@@ -44,7 +44,11 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ success: false, error: 'Design not found' }, { status: 404 });
     }
     const design = existing.rows[0];
-    if (design.created_by !== auth.userId && auth.role !== 'superadmin') {
+    // Allow the creator OR any role with designs.manage_others (which
+    // superadmins satisfy automatically) to edit. Hardcoded role string
+    // removed so any custom role can be granted the permission.
+    if (design.created_by !== auth.userId &&
+        !(await hasPermission(auth.userId, 'designs', 'manage_others', auth.role))) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 

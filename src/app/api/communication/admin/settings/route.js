@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUserOrThrow } from '@/lib/current-user';
+import { hasPermission } from '@/lib/permissions.js';
 
 /**
  * GET /api/communication/admin/settings — Get all communication settings
@@ -10,8 +11,9 @@ export async function GET() {
   try {
     const user = await getCurrentUserOrThrow();
 
-    // Only superadmin can manage communication settings
-    if (user.role !== 'superadmin') {
+    // Permission-driven: any role granted communication.admin works.
+    // Superadmins bypass via hasPermission's internal check.
+    if (!(await hasPermission(user.id, 'communication', 'admin', user.role))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -48,7 +50,7 @@ export async function PATCH(request) {
   try {
     const user = await getCurrentUserOrThrow();
 
-    if (user.role !== 'superadmin') {
+    if (!(await hasPermission(user.id, 'communication', 'admin', user.role))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

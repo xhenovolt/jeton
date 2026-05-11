@@ -148,9 +148,10 @@ export async function POST(request) {
 // GET /api/backups/restore
 export async function GET(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    const perm = await requirePermission(request, 'backups.view');
+    if (perm instanceof NextResponse) {
+      const fb = await requirePermission(request, 'audit.view');
+      if (fb instanceof NextResponse) return fb;
     }
     const result = await query(
       `SELECT br.*, sb.name AS backup_name, u.full_name AS requested_by_name, u2.full_name AS approved_by_name

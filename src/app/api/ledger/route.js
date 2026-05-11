@@ -43,14 +43,16 @@ export async function GET(request) {
 
 // POST /api/ledger — finance.create (admin only)
 export async function POST(request) {
-  const perm = await requirePermission(request, 'finance.create');
-  if (perm instanceof NextResponse) return perm;
+  // finance.ledger_entry gates the elevated "manual ledger entry" action.
+  // Falls back to finance.create for backwards compatibility — any role
+  // granted either works (and superadmins bypass via requirePermission).
+  const perm = await requirePermission(request, 'finance.ledger_entry');
+  const finalPerm = perm instanceof NextResponse
+    ? await requirePermission(request, 'finance.create')
+    : perm;
+  if (finalPerm instanceof NextResponse) return finalPerm;
+  const { auth } = finalPerm;
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    if (auth.role !== 'superadmin' && auth.role !== 'admin') {
-      return NextResponse.json({ success: false, error: 'Admin access required for manual ledger entries' }, { status: 403 });
-    }
 
     const body = await request.json();
     const { account_id, amount, currency, description, category, entry_date } = body;

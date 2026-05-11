@@ -193,10 +193,12 @@ export async function POST(request) {
 // DELETE /api/backups?id=xxx
 export async function DELETE(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'superadmin') {
-      return NextResponse.json({ success: false, error: 'Superadmin access required' }, { status: 403 });
-    }
+    // requirePermission already bypasses for superadmins, so any role with
+    // backups.delete works — no hardcoded 'superadmin' string.
+    const perm = await requirePermission(request, 'backups.delete');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });

@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
 
 function buildTree(nodes) {
   const map = {};
@@ -71,10 +71,11 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'superadmin' && auth.role !== 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
+    // Any role granted org.manage can create org-structure nodes.
+    // Superadmins bypass via the perm-cache.
+    const perm = await requirePermission(request, 'org.manage');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
 
     const body = await request.json();
     const { node_name, department_id, role_id, authority_level_id, reports_to_node_id, staff_assigned_id, title_alias, status } = body;
