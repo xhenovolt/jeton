@@ -34,6 +34,7 @@ import {
   X,
 } from 'lucide-react';
 import { menuItems as configMenuItems } from '@/lib/navigation-config';
+import { filterMenuByPermissions } from '@/lib/nav-permissions';
 import { usePermissions } from '@/components/providers/PermissionProvider';
 
 /**
@@ -80,35 +81,12 @@ export default function Sidebar() {
   const quickAddRef = useRef(null);
   const { user: permUser, hasPermission, hasModuleAccess, hasAnyPermission, hierarchyLevel, loading: permLoading } = usePermissions();
 
-  // Filter menu items based on user permissions
-  const displayMenuItems = useMemo(() => {
-    // While loading or no user, show nothing with permission gates - show all
-    if (permLoading || !permUser) return configMenuItems;
-    // Superadmins see everything
-    if (permUser.is_superadmin) return configMenuItems;
-
-    return configMenuItems.reduce((acc, item) => {
-      // Check hierarchy minimum if set (e.g., Admin requires level ≤ 3)
-      if (item.minHierarchy && hierarchyLevel > item.minHierarchy) return acc;
-
-      // Check module-level access for top-level items
-      if (item.module && !hasModuleAccess(item.module)) return acc;
-
-      // For items with submenu, filter sub-items by permission
-      if (item.submenu) {
-        const filteredSubmenu = item.submenu.filter(sub => {
-          if (!sub.permission) return true;
-          return hasPermission(sub.permission);
-        });
-        // Only show parent if at least one sub-item is visible
-        if (filteredSubmenu.length === 0 && item.module) return acc;
-        acc.push({ ...item, submenu: filteredSubmenu.length > 0 ? filteredSubmenu : item.submenu });
-      } else {
-        acc.push(item);
-      }
-      return acc;
-    }, []);
-  }, [permUser, permLoading, hasPermission, hasModuleAccess, hierarchyLevel]);
+  const displayMenuItems = useMemo(
+    () => filterMenuByPermissions(configMenuItems, {
+      user: permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess,
+    }),
+    [permUser, permLoading, hasPermission, hasModuleAccess, hierarchyLevel]
+  );
 
   // Close quick-add dropdown on outside click or Escape
   useEffect(() => {

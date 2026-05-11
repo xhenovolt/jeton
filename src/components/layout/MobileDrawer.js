@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronDown, LogOut } from 'lucide-react';
-import { menuItems as navMenuItems } from '@/lib/navigation-config';
+import { menuItems as configMenuItems } from '@/lib/navigation-config';
+import { filterMenuByPermissions } from '@/lib/nav-permissions';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 /**
  * Mobile Drawer Navigation
@@ -23,6 +25,13 @@ export function MobileDrawer({ isOpen, onClose, user }) {
   const pathname = usePathname();
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const { user: permUser, hasPermission, hasModuleAccess, hierarchyLevel, loading: permLoading } = usePermissions();
+  const navMenuItems = useMemo(
+    () => filterMenuByPermissions(configMenuItems, {
+      user: permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess,
+    }),
+    [permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess]
+  );
   const [expandedSections, setExpandedSections] = useState({
     Operations: false,
     'Sales & CRM': false,
