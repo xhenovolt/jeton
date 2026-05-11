@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { v2 as cloudinary } from 'cloudinary';
-import { requirePermission } from '@/lib/permissions.js';
+import { requirePermission, hasPermission } from '@/lib/permissions.js';
+import { denyWithApproval } from '@/lib/permission-denial.js';
 
 // Size limits (bytes)
 const LIMITS = {
@@ -38,9 +39,11 @@ function getResourceType(mimeType) {
 // POST /api/media/upload — Upload file to Cloudinary
 export async function POST(request) {
   try {
-    const perm = await requirePermission(request, 'media.manage');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
+    // Soft-gated: if the user lacks media.manage, return a 403 that the
+    // client can convert into an approval request rather than a silent
+    // failure.
+    const auth = await verifyAuth(request);
+    if (!auth) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
     const formData = await request.formData();
     const file = formData.get('file');
@@ -48,6 +51,21 @@ export async function POST(request) {
     const entity_id = formData.get('entity_id') || null;
     const tags = formData.get('tags') || '';
     const quality = formData.get('quality') || 'original';
+
+    const allowed = await hasPermission(auth.userId, 'media', 'manage', auth.role);
+    if (!allowed) {
+      return denyWithApproval({
+        required_permission: 'media.manage',
+        action: `Upload "${file?.name || 'a file'}" to ${entity_type || 'media library'}`,
+        target_record_type: entity_type || 'media',
+        target_record_id: entity_id,
+        replay_path: '/api/media/upload',
+        replay_method: 'POST',
+        // FormData can't be replayed as-is; capture metadata only.
+        payload: { filename: file?.name, mime: file?.type, size: file?.size, entity_type, entity_id, tags, quality },
+        reason: 'You need media.manage to upload to this entity.',
+      });
+    }
 
     if (!file) return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
 

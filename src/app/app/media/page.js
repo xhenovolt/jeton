@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
+import { withApprovalPrompt } from '@/lib/approval-prompt';
 import {
   Image as ImgIcon, Video, Music, FileText, Archive, File as FileIco,
   Upload, Search, Download, Eye, Trash2, X, Loader2, AlertTriangle,
@@ -100,22 +101,28 @@ export default function MediaPage() {
       if (uploadForm.tags)      formData.append('tags', uploadForm.tags);
       formData.append('quality', uploadForm.quality);
 
-      const res = await fetch('/api/media/upload', { method: 'POST', credentials: 'include', body: formData });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        const reason =
-          res.status === 401 ? 'Sign in required.' :
-          res.status === 403 ? `Permission denied — you don't have rights to upload to "${uploadForm.entity_type}". Ask an admin for media.manage.` :
-          res.status === 413 ? 'File too large.' :
-          (data?.error || `Upload failed (HTTP ${res.status}).`);
-        setUploadError(reason);
-        toast.error(reason);
+      // withApprovalPrompt: if the server returns 403 with
+      // can_request_approval, the user is prompted to open an approval
+      // request instead of seeing a silent denial.
+      const result = await withApprovalPrompt(
+        '/api/media/upload',
+        { method: 'POST', body: formData },
+        { actionLabel: `Upload "${file.name}" to ${uploadForm.entity_type}` }
+      );
+      if (result.ok) {
+        toast.success(`Uploaded "${file.name}"`);
+        setShowUpload(false);
+        setUploadForm({ entity_type: 'general', entity_id: '', tags: '', quality: 'original' });
+        fetchMedia();
         return;
       }
-      toast.success(`Uploaded "${file.name}"`);
-      setShowUpload(false);
-      setUploadForm({ entity_type: 'general', entity_id: '', tags: '', quality: 'original' });
-      fetchMedia();
+      if (result.requestedApproval) {
+        toast.success(result.error);   // "Approval requested for ..."
+        setShowUpload(false);
+        return;
+      }
+      setUploadError(result.error || 'Upload failed');
+      toast.error(result.error || 'Upload failed');
     } catch (e) {
       const msg = e?.message || 'Network error during upload';
       setUploadError(msg);
