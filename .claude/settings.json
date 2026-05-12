@@ -21,7 +21,22 @@
       "Bash(node _inspect.mjs \"SELECT t.tgname, t.tgrelid::regclass AS table_name, pg_get_triggerdef\\(t.oid\\) FROM pg_trigger t WHERE t.tgrelid IN \\('users'::regclass,'staff'::regclass\\) AND NOT t.tgisinternal\")",
       "Bash(node _run-migration.mjs migrations/969_identity_architecture.sql)",
       "Bash(node _darkmode_scan.mjs)",
-      "Bash(node _darkmode_codemod.mjs)"
+      "Bash(node _darkmode_codemod.mjs)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(git add *)",
+      "Bash(find src/app/api/approvals src/app/app/approval* src/app/app/admin/approvals)",
+      "Bash(node _run-migration.mjs migrations/970_approval_payload.sql)",
+      "Bash(node _run-migration.mjs migrations/971_permission_based_overrides.sql)",
+      "Bash(timeout 10 nc -zv ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech 5432)",
+      "Bash(timeout 5 curl -sI https://google.com)",
+      "Bash(timeout 60 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT 1\")",
+      "Bash(timeout 30 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require&connect_timeout=10\" -c \"\\\\dt\")",
+      "Bash(PGCONNECT_TIMEOUT=10 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT 1\")",
+      "Bash(PGCONNECT_TIMEOUT=15 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/971_permission_based_overrides.sql)",
+      "Bash(PGCONNECT_TIMEOUT=45 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/971_permission_based_overrides.sql)",
+      "Bash(PGCONNECT_TIMEOUT=30 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT module, action, route_path FROM permissions WHERE \\(module,action\\) IN \\(\\('comments','moderate'\\),\\('comments','manage_others'\\),\\('designs','manage_others'\\),\\('approvals','view_all'\\),\\('approvals','override'\\),\\('communication','admin'\\),\\('org','manage'\\),\\('staff','assign_any_role'\\),\\('finance','ledger_entry'\\)\\) ORDER BY module, action\")",
+      "Bash(break)"
     ]
   }
 }
