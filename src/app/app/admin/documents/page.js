@@ -11,6 +11,8 @@ export default function DocumentsPage() {
     verifications: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMessage, setSeedMessage] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -37,6 +39,33 @@ export default function DocumentsPage() {
 
     fetchStats();
   }, []);
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    setSeedMessage('');
+    try {
+      const res = await fetch('/api/documents/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'all' }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSeedMessage('✓ Sample templates and documents created successfully');
+        setTimeout(() => {
+          setSeedMessage('');
+          window.location.reload();
+        }, 2000);
+      } else {
+        setSeedMessage('✗ Seeding failed: ' + data.error);
+      }
+    } catch (error) {
+      setSeedMessage('✗ Error: ' + error.message);
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const sections = [
     {
@@ -108,13 +137,27 @@ export default function DocumentsPage() {
 
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Getting Started</h2>
-          <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+          <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200 mb-4">
             <li>• Create document templates with placeholder variables (e.g., {{applicant_name}})</li>
             <li>• Generate official documents with automatic ID generation (XTN-INT-2026-0001)</li>
             <li>• Each document includes a QR code for public verification</li>
             <li>• Share verification URL: https://verify.jeton.xhenvolt.com/verify/[document-id]</li>
             <li>• Configure company branding, signatures, and letterhead in settings</li>
           </ul>
+          {stats.templates === 0 && (
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              {seeding ? 'Creating Sample Data...' : 'Create Sample Templates & Documents'}
+            </button>
+          )}
+          {seedMessage && (
+            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-blue-300 dark:border-blue-700 text-sm">
+              {seedMessage}
+            </div>
+          )}
         </div>
       </div>
     </Layout>
