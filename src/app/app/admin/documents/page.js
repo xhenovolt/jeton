@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Layout } from '@/components/layout/Layout';
 
 export default function DocumentsPage() {
   const [stats, setStats] = useState({
@@ -99,7 +98,7 @@ export default function DocumentsPage() {
   ];
 
   return (
-    <Layout>
+    <div className="p-8 max-w-7xl mx-auto">
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Organization Documents</h1>
@@ -160,6 +159,6 @@ export default function DocumentsPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </div>
   );
 }

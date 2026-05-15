@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { Layout } from '@/components/layout/Layout';
 
 export default function VerifyPage() {
   const [documentId, setDocumentId] = useState('');
@@ -16,8 +14,8 @@ export default function VerifyPage() {
   };
 
   return (
-    <Layout>
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="p-8 max-w-2xl mx-auto">
+      <div className="space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Document Verification Portal</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
@@ -86,6 +84,6 @@ export default function VerifyPage() {
           </ul>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 }

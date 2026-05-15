@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Layout } from '@/components/layout/Layout';
 
 export default function SettingsPage() {
   const [branding, setBranding] = useState(null);
@@ -60,28 +59,28 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <div className="p-8 max-w-4xl mx-auto">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
           <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded"></div>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   if (!branding) {
     return (
-      <Layout>
+      <div className="p-8 max-w-4xl mx-auto">
         <div className="text-center py-12">
           <p className="text-gray-600 dark:text-gray-400">Failed to load branding</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl space-y-8">
+    <div className="p-8 max-w-4xl mx-auto">
+      <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Company Branding</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
@@ -358,6 +357,6 @@ export default function SettingsPage() {
           </div>
         </form>
       </div>
-    </Layout>
+    </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Layout } from '@/components/layout/Layout';
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState([]);
@@ -55,7 +54,7 @@ export default function TemplatesPage() {
   };
 
   return (
-    <Layout>
+    <div className="p-8 max-w-7xl mx-auto">
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
@@ -183,6 +182,6 @@ export default function TemplatesPage() {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Layout } from '@/components/layout/Layout';
 
 export default function GeneratedPage() {
   const [documents, setDocuments] = useState([]);
@@ -54,7 +53,7 @@ export default function GeneratedPage() {
   };
 
   return (
-    <Layout>
+    <div className="p-8 max-w-7xl mx-auto">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Generated Documents</h1>
@@ -179,6 +178,6 @@ export default function GeneratedPage() {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }
