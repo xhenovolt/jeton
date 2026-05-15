@@ -1,0 +1,122 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Layout } from '@/components/layout/Layout';
+
+export default function DocumentsPage() {
+  const [stats, setStats] = useState({
+    templates: 0,
+    generated: 0,
+    verifications: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [templatesRes, generatedRes] = await Promise.all([
+          fetch('/api/documents/templates'),
+          fetch('/api/documents/generate'),
+        ]);
+
+        const templatesData = await templatesRes.json();
+        const generatedData = await generatedRes.json();
+
+        setStats({
+          templates: templatesData.data?.length || 0,
+          generated: generatedData.total || 0,
+          verifications: 0,
+        });
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const sections = [
+    {
+      title: 'Templates',
+      description: 'Create and manage document templates',
+      href: '/app/admin/documents/templates',
+      icon: '📋',
+      count: stats.templates,
+    },
+    {
+      title: 'Generated Documents',
+      description: 'View and manage generated official documents',
+      href: '/app/admin/documents/generated',
+      icon: '📄',
+      count: stats.generated,
+    },
+    {
+      title: 'Verification Portal',
+      description: 'Public document verification system',
+      href: '/app/admin/documents/verify',
+      icon: '✓',
+      count: stats.verifications,
+    },
+    {
+      title: 'Company Branding',
+      description: 'Manage organization branding and signatures',
+      href: '/app/admin/documents/settings',
+      icon: '🎨',
+      count: 1,
+    },
+  ];
+
+  return (
+    <Layout>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Organization Documents</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            Professional document generation, verification, and management
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-gray-200 dark:bg-gray-700 rounded-lg h-32 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {sections.map((section) => (
+              <Link key={section.href} href={section.href}>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 transition cursor-pointer">
+                  <div className="text-4xl mb-2">{section.icon}</div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-1">
+                    {section.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {section.description}
+                  </p>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {section.count}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+          <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Getting Started</h2>
+          <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+            <li>• Create document templates with placeholder variables (e.g., {{applicant_name}})</li>
+            <li>• Generate official documents with automatic ID generation (XTN-INT-2026-0001)</li>
+            <li>• Each document includes a QR code for public verification</li>
+            <li>• Share verification URL: https://verify.jeton.xhenvolt.com/verify/[document-id]</li>
+            <li>• Configure company branding, signatures, and letterhead in settings</li>
+          </ul>
+        </div>
+      </div>
+    </Layout>
+  );
+}

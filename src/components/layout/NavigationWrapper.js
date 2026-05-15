@@ -7,7 +7,7 @@ import { Navbar } from '@/components/layout/Navbar';
 /**
  * Navigation Wrapper Component
  * Only renders Sidebar and Navbar on /app and /admin routes
- */
+ */ 
 export function NavigationWrapper() {
   const pathname = usePathname();
   

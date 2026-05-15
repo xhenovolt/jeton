@@ -286,6 +286,7 @@ export const menuItems = [
       { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
       { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'approvals.manage' },
       { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },
+      { label: 'Organization Documents', href: '/app/admin/documents', description: 'Professional document generation & verification', permission: 'documents.view' },
       { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'audit.view' },
       { label: 'Identity Debug', href: '/app/admin/debug', description: 'User–Staff–Role integrity checker', permission: 'users.view', minHierarchy: 1 },
