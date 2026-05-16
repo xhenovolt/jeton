@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import puppeteer from 'puppeteer';
 import {
   generateUniqueDocumentId,
   substitutePlaceholders,
@@ -29,6 +30,8 @@ export async function POST(request) {
       recipient_phone,
       placeholder_data = {},
       expires_in_days = 365,
+      category_id,
+      generate_pdf = false,
     } = await request.json();
 
     if (!template_id || !recipient_name) {
@@ -80,8 +83,8 @@ export async function POST(request) {
         template_id, branding_id, unique_id, title, document_type,
         recipient_name, recipient_email, recipient_phone,
         placeholder_data, verification_token, verification_hash,
-        generated_by, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        category_id, generated_by, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         template_id,
@@ -95,6 +98,7 @@ export async function POST(request) {
         JSON.stringify(placeholder_data),
         verificationToken,
         verificationHash,
+        category_id || null,
         auth.userId,
         expiresAt,
       ]
@@ -104,6 +108,59 @@ export async function POST(request) {
 
     // Log generation start
     await logDocumentGeneration(query, generatedDoc.id, 'info', 'generation_start', `Document generated for ${recipient_name}`, {}, auth.userId);
+
+    // Generate PDF if requested
+    let pdfUrl = null;
+    if (generate_pdf) {
+      try {
+        // Generate QR code data URL (placeholder)
+        const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify/${uniqueId}`;
+        const qrDataUrl = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`;
+
+        // Format document with branding and QR
+        const htmlContent = formatDocumentWithBranding(substitutedContent, branding, {
+          includeQr: true,
+          qrDataUrl,
+          documentId: uniqueId,
+        });
+
+        // Launch Puppeteer and generate PDF
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '1cm',
+            right: '1cm',
+            bottom: '1cm',
+            left: '1cm'
+          }
+        });
+
+        await browser.close();
+
+        // In a real implementation, upload PDF to storage and get URL
+        // For now, we'll store a placeholder URL
+        pdfUrl = `/api/documents/pdf/${uniqueId}`; // Point to our PDF API
+
+        // Update document with PDF URL
+        await query(
+          `UPDATE generated_documents SET pdf_url = $1 WHERE id = $2`,
+          [pdfUrl, generatedDoc.id]
+        );
+
+      } catch (pdfError) {
+        console.error('PDF generation failed:', pdfError);
+        // Continue without PDF - don't fail the whole request
+      }
+    }
 
     // Dispatch event
     dispatch('document_generated', {
@@ -125,6 +182,7 @@ export async function POST(request) {
         document_type: generatedDoc.document_type,
         generated_at: generatedDoc.generated_at,
         expires_at: generatedDoc.expires_at,
+        pdf_url: pdfUrl,
         verification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify/${generatedDoc.unique_id}`,
       },
     }, { status: 201 });

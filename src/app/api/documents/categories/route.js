@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
 
-// GET /api/documents/templates - List all templates
+// GET /api/documents/categories - List all categories
 export async function GET(request) {
   try {
     const perm = await requirePermission(request, 'documents.view');
     if (perm instanceof NextResponse) return perm;
 
     const result = await query(
-      `SELECT * FROM document_templates
+      `SELECT * FROM document_categories
        WHERE is_active = TRUE
        ORDER BY name`
     );
@@ -19,44 +19,35 @@ export async function GET(request) {
       data: result.rows,
     });
   } catch (error) {
-    console.error('[Documents/Templates] GET error:', error);
+    console.error('[Documents/Categories] GET error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch templates' },
+      { success: false, error: 'Failed to fetch categories' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/documents/templates - Create new template
+// POST /api/documents/categories - Create new category
 export async function POST(request) {
   try {
     const perm = await requirePermission(request, 'documents.manage');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
-    const { name, description, category, body, body_format, variables } = await request.json();
+    const { name, description } = await request.json();
 
-    if (!name || !body) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: 'Name and body are required' },
+        { success: false, error: 'Category name is required' },
         { status: 400 }
       );
     }
 
     const result = await query(
-      `INSERT INTO document_templates
-        (name, description, category, body, body_format, variables, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO document_categories (name, description, created_by)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [
-        name,
-        description || null,
-        category || null,
-        body,
-        body_format || 'html',
-        variables ? JSON.stringify(variables) : null,
-        auth.userId
-      ]
+      [name, description, auth.userId]
     );
 
     return NextResponse.json({
@@ -64,17 +55,17 @@ export async function POST(request) {
       data: result.rows[0],
     }, { status: 201 });
   } catch (error) {
-    console.error('[Documents/Templates] POST error:', error);
+    console.error('[Documents/Categories] POST error:', error);
 
-    if (error.code === '23505') {
+    if (error.code === '23505') { // Unique constraint violation
       return NextResponse.json(
-        { success: false, error: 'Template name already exists' },
+        { success: false, error: 'Category name already exists' },
         { status: 409 }
       );
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to create template' },
+      { success: false, error: 'Failed to create category' },
       { status: 500 }
     );
   }

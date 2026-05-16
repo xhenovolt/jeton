@@ -308,6 +308,12 @@ export async function seedMukunguHatimu() {
 
     const templateId = templateRes.rows[0].id;
 
+    // Get active branding
+    const brandingRes = await query(
+      `SELECT id FROM document_branding WHERE is_active = TRUE LIMIT 1`
+    );
+    const brandingId = brandingRes.rows[0]?.id;
+
     // Generate document
     const {
       generateUniqueDocumentId,
@@ -315,6 +321,7 @@ export async function seedMukunguHatimu() {
       generateVerificationToken,
       generateVerificationHash,
       formatDocumentWithBranding,
+      logDocumentGeneration,
     } = require('@/lib/document-generation.js');
 
     const uniqueId = await generateUniqueDocumentId('INT', query);
@@ -341,14 +348,15 @@ export async function seedMukunguHatimu() {
 
     const result = await query(
       `INSERT INTO generated_documents (
-        template_id, unique_id, title, document_type,
+        template_id, branding_id, unique_id, title, document_type,
         recipient_name, recipient_email, recipient_phone,
         placeholder_data, verification_token, verification_hash,
         generated_by, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         templateId,
+        brandingId,
         uniqueId,
         'Internship Acceptance Letter - Mukungu Hatimu',
         'internship_acceptance',

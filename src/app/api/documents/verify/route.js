@@ -11,6 +11,12 @@ export async function GET(request) {
     const documentId = searchParams.get('id');
     const token = searchParams.get('token');
 
+    // Get client information for logging
+    const ipAddress = request.headers.get('x-forwarded-for') ||
+                     request.headers.get('x-real-ip') ||
+                     'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
     if (!documentId) {
       return NextResponse.json(
         { success: false, error: 'Document ID required (query param: ?id=XTN-INT-2026-0001)' },
@@ -21,7 +27,7 @@ export async function GET(request) {
     // Fetch document by unique_id
     const docRes = await query(
       `SELECT id, unique_id, title, document_type, recipient_name, recipient_email,
-              generated_at, viewed_count, expires_at, is_revoked, revocation_reason,
+              generated_at, viewed_count, expires_at, status, is_revoked,
               verification_token, verification_hash
        FROM generated_documents
        WHERE unique_id = $1`,
@@ -31,9 +37,9 @@ export async function GET(request) {
     if (!docRes.rows[0]) {
       // Log failed verification attempt
       await query(
-        `INSERT INTO document_verifications (generated_document_id, verification_status)
-         VALUES ($1, 'not_found') ON CONFLICT DO NOTHING`,
-        [null]
+        `INSERT INTO document_verification_logs (document_id, ip_address, user_agent, verification_status)
+         VALUES ($1, $2, $3, 'not_found')`,
+        [null, ipAddress, userAgent]
       );
 
       return NextResponse.json(
@@ -47,9 +53,9 @@ export async function GET(request) {
     // Verify token if provided
     if (token && doc.verification_token !== token) {
       await query(
-        `INSERT INTO document_verifications (generated_document_id, verification_status, verification_token)
-         VALUES ($1, 'invalid', $2)`,
-        [doc.id, token]
+        `INSERT INTO document_verification_logs (document_id, ip_address, user_agent, verification_status)
+         VALUES ($1, $2, $3, 'failed')`,
+        [doc.id, ipAddress, userAgent]
       );
 
       return NextResponse.json(
@@ -62,18 +68,16 @@ export async function GET(request) {
     if (!isDocumentValid(doc)) {
       const status = doc.is_revoked ? 'revoked' : 'expired';
       await query(
-        `INSERT INTO document_verifications (generated_document_id, verification_status, verification_token)
-         VALUES ($1, $2, $3)`,
-        [doc.id, status, token || null]
+        `INSERT INTO document_verification_logs (document_id, ip_address, user_agent, verification_status)
+         VALUES ($1, $2, $3, $4)`,
+        [doc.id, ipAddress, userAgent, status]
       );
 
       return NextResponse.json(
         {
           success: false,
-          error: doc.is_revoked ? `Document has been revoked: ${doc.revocation_reason}` : 'Document has expired',
+          error: doc.is_revoked ? 'Document has been revoked' : 'Document has expired',
           status,
-          revoked_at: doc.is_revoked ? new Date(doc.created_at) : null,
-          revocation_reason: doc.revocation_reason,
         },
         { status: 410 }
       );
@@ -81,9 +85,9 @@ export async function GET(request) {
 
     // Log successful verification
     await query(
-      `INSERT INTO document_verifications (generated_document_id, verification_status, verification_token)
-       VALUES ($1, 'valid', $2)`,
-      [doc.id, token || null]
+      `INSERT INTO document_verification_logs (document_id, ip_address, user_agent, verification_status)
+       VALUES ($1, $2, $3, 'success')`,
+      [doc.id, ipAddress, userAgent]
     );
 
     // Increment view count
@@ -120,7 +124,8 @@ export async function GET(request) {
 // POST /api/documents/verify - Revoke a document (admin only)
 export async function POST(request) {
   try {
-    const perm = await require('@/lib/permissions.js').requirePermission(request, 'documents.revoke');
+    const { requirePermission } = await import('@/lib/permissions.js');
+    const perm = await requirePermission(request, 'documents.manage');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
@@ -133,20 +138,51 @@ export async function POST(request) {
       );
     }
 
-    const result = await query(
-      `UPDATE generated_documents
-       SET is_revoked = TRUE, revoked_at = NOW(), revoked_by = $1, revocation_reason = $2
-       WHERE id = $3
-       RETURNING *`,
-      [auth.userId, reason || 'Document revoked by administrator', document_id]
+    // Get current document status
+    const docRes = await query(
+      `SELECT id, unique_id, status FROM generated_documents WHERE id = $1`,
+      [document_id]
     );
 
-    if (!result.rows[0]) {
+    if (!docRes.rows[0]) {
       return NextResponse.json(
         { success: false, error: 'Document not found' },
         { status: 404 }
       );
     }
+
+    const doc = docRes.rows[0];
+
+    if (doc.status === 'revoked') {
+      return NextResponse.json(
+        { success: false, error: 'Document is already revoked' },
+        { status: 400 }
+      );
+    }
+
+    // Update document status
+    const result = await query(
+      `UPDATE generated_documents
+       SET status = 'revoked', is_revoked = TRUE, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [document_id]
+    );
+
+    // Log the revocation
+    await query(
+      `INSERT INTO document_audit_logs (document_id, action, actor_id, details)
+       VALUES ($1, 'revoked', $2, $3)`,
+      [
+        document_id,
+        auth.userId,
+        JSON.stringify({
+          reason: reason || 'Document revoked by administrator',
+          old_status: doc.status,
+          new_status: 'revoked'
+        })
+      ]
+    );
 
     return NextResponse.json({
       success: true,

@@ -79,7 +79,7 @@ export default function DocumentsPage() {
       description: 'View and manage generated official documents',
       href: '/app/admin/documents/generated',
       icon: '📄',
-      count: stats.generated,
+      count: stats.generated,applicant
     },
     {
       title: 'Verification Portal',
@@ -137,7 +137,7 @@ export default function DocumentsPage() {
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Getting Started</h2>
           <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200 mb-4">
-            <li>• Create document templates with placeholder variables (e.g., {{applicant_name}})</li>
+            <li>• Create document templates with placeholder variables (e.g., {{/*applicant_name*/}})</li>
             <li>• Generate official documents with automatic ID generation (XTN-INT-2026-0001)</li>
             <li>• Each document includes a QR code for public verification</li>
             <li>• Share verification URL: https://verify.jeton.xhenvolt.com/verify/[document-id]</li>
