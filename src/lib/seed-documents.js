@@ -1,4 +1,12 @@
 import { query } from '@/lib/db.js';
+import {
+  generateUniqueDocumentId,
+  substitutePlaceholders,
+  generateVerificationToken,
+  generateVerificationHash,
+  formatDocumentWithBranding,
+  logDocumentGeneration,
+} from '@/lib/document-generation.js';
 
 export async function seedDocumentTemplates() {
   try {
@@ -314,15 +322,7 @@ export async function seedMukunguHatimu() {
     );
     const brandingId = brandingRes.rows[0]?.id;
 
-    // Generate document
-    const {
-      generateUniqueDocumentId,
-      substitutePlaceholders,
-      generateVerificationToken,
-      generateVerificationHash,
-      formatDocumentWithBranding,
-      logDocumentGeneration,
-    } = require('@/lib/document-generation.js');
+    // Document generation functions already imported at top
 
     const uniqueId = await generateUniqueDocumentId('INT', query);
     const verificationToken = generateVerificationToken();

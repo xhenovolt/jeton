@@ -65,8 +65,19 @@ export async function POST(request) {
     // Get branding
     const branding = await getActiveBranding();
 
+    // Normalize placeholder data so common aliases work
+    const normalizedPlaceholderData = {
+      recipient_name,
+      recipient_email,
+      recipient_phone,
+      applicant_name: placeholder_data.applicant_name ?? recipient_name,
+      applicant_email: placeholder_data.applicant_email ?? recipient_email,
+      applicant_phone: placeholder_data.applicant_phone ?? recipient_phone,
+      ...placeholder_data,
+    };
+
     // Substitute placeholders in template
-    const substitutedContent = substitutePlaceholders(template.body, placeholder_data);
+    const substitutedContent = substitutePlaceholders(template.body, normalizedPlaceholderData);
 
     // Format with branding (QR will be added after PDF generation in real scenario)
     const htmlContent = formatDocumentWithBranding(substitutedContent, branding, {
