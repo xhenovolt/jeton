@@ -286,21 +286,29 @@ export const menuItems = [
       { label: 'Departments', href: '/app/admin/departments', description: 'Department management', permission: 'departments.view' },
       { label: 'Approvals', href: '/app/admin/approvals', description: 'Pending approval requests', permission: 'approvals.manage' },
       { label: 'Approval Pipeline', href: '/app/approval-pipeline', description: 'Visual approval workflow', permission: 'approvals.manage' },
-      {
-        label: 'Organization Documents',
-        href: '/app/admin/documents',
-        description: 'Professional document generation & verification',
-        permission: 'documents.view',
-        submenu: [
-          { label: 'Templates', href: '/app/documents/templates', description: 'Manage document templates', permission: 'documents.manage' },
-          { label: 'Generated Documents', href: '/app/documents/generated', description: 'View and manage generated documents', permission: 'documents.view' },
-          { label: 'Verification Portal', href: '/app/documents/verify', description: 'Document verification interface', permission: 'documents.view' },
-          { label: 'Settings', href: '/app/documents/settings', description: 'Document system settings', permission: 'documents.manage' },
-        ],
-      },
       { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'audit.view' },
       { label: 'Identity Debug', href: '/app/admin/debug', description: 'User–Staff–Role integrity checker', permission: 'users.view', minHierarchy: 1 },
+    ],
+  },
+
+  // === ORGANIZATION DOCUMENTS ===
+  // Promoted from a nested admin sub-item to its own top-level section
+  // because the sidebar only renders one level of submenu. The previous
+  // nested submenu was invisible. Children point at the real admin pages
+  // (not the thin component wrappers under /app/documents/*).
+  {
+    label: 'Organization Documents',
+    icon: FileText,
+    category: 'sections',
+    module: 'documents',
+    permission: 'documents.view',
+    submenu: [
+      { label: 'Overview',            href: '/app/admin/documents',           description: 'Document module dashboard',         permission: 'documents.view' },
+      { label: 'Templates',           href: '/app/admin/documents/templates', description: 'Manage document templates',        permission: 'documents.manage' },
+      { label: 'Generated Documents', href: '/app/admin/documents/generated', description: 'View and manage generated documents', permission: 'documents.view' },
+      { label: 'Verification Portal', href: '/app/admin/documents/verify',    description: 'Look up a document verification ID',  permission: 'documents.view' },
+      { label: 'Settings',            href: '/app/admin/documents/settings',  description: 'Branding, signatures, stamps',     permission: 'documents.manage' },
     ],
   },
 
