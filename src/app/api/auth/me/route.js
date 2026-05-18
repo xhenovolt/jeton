@@ -152,6 +152,16 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
+    // Surface Neon cold-start / unreachable as 503 with Retry-After so the
+    // client knows it's a backend availability problem, NOT an auth issue.
+    // Previously this was buried as 401 + 33-second wait because session
+    // lookup swallowed the timeout.
+    if (error?.name === 'DatabaseUnavailableError') {
+      return NextResponse.json(
+        { error: 'Database temporarily unavailable. Please retry.', code: 'DB_UNAVAILABLE' },
+        { status: 503, headers: { 'Retry-After': '3' } }
+      );
+    }
     console.error('Get user error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

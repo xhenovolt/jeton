@@ -53,6 +53,11 @@ export async function verifyAuth(request) {
       departmentId,
     };
   } catch (error) {
+    // Bubble DB-down so the API route can return a clean 503 instead of
+    // pretending the user is unauthenticated.
+    if (error?.name === 'DatabaseUnavailableError') {
+      throw error;
+    }
     console.error('[Auth] Verification failed:', error.message);
     return null;
   }

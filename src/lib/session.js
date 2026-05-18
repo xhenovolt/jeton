@@ -109,6 +109,12 @@ export async function getSession(sessionId) {
       },
     };
   } catch (error) {
+    // If the DB is unreachable (Neon cold-paused, network blip), let the
+    // typed error propagate so the caller can return 503 instead of 401.
+    // Only swallow genuine "no session" cases as null.
+    if (error?.name === 'DatabaseUnavailableError') {
+      throw error;
+    }
     console.error('Error getting session:', error.message);
     return null;
   }

@@ -513,7 +513,20 @@ export async function requirePermission(request, moduleOrPermission, action) {
     act = action;
   }
 
-  const auth = await verifyAuth(request);
+  // verifyAuth re-throws DatabaseUnavailableError so we can convert it to
+  // a clean 503 here instead of leaking it as 500 / 401.
+  let auth;
+  try {
+    auth = await verifyAuth(request);
+  } catch (err) {
+    if (err?.name === 'DatabaseUnavailableError') {
+      return NextResponse.json(
+        { error: 'Database temporarily unavailable. Please retry.', code: 'DB_UNAVAILABLE' },
+        { status: 503, headers: { 'Retry-After': '3' } }
+      );
+    }
+    throw err;
+  }
   if (!auth) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
