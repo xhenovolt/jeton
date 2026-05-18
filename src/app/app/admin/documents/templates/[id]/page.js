@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Edit3, Save, Trash2, FileText, Tag, Calendar, X, Loader2, AlertTriangle, CheckCircle2,
+  Eye, Code2, Printer,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
+import { renderDocumentBody } from '@/lib/doc-render';
 
 const CATEGORIES = ['HR', 'Legal', 'Operations', 'Finance', 'Technical', 'General'];
 const BODY_FORMATS = ['markdown', 'rich', 'plain', 'html'];
@@ -37,6 +39,7 @@ export default function TemplateDetailPage({ params }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [viewMode, setViewMode] = useState('preview'); // 'preview' | 'raw'
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +62,25 @@ export default function TemplateDetailPage({ params }) {
   useEffect(() => { load(); }, [id]);
 
   const placeholders = useMemo(() => extractPlaceholders(form.body || template?.body), [form.body, template]);
+
+  // Pre-rendered HTML for the paper-style preview. We re-render whenever the
+  // body or format changes — in edit mode that means live preview as the
+  // user types in the textarea.
+  const previewHtml = useMemo(
+    () => renderDocumentBody(
+      edit ? form.body : template?.body,
+      (edit ? form.body_format : template?.body_format) || 'markdown'
+    ),
+    [edit, form.body, form.body_format, template]
+  );
+
+  // Native browser print. The print stylesheet at the bottom of the
+  // component hides everything except #print-area, so users get a clean
+  // page they can either send to a printer or "Save as PDF" via their
+  // browser's print dialog. No extra dependencies, no server round-trip.
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') window.print();
+  };
 
   const save = async () => {
     setSaving(true);
@@ -159,7 +181,12 @@ export default function TemplateDetailPage({ params }) {
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <button onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted cursor-pointer"
+            title="Open browser print dialog — use to print or Save as PDF">
+            <Printer className="w-4 h-4" /> Print / Save PDF
+          </button>
           {!edit ? (
             <>
               <button onClick={() => setEdit(true)}
@@ -215,18 +242,70 @@ export default function TemplateDetailPage({ params }) {
               <Field label="Description">
                 <input value={form.description} onChange={e => setForm(s => ({ ...s, description: e.target.value }))} className={inputCls} />
               </Field>
-              <Field label="Body">
-                <textarea value={form.body} onChange={e => setForm(s => ({ ...s, body: e.target.value }))} rows={20}
-                  className={`${inputCls} font-mono text-xs leading-relaxed`}
-                  placeholder="Use {{placeholder_name}} for dynamic substitutions" />
-              </Field>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                <Field label="Body (markdown / html)">
+                  <textarea value={form.body} onChange={e => setForm(s => ({ ...s, body: e.target.value }))} rows={20}
+                    className={`${inputCls} font-mono text-xs leading-relaxed`}
+                    placeholder="Use {{placeholder_name}} for dynamic substitutions" />
+                </Field>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Live preview</label>
+                  <div className="rounded-lg border border-border bg-slate-100 dark:bg-slate-900 p-3 max-h-[480px] overflow-y-auto">
+                    {form.body ? (
+                      <article
+                        className="doc-paper mx-auto bg-white text-slate-900 shadow-md font-serif text-[12px]"
+                        style={{ width: '100%', maxWidth: '210mm', padding: '20mm' }}
+                        dangerouslySetInnerHTML={{ __html: previewHtml }}
+                      />
+                    ) : (
+                      <div className="text-xs text-muted-foreground italic text-center py-12">
+                        Start typing in the body field to see a preview.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </>
           ) : (
             <>
-              <h2 className="font-semibold text-foreground text-sm uppercase tracking-wide text-muted-foreground">Template Body</h2>
-              <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed bg-muted/30 border border-border rounded-lg p-4 max-h-[600px] overflow-y-auto">
-                {template.body || <span className="text-muted-foreground italic">No body content.</span>}
-              </pre>
+              <div className="flex items-center justify-between print:hidden">
+                <h2 className="font-semibold text-foreground text-sm uppercase tracking-wide text-muted-foreground">Template Body</h2>
+                <div className="flex gap-1 border border-border rounded-lg p-0.5 bg-muted/30">
+                  <button onClick={() => setViewMode('preview')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                      viewMode === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}>
+                    <Eye className="w-3.5 h-3.5" /> Preview
+                  </button>
+                  <button onClick={() => setViewMode('raw')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                      viewMode === 'raw' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}>
+                    <Code2 className="w-3.5 h-3.5" /> Raw
+                  </button>
+                </div>
+              </div>
+              {/* Preview pane — paper-sized white sheet that the print stylesheet
+                  isolates and sends to the printer / PDF as A4. */}
+              {viewMode === 'preview' ? (
+                template.body ? (
+                  <div id="print-area" className="rounded-lg border border-border bg-slate-100 dark:bg-slate-900 p-4 max-h-[800px] overflow-y-auto">
+                    <article
+                      className="doc-paper mx-auto bg-white text-slate-900 shadow-md font-serif"
+                      style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}
+                      dangerouslySetInnerHTML={{ __html: previewHtml }}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic text-center py-12 border border-border rounded-lg">
+                    No body content. Switch to edit mode to add one.
+                  </div>
+                )
+              ) : (
+                <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed bg-muted/30 border border-border rounded-lg p-4 max-h-[800px] overflow-y-auto print:hidden">
+                  {template.body || <span className="text-muted-foreground italic">No body content.</span>}
+                </pre>
+              )}
             </>
           )}
         </div>
@@ -270,6 +349,27 @@ export default function TemplateDetailPage({ params }) {
           </div>
         </div>
       </div>
+
+      {/* Print stylesheet — when the user prints (or "Saves as PDF" via the
+          browser dialog), hide everything except #print-area and strip its
+          chrome so the document sheet alone fills the page at A4. */}
+      <style jsx global>{`
+        @media print {
+          @page { size: A4; margin: 0; }
+          html, body { background: white !important; }
+          body * { visibility: hidden !important; }
+          #print-area, #print-area * { visibility: visible !important; }
+          #print-area {
+            position: absolute; inset: 0; padding: 0 !important;
+            background: white !important; border: 0 !important; box-shadow: none !important;
+            max-height: none !important; overflow: visible !important;
+          }
+          #print-area .doc-paper {
+            margin: 0 !important; box-shadow: none !important;
+            width: 210mm !important; min-height: 297mm !important;
+          }
+        }
+      `}</style>
 
       {/* Delete confirmation modal */}
       {showDelete && (
