@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
+import { invalidateBrandingCache } from '@/lib/company-branding.js';
 
 const ALLOWED_KEYS = [
   'company_name',
@@ -69,6 +70,10 @@ export async function PATCH(request) {
         [key, value ?? '']
       );
     }
+
+    // Bust the documents-module branding cache so the new name/logo show up
+    // on the next generation without a process restart.
+    invalidateBrandingCache();
 
     return NextResponse.json({ success: true });
   } catch (err) {

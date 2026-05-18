@@ -1,12 +1,47 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const [branding, setBranding] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [logoError, setLogoError] = useState('');
+  const logoFileRef = useRef(null);
+  const signatureFileRef = useRef(null);
+
+  // Read a File as a base64 data URL. Same approach as /app/settings/company
+  // so the two surfaces stay in sync — logos are stored inline as data URLs
+  // (no separate file storage required, max ~2 MB enforced server-side on
+  // company_settings; we soft-enforce the same here).
+  const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const handleFile = async (e, field) => {
+    setLogoError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Image must be under 2 MB.');
+      return;
+    }
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      handleChange(field, dataUrl);
+    } catch (err) {
+      setLogoError('Failed to read file: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     fetchBranding();
@@ -82,10 +117,24 @@ export default function SettingsPage() {
     <div className="p-8 max-w-4xl mx-auto">
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Company Branding</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Document Branding</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Configure organization identity and document branding
+            Signatures, colors, and documents-specific styling for generated documents.
           </p>
+        </div>
+
+        {/* Single-source-of-truth banner — company name / logo / address /
+            phone / email / website are sourced from /app/settings/company so
+            the rest of Jeton (invoices, proposals, this module) stays in
+            sync. Editing those fields here would diverge. */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-blue-900 dark:text-blue-200">
+            <strong>Company name, logo, address, phone, email and website</strong> are now managed from the company settings page — generated documents inherit them automatically.
+          </div>
+          <Link href="/app/settings/company"
+            className="shrink-0 inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+            Edit company info →
+          </Link>
         </div>
 
         {message && (
@@ -133,15 +182,30 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Logo URL
+                  Document Logo Override
                 </label>
-                <input
-                  type="url"
-                  value={branding.logo_url || ''}
-                  onChange={(e) => handleChange('logo_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="https://example.com/logo.png"
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  {branding.logo_url && (
+                    <div className="h-12 w-12 rounded border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center overflow-hidden">
+                      <img src={branding.logo_url} alt="logo" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  )}
+                  <button type="button" onClick={() => logoFileRef.current?.click()}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white cursor-pointer">
+                    {branding.logo_url ? 'Replace…' : 'Upload logo…'}
+                  </button>
+                  {branding.logo_url && (
+                    <button type="button" onClick={() => handleChange('logo_url', '')}
+                      className="px-3 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
+                      Remove
+                    </button>
+                  )}
+                  <input ref={logoFileRef} type="file" accept="image/*" hidden onChange={(e) => handleFile(e, 'logo_url')} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                  Leave empty to inherit the company logo from <Link href="/app/settings/company" className="underline">company settings</Link>. PNG/SVG/JPG up to 2 MB.
+                </p>
+                {logoError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{logoError}</p>}
               </div>
 
               <div>
@@ -215,15 +279,27 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Signature URL
+                  Signature Image
                 </label>
-                <input
-                  type="url"
-                  value={branding.signature_url || ''}
-                  onChange={(e) => handleChange('signature_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="https://example.com/signature.png"
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  {branding.signature_url && (
+                    <div className="h-12 w-24 rounded border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center overflow-hidden">
+                      <img src={branding.signature_url} alt="signature" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  )}
+                  <button type="button" onClick={() => signatureFileRef.current?.click()}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white cursor-pointer">
+                    {branding.signature_url ? 'Replace…' : 'Upload signature…'}
+                  </button>
+                  {branding.signature_url && (
+                    <button type="button" onClick={() => handleChange('signature_url', '')}
+                      className="px-3 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
+                      Remove
+                    </button>
+                  )}
+                  <input ref={signatureFileRef} type="file" accept="image/*" hidden onChange={(e) => handleFile(e, 'signature_url')} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">PNG with transparent background recommended. Up to 2 MB.</p>
               </div>
 
               <div>

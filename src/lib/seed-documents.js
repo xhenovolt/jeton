@@ -10,113 +10,121 @@ import {
 
 export async function seedDocumentTemplates() {
   try {
-    // Check if templates already exist
+    // Idempotent: if the templates already exist we still UPDATE the
+    // internship template body so re-running picks up copy changes.
+    // (The previous behaviour returned early, which meant the new
+    // user-supplied internship letter could never replace an older seed.)
     const existing = await query(
-      `SELECT COUNT(*) as count FROM document_templates WHERE category = 'internship'`
+      `SELECT id FROM document_templates WHERE name = 'Internship Acceptance Letter' LIMIT 1`
     );
+    const internshipAlreadySeeded = existing.rows.length > 0;
 
-    if (existing.rows[0].count > 0) {
-      console.log('Templates already seeded');
-      return { success: true, message: 'Templates already exist' };
-    }
-
-    // Template 1: Internship Acceptance Letter
+    // Template 1: Internship Acceptance Letter — formal letter from the
+    // organisation to the introducing institution accepting the placement.
+    // Uses {{placeholders}} so the same template handles any applicant.
+    // Company name / email / address / phone come from /app/settings/company
+    // via getActiveBranding(); only the applicant-specific fields need to
+    // be filled at generation time.
     const internshipTemplate = `
-<h2 style="color: #1F2937; text-align: center; margin-bottom: 30px;">
-  INTERNSHIP ACCEPTANCE LETTER
-</h2>
-
 <p style="margin-bottom: 20px;">{{issue_date}}</p>
 
-<p style="margin-bottom: 20px;">
-  <strong>{{applicant_name}}</strong><br>
-  Registration No: {{registration_number}}<br>
-  Email: {{applicant_email}}<br>
-  Phone: {{applicant_phone}}
-</p>
+<p style="margin-bottom: 20px;">Dear Sir/Madam,</p>
 
-<p style="margin-bottom: 20px;">Dear {{applicant_name}},</p>
+<p style="margin-bottom: 20px;"><strong>RE: INTERNSHIP PLACEMENT ACCEPTANCE FOR {{applicant_name_upper}}</strong></p>
+
+<p style="margin-bottom: 20px;">Greetings from {{organization_name}}.</p>
 
 <p style="margin-bottom: 20px;">
-  <strong>RE: INTERNSHIP ACCEPTANCE LETTER</strong>
+  We acknowledge receipt of your letter introducing Mr./Ms. {{applicant_name}}
+  (Reg No. {{registration_number}}), a student pursuing a {{course_of_study}}.
 </p>
 
 <p style="margin-bottom: 20px;">
-  We are pleased to inform you that your application for an internship position with our organization has been accepted.
-  This letter is to formally confirm your acceptance into our internship program.
-</p>
-
-<h3 style="color: #1F2937; margin-top: 25px; margin-bottom: 15px;">Program Details:</h3>
-
-<p style="margin-bottom: 10px;">
-  <strong>Position:</strong> {{position_title}}<br>
-  <strong>Department:</strong> {{department}}<br>
-  <strong>Duration:</strong> {{start_date}} to {{end_date}}<br>
-  <strong>Mode:</strong> {{mode_of_work}}<br>
-  <strong>Supervisor:</strong> {{supervisor_name}}
-</p>
-
-<h3 style="color: #1F2937; margin-top: 25px; margin-bottom: 15px;">Terms and Conditions:</h3>
-
-<ul style="margin-bottom: 20px;">
-  <li>You are expected to arrive on {{start_date}} at {{reporting_time}}</li>
-  <li>The internship is unpaid and offered for skill development purposes</li>
-  <li>You must maintain professional conduct and adhere to company policies</li>
-  <li>Confidentiality agreements must be signed upon arrival</li>
-  <li>Regular attendance is mandatory</li>
-  <li>A completion certificate will be issued upon successful completion</li>
-</ul>
-
-<p style="margin-bottom: 20px;">
-  Please confirm your acceptance by signing and returning this letter within 5 days of receipt.
-  Should you have any questions or require clarification on any matter, please do not hesitate to contact us.
+  We are pleased to inform you that {{organization_name}} is willing to offer
+  him/her internship placement within our organization for the proposed
+  training period from {{training_period}}.
 </p>
 
 <p style="margin-bottom: 20px;">
-  We look forward to welcoming you to our team and providing you with valuable experience and mentorship during your internship.
+  During the internship period, he/she will be exposed to practical
+  experiences related to {{exposure_areas}} relevant to his/her field of
+  study.
 </p>
 
 <p style="margin-bottom: 20px;">
-  Yours sincerely,
+  We believe the training opportunity will help bridge the gap between
+  theoretical learning and real-world technical practice.
 </p>
 
-<p style="margin-top: 50px;">
-  <strong>{{approver_name}}</strong><br>
-  {{approver_title}}<br>
-  {{organization_name}}
+<p style="margin-bottom: 30px;">
+  We look forward to supporting his/her professional growth during the
+  internship period.
+</p>
+
+<p style="margin-bottom: 20px;">Kind regards,</p>
+
+<p style="margin-top: 40px;">
+  <strong>{{organization_name}}</strong><br>
+  Email: {{organization_email}}<br>
+  {{organization_country}}
 </p>
     `;
 
-    const result1 = await query(
-      `INSERT INTO document_templates (
-        name, description, category, body, body_format, variables, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [
-        'Internship Acceptance Letter',
-        'Official internship acceptance letter with terms and conditions',
-        'internship',
-        internshipTemplate,
-        'html',
-        JSON.stringify([
-          'applicant_name',
-          'registration_number',
-          'applicant_email',
-          'applicant_phone',
-          'issue_date',
-          'position_title',
-          'department',
-          'start_date',
-          'end_date',
-          'mode_of_work',
-          'supervisor_name',
-          'reporting_time',
-          'approver_name',
-          'approver_title',
-          'organization_name',
-        ]),
-        null,
-      ]
-    );
+    const internshipVariables = JSON.stringify([
+      'applicant_name',
+      'applicant_name_upper',
+      'registration_number',
+      'course_of_study',
+      'training_period',
+      'exposure_areas',
+      'issue_date',
+      'organization_name',
+      'organization_email',
+      'organization_country',
+    ]);
+
+    if (internshipAlreadySeeded) {
+      await query(
+        `UPDATE document_templates
+           SET description = $1, category = $2, body = $3, body_format = $4,
+               variables = $5, updated_at = NOW()
+         WHERE name = $6`,
+        [
+          'Official internship acceptance letter sent to the introducing institution',
+          'internship',
+          internshipTemplate,
+          'html',
+          internshipVariables,
+          'Internship Acceptance Letter',
+        ]
+      );
+    } else {
+      await query(
+        `INSERT INTO document_templates (
+          name, description, category, body, body_format, variables, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          'Internship Acceptance Letter',
+          'Official internship acceptance letter sent to the introducing institution',
+          'internship',
+          internshipTemplate,
+          'html',
+          internshipVariables,
+          null,
+        ]
+      );
+    }
+
+    // The remaining templates are only seeded on first run — re-runs are
+    // a no-op for them. If you need to refresh their copy, extend the
+    // pattern above (check existence, branch INSERT vs UPDATE).
+    if (internshipAlreadySeeded) {
+      return {
+        success: true,
+        message: 'Internship template refreshed; other templates already present',
+        count: 1,
+      };
+    }
 
     // Template 2: Interview Invitation
     const interviewTemplate = `
@@ -292,59 +300,104 @@ export async function seedDocumentTemplates() {
   }
 }
 
+/**
+ * Seed (or re-seed) the Mukungu Hatimu internship acceptance letter using
+ * the canonical Xhenvolt copy. Idempotent: if a row already exists it is
+ * updated in place so the same call can be used to refresh the copy when
+ * the template changes.
+ *
+ * Company name / email / country are pulled from /app/settings/company so
+ * the seeded document inherits whatever branding is currently configured.
+ */
 export async function seedMukunguHatimu() {
   try {
-    // Check if already seeded
-    const existing = await query(
-      `SELECT COUNT(*) FROM generated_documents WHERE recipient_name = 'Mukungu Hatimu'`
-    );
-
-    if (existing.rows[0].count > 0) {
-      return { success: true, message: 'Mukungu Hatimu document already exists' };
-    }
-
-    // Get the internship template
-    const templateRes = await query(
+    // Get the internship template (seed templates if missing)
+    let templateRes = await query(
       `SELECT id FROM document_templates WHERE name = 'Internship Acceptance Letter' LIMIT 1`
     );
-
     if (!templateRes.rows[0]) {
-      // Seed templates first
       await seedDocumentTemplates();
-      return seedMukunguHatimu(); // Recursive call
+      templateRes = await query(
+        `SELECT id FROM document_templates WHERE name = 'Internship Acceptance Letter' LIMIT 1`
+      );
     }
-
     const templateId = templateRes.rows[0].id;
 
-    // Get active branding
-    const brandingRes = await query(
-      `SELECT id FROM document_branding WHERE is_active = TRUE LIMIT 1`
-    );
-    const brandingId = brandingRes.rows[0]?.id;
+    // Pull company identity from /app/settings/company so the seed inherits
+    // whatever the team has configured (name, email, country in address).
+    let companyName = 'Xhenvolt Uganda';
+    let companyEmail = 'xhenvolt@gmail.com';
+    let companyCountry = 'Uganda';
+    try {
+      const settings = await query(
+        `SELECT key, value FROM company_settings
+         WHERE key IN ('company_name','company_email','company_address')`
+      );
+      for (const r of settings.rows) {
+        if (r.key === 'company_name'    && r.value) companyName = r.value;
+        if (r.key === 'company_email'   && r.value) companyEmail = r.value;
+        if (r.key === 'company_address' && r.value) {
+          // Country is the last comma-separated chunk if present, else the
+          // whole address.
+          const parts = String(r.value).split(',').map(s => s.trim()).filter(Boolean);
+          companyCountry = parts[parts.length - 1] || r.value;
+        }
+      }
+    } catch {/* company_settings may not be migrated yet */}
 
-    // Document generation functions already imported at top
+    const placeholderData = {
+      applicant_name:       'Mukungu Hatimu',
+      applicant_name_upper: 'MUKUNGU HATIMU',
+      registration_number:  '24C/BIT/312/UMC',
+      course_of_study:      'Bachelor of Information Technology',
+      training_period:      'May to July 2026',
+      exposure_areas:       'software systems operations, technical support, deployment environments, and organizational workflows',
+      issue_date:           new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }),
+      organization_name:    companyName,
+      organization_email:   companyEmail,
+      organization_country: companyCountry,
+    };
+
+    // Use the most recent active branding row if one exists, else NULL.
+    const brandingRes = await query(
+      `SELECT id FROM company_branding WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1`
+    ).catch(() => ({ rows: [] }));
+    const brandingId = brandingRes.rows[0]?.id || null;
+
+    // Idempotent: if we already have a row for this recipient, refresh the
+    // placeholder_data and title so a re-seed picks up new copy.
+    const existing = await query(
+      `SELECT id, unique_id FROM generated_documents
+       WHERE recipient_name = 'Mukungu Hatimu' AND document_type = 'internship_acceptance'
+       ORDER BY created_at DESC LIMIT 1`
+    );
+
+    if (existing.rows[0]) {
+      const r = await query(
+        `UPDATE generated_documents
+           SET placeholder_data = $1, title = $2, branding_id = $3,
+               status = 'issued', is_revoked = FALSE, updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [
+          JSON.stringify(placeholderData),
+          `Internship Acceptance Letter - Mukungu Hatimu`,
+          brandingId,
+          existing.rows[0].id,
+        ]
+      );
+      return {
+        success: true,
+        message: 'Mukungu Hatimu internship acceptance letter refreshed',
+        document_id: r.rows[0].unique_id,
+        verification_url: `/verify/${r.rows[0].unique_id}`,
+        refreshed: true,
+      };
+    }
 
     const uniqueId = await generateUniqueDocumentId('INT', query);
     const verificationToken = generateVerificationToken();
     const verificationHash = generateVerificationHash(uniqueId);
-
-    const placeholderData = {
-      applicant_name: 'Mukungu Hatimu',
-      registration_number: '24C/BIT/312/UMC',
-      applicant_email: 'mukungu.hatimu@university.ac.ug',
-      applicant_phone: '+256 700 123456',
-      issue_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      position_title: 'Software Development Intern',
-      department: 'Engineering & Technology',
-      start_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      mode_of_work: 'Hybrid (3 days on-site, 2 days remote)',
-      supervisor_name: 'Sarah Johnson',
-      reporting_time: '09:00 AM',
-      approver_name: 'Dr. James Smith',
-      approver_title: 'Director of Human Resources',
-      organization_name: 'Xhenvolt Technologies',
-    };
 
     const result = await query(
       `INSERT INTO generated_documents (
@@ -361,13 +414,13 @@ export async function seedMukunguHatimu() {
         'Internship Acceptance Letter - Mukungu Hatimu',
         'internship_acceptance',
         'Mukungu Hatimu',
-        'mukungu.hatimu@university.ac.ug',
-        '+256 700 123456',
+        null,
+        null,
         JSON.stringify(placeholderData),
         verificationToken,
         verificationHash,
         null, // No specific user
-        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year expiry
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       ]
     );
 
