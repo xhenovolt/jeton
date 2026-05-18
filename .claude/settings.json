@@ -36,7 +36,12 @@
       "Bash(PGCONNECT_TIMEOUT=15 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/971_permission_based_overrides.sql)",
       "Bash(PGCONNECT_TIMEOUT=45 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/971_permission_based_overrides.sql)",
       "Bash(PGCONNECT_TIMEOUT=30 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT module, action, route_path FROM permissions WHERE \\(module,action\\) IN \\(\\('comments','moderate'\\),\\('comments','manage_others'\\),\\('designs','manage_others'\\),\\('approvals','view_all'\\),\\('approvals','override'\\),\\('communication','admin'\\),\\('org','manage'\\),\\('staff','assign_any_role'\\),\\('finance','ledger_entry'\\)\\) ORDER BY module, action\")",
-      "Bash(break)"
+      "Bash(break)",
+      "Bash(PGCONNECT_TIMEOUT=30 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN \\('generated_documents','document_verifications','document_verification_logs','document_audit_logs','company_branding','document_categories'\\) ORDER BY tablename\")",
+      "Bash(PGCONNECT_TIMEOUT=45 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN \\('generated_documents','document_verifications','document_verification_logs','document_audit_logs','company_branding','document_categories'\\) ORDER BY tablename\")",
+      "Bash(PGCONNECT_TIMEOUT=60 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -f migrations/970_document_generation_verification.sql)",
+      "Bash(PGCONNECT_TIMEOUT=180 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT 1\")",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
