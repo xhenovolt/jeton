@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
     const perm = await requirePermission(request, 'documents.view');
     if (perm instanceof NextResponse) return perm;
 
-    const { id } = params;
+    const { id } = await params;
 
     const result = await query(
       `SELECT * FROM document_templates WHERE id = $1`,
@@ -42,7 +42,7 @@ export async function PUT(request, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
-    const { id } = params;
+    const { id } = await params;
     const { name, description, category, body, body_format, variables, is_active } = await request.json();
 
     const result = await query(
@@ -89,7 +89,7 @@ export async function DELETE(request, { params }) {
     const perm = await requirePermission(request, 'documents.manage');
     if (perm instanceof NextResponse) return perm;
 
-    const { id } = params;
+    const { id } = await params;
 
     // Check if template is being used by any generated documents
     const usageCheck = await query(
