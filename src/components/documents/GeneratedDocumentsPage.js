@@ -7,7 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search, Download, Eye, MoreHorizontal, Filter, CheckSquare, Square, Trash2, RefreshCw } from 'lucide-react';
 import { ResponsiveTable, MobileCardTable } from '@/components/ui/ResponsiveTable';
-import { format } from 'date-fns';
+// "MMM dd, yyyy" via Intl — no extra dependency.
+const fmtDate = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+};
 
 export default function GeneratedDocumentsPage() {
   const [documents, setDocuments] = useState([]);
@@ -115,7 +119,7 @@ export default function GeneratedDocumentsPage() {
     <div key="recipient" className="text-sm">{doc.recipient_name}</div>,
     <div key="email" className="text-sm text-muted-foreground max-w-xs truncate">{doc.recipient_email}</div>,
     getStatusBadge(doc.status),
-    <div key="generated" className="text-sm">{format(new Date(doc.generated_at), 'MMM dd, yyyy')}</div>,
+    <div key="generated" className="text-sm">{fmtDate(doc.generated_at)}</div>,
     <div key="actions" className="flex gap-1">
       <Button variant="ghost" size="sm" onClick={() => window.open(`/verify/${doc.unique_id}`, '_blank')}>
         <Eye className="w-4 h-4" />
@@ -151,7 +155,7 @@ export default function GeneratedDocumentsPage() {
           <p><strong>Type:</strong> {doc.document_type}</p>
           <p><strong>Recipient:</strong> {doc.recipient_name}</p>
           <p><strong>Email:</strong> {doc.recipient_email}</p>
-          <p><strong>Generated:</strong> {format(new Date(doc.generated_at), 'MMM dd, yyyy')}</p>
+          <p><strong>Generated:</strong> {fmtDate(doc.generated_at)}</p>
         </div>
       </CardHeader>
       <CardContent>

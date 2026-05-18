@@ -7,7 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, ExternalLink, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+
+// "MMM dd, yyyy HH:mm" via Intl — no extra dependency.
+const fmtDateTime = (d) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return `${dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+};
 
 export default function VerificationPortalPage() {
   const [verifications, setVerifications] = useState([]);
@@ -127,7 +133,7 @@ export default function VerificationPortalPage() {
           <TableBody>
             {filteredVerifications.map((log, index) => (
               <TableRow key={index}>
-                <TableCell>{format(new Date(log.verified_at), 'MMM dd, yyyy HH:mm')}</TableCell>
+                <TableCell>{fmtDateTime(log.verified_at)}</TableCell>
                 <TableCell className="font-mono text-sm">{log.document_id}</TableCell>
                 <TableCell>{log.document_title}</TableCell>
                 <TableCell className="font-mono text-sm">{log.ip_address}</TableCell>
