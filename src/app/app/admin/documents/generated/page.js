@@ -153,14 +153,23 @@ export default function GeneratedPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-right space-x-2">
+                    <td className="px-6 py-4 text-sm text-right space-x-3">
+                      {/* Manage = internal admin view (edit, change expiry, revoke).
+                          Public = the QR-scannable verify page in a new tab. */}
+                      <Link
+                        href={`/app/admin/documents/generated/${doc.id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        Manage
+                      </Link>
                       <a
                         href={`/verify/${doc.unique_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        className="text-muted-foreground hover:underline"
+                        title="Open the public verify page in a new tab"
                       >
-                        View
+                        Public
                       </a>
                       {!doc.is_revoked && (
                         <button
