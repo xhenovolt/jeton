@@ -144,9 +144,14 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Organization Section */}
+          {/* Organization Section — READ-ONLY. The canonical values live
+              in /app/settings/company; this panel just reflects them so
+              the user can confirm what generated documents will use. */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Organization Details</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Organization Details (read-only)</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+              Edit these in <Link href="/app/settings/company" className="underline">company settings</Link>. Saving this form will not change them.
+            </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -155,21 +160,57 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="text"
-                  value={branding.organization_name}
-                  onChange={(e) => handleChange('organization_name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  readOnly
+                  value={branding.organization_name || ''}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 cursor-not-allowed"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Organization Slug
+                  Email
                 </label>
                 <input
                   type="text"
-                  value={branding.organization_slug}
-                  onChange={(e) => handleChange('organization_slug', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  readOnly
+                  value={branding.email || ''}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={branding.phone || ''}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Website
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={branding.website || ''}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={branding.address_line1 || ''}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 cursor-not-allowed"
                 />
               </div>
             </div>

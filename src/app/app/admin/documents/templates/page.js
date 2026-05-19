@@ -132,7 +132,7 @@ export default function TemplatesPage() {
                   rows="8"
                 />
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Use {{applicant_name}}, {{registration_number}}, etc. for dynamic content
+                  Use {'{{applicant_name}}'}, {'{{registration_number}}'}, etc. for dynamic content
                 </p>
               </div>
 

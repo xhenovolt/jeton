@@ -151,15 +151,21 @@ export default function DocumentsPage() {
             <li>• Share verification URL: https://verify.jeton.xhenvolt.com/verify/[document-id]</li>
             <li>• Configure company branding, signatures, and letterhead in settings</li>
           </ul>
-          {stats.templates === 0 && (
-            <button
-              onClick={handleSeed}
-              disabled={seeding}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {seeding ? 'Creating Sample Data...' : 'Create Sample Templates & Documents'}
-            </button>
-          )}
+          {/* Always show the seed button — seedDocumentTemplates and
+              seedMukunguHatimu are idempotent (they UPDATE rows that
+              already exist) so the same click safely refreshes copy in
+              templates that have been seeded before. */}
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {seeding
+              ? 'Seeding…'
+              : stats.templates === 0
+                ? 'Create Sample Templates & Documents'
+                : 'Re-seed (refresh templates & sample doc)'}
+          </button>
           {seedMessage && (
             <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-blue-300 dark:border-blue-700 text-sm">
               {seedMessage}
