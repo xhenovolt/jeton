@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
-import { isDocumentValid, validateVerificationHash } from '@/lib/document-generation.js';
+import { isDocumentValid, validateVerificationHash, substitutePlaceholders } from '@/lib/document-generation.js';
+import { getActiveBranding } from '@/lib/company-branding.js';
 
 // GET /api/documents/verify?id=XTN-INT-2026-0001&token=abc123
 // Public endpoint - no auth required
@@ -24,13 +25,19 @@ export async function GET(request) {
       );
     }
 
-    // Fetch document by unique_id
+    // Fetch document by unique_id — include placeholder_data and template
+    // body so we can render the actual document on the public verification
+    // page (not just a "Verified" badge). The body is substituted server-side
+    // and returned as ready-to-render HTML; sensitive fields like
+    // verification_token are kept server-side only.
     const docRes = await query(
-      `SELECT id, unique_id, title, document_type, recipient_name, recipient_email,
-              generated_at, viewed_count, expires_at, status, is_revoked,
-              verification_token, verification_hash
-       FROM generated_documents
-       WHERE unique_id = $1`,
+      `SELECT g.id, g.unique_id, g.title, g.document_type, g.recipient_name, g.recipient_email,
+              g.generated_at, g.viewed_count, g.expires_at, g.status, g.is_revoked,
+              g.verification_token, g.verification_hash, g.placeholder_data,
+              t.body AS template_body, t.body_format AS template_body_format
+       FROM generated_documents g
+       LEFT JOIN document_templates t ON g.template_id = t.id
+       WHERE g.unique_id = $1`,
       [documentId.toUpperCase()]
     );
 
@@ -97,6 +104,41 @@ export async function GET(request) {
       [doc.id]
     );
 
+    // Render the document body with placeholders substituted. We do this
+    // on the server so the public page can render real document content
+    // (so the QR code can be scanned to view an authentic copy). The
+    // template body is rendered as-is for HTML templates; markdown
+    // templates would need rendering on the client — for now we pass
+    // the format through so the page knows what to do.
+    let rendered_body = null;
+    let body_format = doc.template_body_format || 'html';
+    if (doc.template_body) {
+      const pdata = (typeof doc.placeholder_data === 'string')
+        ? (() => { try { return JSON.parse(doc.placeholder_data); } catch { return {}; } })()
+        : (doc.placeholder_data || {});
+      rendered_body = substitutePlaceholders(doc.template_body, pdata);
+    }
+
+    // Surface a sanitised slice of branding so the public page can show
+    // the issuing organisation's name / contact details next to the doc.
+    let branding = null;
+    try {
+      const b = await getActiveBranding();
+      branding = {
+        organization_name: b.organization_name,
+        logo_url: b.logo_url,
+        header_text: b.header_text,
+        footer_text: b.footer_text,
+        address_line1: b.address_line1,
+        city: b.city,
+        country: b.country,
+        phone: b.phone,
+        email: b.email,
+        website: b.website,
+        primary_color: b.primary_color,
+      };
+    } catch {/* non-fatal */}
+
     return NextResponse.json({
       success: true,
       status: 'valid',
@@ -110,6 +152,9 @@ export async function GET(request) {
         expires_at: doc.expires_at,
         view_count: doc.viewed_count + 1,
         verified: true,
+        rendered_body,
+        body_format,
+        branding,
       },
     });
   } catch (error) {
