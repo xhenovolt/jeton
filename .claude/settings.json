@@ -45,7 +45,11 @@
       "Bash(node --check src/components/ui/table.js)",
       "Bash(node --check src/components/ui/label.js)",
       "Bash(mkdir -p src/app/app/admin/documents/templates/\\\\[id\\\\])",
-      "Bash(node --check src/lib/doc-render.js)"
+      "Bash(node --check src/lib/doc-render.js)",
+      "Bash(node --check src/lib/company-branding.js)",
+      "Bash(node --check src/lib/seed-documents.js)",
+      "Bash(node --check src/app/api/settings/company/route.js)",
+      "Bash(PGCONNECT_TIMEOUT=60 psql \"postgresql://neondb_owner:npg_HExwNUY6aVP9@ep-small-sound-adgn2dmu-pooler.c-2.us-east-1.aws.neon.tech/jeton?sslmode=require\" -c \"SELECT 1 AS ok\")"
     ],
     "additionalDirectories": [
       "/home/xhenvolt/projects/jeton/src/app/app/admin/documents/templates"
