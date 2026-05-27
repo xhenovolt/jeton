@@ -289,6 +289,7 @@ export const menuItems = [
       { label: 'Backups', href: '/app/admin/backups', description: 'System backups & restore', permission: 'backups.view' },
       { label: 'Audit Logs', href: '/app/admin/audit-logs', description: 'System audit trail', permission: 'audit.view' },
       { label: 'Identity Debug', href: '/app/admin/debug', description: 'User–Staff–Role integrity checker', permission: 'users.view', minHierarchy: 1 },
+      { label: 'DRAIS Health',    href: '/app/admin/drais/health', description: 'DRAIS Platform v1 shadow-consumer observability', permission: 'audit.view' },
     ],
   },
 
