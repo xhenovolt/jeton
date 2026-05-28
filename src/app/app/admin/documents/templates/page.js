@@ -168,16 +168,22 @@ export default function TemplatesPage() {
         ) : (
           <div className="space-y-3">
             {templates.map((template) => (
-              <Link key={template.id} href={`/app/admin/documents/templates/${template.id}`}>
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 transition cursor-pointer">
+              <div key={template.id}
+                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 transition flex items-center justify-between gap-3">
+                <Link href={`/app/admin/documents/templates/${template.id}`} className="flex-1 min-w-0 cursor-pointer">
                   <h3 className="font-semibold text-gray-900 dark:text-white">{template.name}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{template.description}</p>
                   <div className="flex gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
                     <span>Category: {template.category || 'General'}</span>
                     <span>Created: {new Date(template.created_at).toLocaleDateString()}</span>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <Link href={`/app/admin/documents/templates/${template.id}?generate=1`}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
+                  title="Generate a document from this template">
+                  ✨ Generate
+                </Link>
+              </div>
             ))}
           </div>
         )}

@@ -2,11 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function GeneratedPage() {
+  const router = useRouter();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ type: '', search: '' });
+
+  // Template picker — second entry point for the generate flow. Lets a
+  // user start "new document" from the list without first navigating
+  // into the templates section.
+  const [showPicker, setShowPicker] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+
+  const openPicker = async () => {
+    setShowPicker(true);
+    if (templates.length > 0) return;
+    setPickerLoading(true);
+    try {
+      const res = await fetch('/api/documents/templates');
+      const data = await res.json();
+      setTemplates((data.data || []).filter(t => t.is_active !== false));
+    } finally { setPickerLoading(false); }
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -55,11 +75,17 @@ export default function GeneratedPage() {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Generated Documents</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            View and manage all generated official documents
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Generated Documents</h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              View and manage all generated official documents
+            </p>
+          </div>
+          <button onClick={openPicker}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+            ✨ New Document
+          </button>
         </div>
 
         <div className="flex gap-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -187,6 +213,50 @@ export default function GeneratedPage() {
           </div>
         )}
       </div>
+
+      {/* Template picker — clicking a row routes to the template detail
+          page with ?generate=1 which auto-opens the generate modal there.
+          One source of truth for the generate form. */}
+      {showPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Pick a template</h3>
+              <button onClick={() => setShowPicker(false)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white text-xl leading-none">×</button>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Choose which template to generate a document from. Don't see what you need? <Link href="/app/admin/documents/templates" className="underline">Create a new template</Link>.
+            </p>
+            {pickerLoading ? (
+              <div className="text-sm text-gray-500 text-center py-8">Loading templates…</div>
+            ) : templates.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-8">
+                No active templates yet. <Link href="/app/admin/documents/templates" className="text-blue-600 dark:text-blue-400 underline">Create one</Link> first.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {templates.map(t => (
+                  <li key={t.id}>
+                    <button
+                      onClick={() => router.push(`/app/admin/documents/templates/${t.id}?generate=1`)}
+                      className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition cursor-pointer">
+                      <div className="font-medium text-gray-900 dark:text-white">{t.name}</div>
+                      {t.description && <div className="text-xs text-gray-500 mt-0.5">{t.description}</div>}
+                      <div className="text-xs text-gray-400 mt-1">Category: {t.category || 'General'}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setShowPicker(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

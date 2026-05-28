@@ -3,9 +3,10 @@
 import { useEffect, useState, use, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, Edit3, Save, Trash2, FileText, Tag, Calendar, X, Loader2, AlertTriangle, CheckCircle2,
-  Eye, Code2, Printer,
+  Eye, Code2, Printer, Send, Sparkles,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
@@ -40,6 +41,26 @@ export default function TemplateDetailPage({ params }) {
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [viewMode, setViewMode] = useState('preview'); // 'preview' | 'raw'
+
+  // Generation state — the missing arc that lets a user actually turn a
+  // template into a real document. Auto-opens when ?generate=1 is in the
+  // URL so the "New Document" flow on the generated-docs list can deep-
+  // link straight here.
+  const searchParams = useSearchParams();
+  const [showGen, setShowGen] = useState(false);
+  const [genForm, setGenForm] = useState({
+    document_type: 'other',
+    recipient_name: '',
+    recipient_email: '',
+    recipient_phone: '',
+    expires_in_days: 365,
+    placeholder_values: {}, // keyed by placeholder name
+  });
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    if (searchParams?.get('generate') === '1') setShowGen(true);
+  }, [searchParams]);
 
   const load = async () => {
     setLoading(true);
@@ -80,6 +101,79 @@ export default function TemplateDetailPage({ params }) {
   // browser's print dialog. No extra dependencies, no server round-trip.
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
+  };
+
+  // When the generate modal opens (or the template's placeholders change),
+  // seed an empty value for every placeholder so the form has fields ready.
+  // Skip the recipient_* / applicant_* ones since they map to dedicated
+  // fields above.
+  const reservedKeys = new Set(['recipient_name','recipient_email','recipient_phone','applicant_name','applicant_email','applicant_phone']);
+  const customPlaceholders = useMemo(
+    () => placeholders.filter(p => !reservedKeys.has(p)),
+    [placeholders]
+  );
+  useEffect(() => {
+    if (!showGen) return;
+    setGenForm(prev => {
+      const next = { ...prev.placeholder_values };
+      for (const p of customPlaceholders) if (!(p in next)) next[p] = '';
+      // Sensible defaults for the most common ones
+      if (!next.issue_date) next.issue_date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      return { ...prev, placeholder_values: next };
+    });
+  }, [showGen, customPlaceholders.join('|')]);
+
+  // Suggest a sensible document_type prefix based on the template category.
+  // The generate endpoint uses the first 3 letters of document_type for the
+  // unique ID prefix (XTN-INT-..., XTN-CER-..., etc.), so we want something
+  // meaningful.
+  const suggestedType = useMemo(() => {
+    const cat = (template?.category || '').toLowerCase();
+    if (cat.includes('intern')) return 'internship_acceptance';
+    if (cat.includes('cert'))   return 'certificate';
+    if (cat.includes('hr'))     return 'hr_letter';
+    if (cat.includes('legal'))  return 'legal_document';
+    if (cat.includes('finance'))return 'invoice';
+    return 'letter';
+  }, [template]);
+  useEffect(() => {
+    if (showGen && genForm.document_type === 'other') {
+      setGenForm(p => ({ ...p, document_type: suggestedType }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGen, suggestedType]);
+
+  const generate = async () => {
+    if (!genForm.recipient_name.trim()) {
+      toast.error('Recipient name is required');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const r = await fetchWithAuth('/api/documents/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: template.id,
+          document_type:   genForm.document_type || 'other',
+          recipient_name:  genForm.recipient_name,
+          recipient_email: genForm.recipient_email || undefined,
+          recipient_phone: genForm.recipient_phone || undefined,
+          expires_in_days: Number(genForm.expires_in_days) || null,
+          placeholder_data: genForm.placeholder_values,
+        }),
+      }).then(x => x.json());
+      if (!r.success) throw new Error(r.error || 'Generation failed');
+      toast.success(`Document ${r.data?.unique_id || ''} generated`);
+      setShowGen(false);
+      // Jump to the new document so the user can preview/print immediately.
+      if (r.data?.id) router.push(`/app/admin/documents/generated/${r.data.id}`);
+      else router.push('/app/admin/documents/generated');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const save = async () => {
@@ -182,6 +276,12 @@ export default function TemplateDetailPage({ params }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
+          {/* Primary action: turn this template into a real document. */}
+          <button onClick={() => setShowGen(true)} disabled={template.is_active === false}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+            title={template.is_active === false ? 'Activate this template to generate documents' : 'Generate a document from this template'}>
+            <Sparkles className="w-4 h-4" /> Generate Document
+          </button>
           <button onClick={handlePrint}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted cursor-pointer"
             title="Open browser print dialog — use to print or Save as PDF">
@@ -370,6 +470,95 @@ export default function TemplateDetailPage({ params }) {
           }
         }
       `}</style>
+
+      {/* Generate-document modal — the missing arc: this is what turns a
+          template into an actual generated_documents row. Reads placeholder
+          tokens from the template body and renders one input per token, so
+          users don't need to know the template internals. */}
+      {showGen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-xl border border-border shadow-xl max-w-2xl w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-600" /> Generate document
+              </h3>
+              <button onClick={() => setShowGen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              From template <strong className="text-foreground">{template.name}</strong>. Branding (company name, logo, contacts) will be pulled from <Link href="/app/settings/company" className="underline">company settings</Link> automatically.
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Recipient name *">
+                  <input value={genForm.recipient_name}
+                    onChange={e => setGenForm(s => ({ ...s, recipient_name: e.target.value }))}
+                    className={inputCls} placeholder="e.g. Mukungu Hatimu" />
+                </Field>
+                <Field label="Document type">
+                  <input value={genForm.document_type}
+                    onChange={e => setGenForm(s => ({ ...s, document_type: e.target.value }))}
+                    className={inputCls} placeholder="internship_acceptance" />
+                </Field>
+                <Field label="Recipient email">
+                  <input type="email" value={genForm.recipient_email}
+                    onChange={e => setGenForm(s => ({ ...s, recipient_email: e.target.value }))}
+                    className={inputCls} placeholder="optional" />
+                </Field>
+                <Field label="Recipient phone">
+                  <input value={genForm.recipient_phone}
+                    onChange={e => setGenForm(s => ({ ...s, recipient_phone: e.target.value }))}
+                    className={inputCls} placeholder="optional" />
+                </Field>
+                <Field label="Expires in (days)">
+                  <input type="number" value={genForm.expires_in_days}
+                    onChange={e => setGenForm(s => ({ ...s, expires_in_days: e.target.value }))}
+                    className={inputCls} placeholder="365 (blank = never)" />
+                </Field>
+              </div>
+
+              {customPlaceholders.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2 mt-2 flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Template placeholders ({customPlaceholders.length})
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {customPlaceholders.map(p => (
+                      <Field key={p} label={<code className="font-mono text-[11px]">{`{{${p}}}`}</code>}>
+                        <input value={genForm.placeholder_values[p] || ''}
+                          onChange={e => setGenForm(s => ({
+                            ...s,
+                            placeholder_values: { ...s.placeholder_values, [p]: e.target.value },
+                          }))}
+                          className={inputCls} placeholder={p.replace(/_/g, ' ')} />
+                      </Field>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {customPlaceholders.length === 0 && (
+                <div className="text-xs text-muted-foreground italic">
+                  This template has no {`{{placeholders}}`} — the document will be generated as-is with only the recipient + branding filled in.
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button onClick={() => setShowGen(false)}
+                className="px-4 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={generate} disabled={generating || !genForm.recipient_name.trim()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {generating ? 'Generating…' : 'Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {showDelete && (
