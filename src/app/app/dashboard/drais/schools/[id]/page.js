@@ -95,7 +95,12 @@ export default function SchoolControlPage({ params }) {
       {/* Status + subscription */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat icon={suspended ? AlertTriangle : CheckCircle} label="Status" value={school?.status || '—'} tone={suspended ? 'text-red-600' : 'text-green-600'} />
-        <Stat icon={Boxes} label="Subscription" value={school?.subscription_status || '—'} sub={school?.subscription_plan || ''} />
+        <Stat icon={Boxes} label={school?.plan?.is_trial ? 'Free trial' : 'Subscription'}
+          value={school?.plan?.label || school?.subscription_status || '—'}
+          sub={school?.plan
+            ? (school.plan.expired ? 'expired' : school.plan.days_remaining != null ? `${school.plan.days_remaining} days left` : (school.subscription_plan || ''))
+            : (school?.subscription_plan || '')}
+          tone={school?.plan?.expired ? 'text-red-600' : school?.plan?.expiring_soon ? 'text-amber-600' : undefined} />
         <Stat icon={GraduationCap} label="Learners" value={num(usage?.learners)} />
         <Stat icon={Users} label="Staff" value={num(usage?.staff)} />
       </div>

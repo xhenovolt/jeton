@@ -159,6 +159,9 @@ function SchoolsControlContent() {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  Plan
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
                   Created
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
@@ -172,7 +175,7 @@ function SchoolsControlContent() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {!filteredSchools || filteredSchools.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                     No schools found
                   </td>
                 </tr>
@@ -195,6 +198,9 @@ function SchoolsControlContent() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <StatusBadge status={school.status} />
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <PlanBadge plan={school.plan} />
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {new Date(school.created_at).toLocaleDateString()}
@@ -246,6 +252,32 @@ function StatusBadge({ status }) {
   const { bg, text, label } = config[status] || config.inactive;
 
   return <span className={`px-3 py-1 rounded-full text-xs font-semibold ${bg} ${text}`}>{label}</span>;
+}
+
+/**
+ * Plan badge — Free trial vs Paid, with remaining days / expired state.
+ * Driven by DRAIS's classifyPlan (school.plan).
+ */
+function PlanBadge({ plan }) {
+  if (!plan) return <span className="text-xs text-gray-400">—</span>;
+  const isTrial = plan.plan_kind === 'trial';
+  const base = isTrial
+    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
+    : plan.plan_kind === 'paid'
+      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200';
+  const suffix = plan.expired
+    ? ' · expired'
+    : plan.days_remaining != null
+      ? ` · ${plan.days_remaining}d left`
+      : '';
+  return (
+    <span className="inline-flex flex-col gap-0.5">
+      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${base}`}>
+        {plan.label || (isTrial ? 'Free trial' : 'Paid')}{suffix}
+      </span>
+    </span>
+  );
 }
 
 /**

@@ -26,6 +26,7 @@ interface DRAISSchool {
   subscription_plan?: string | null;
   subscription_status?: string | null;
   monthly_price?: number;
+  plan?: any;
 }
 
 interface DRAISAuditLog {
@@ -61,6 +62,7 @@ function normalizeSchool(item: any): DRAISSchool {
     updated_at:          item?.updated_at,
     subscription_plan:   item?.subscription_plan ?? null,
     subscription_status: item?.subscription_status ?? null,
+    plan:                item?.plan ?? null,   // { plan_kind, is_trial, label, days_remaining, expires_at, expiring_soon, expired }
   };
 }
 
