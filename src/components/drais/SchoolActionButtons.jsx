@@ -23,7 +23,7 @@ export default function SchoolActionButtons({ school, onMutate, onError }) {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/drais-proxy?action=suspendSchool&id=${school.id}`, {
+      const response = await fetch(`/api/drais/schools/${school.id}/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -50,7 +50,7 @@ export default function SchoolActionButtons({ school, onMutate, onError }) {
   const handleActivate = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/drais-proxy?action=activateSchool&id=${school.id}`, {
+      const response = await fetch(`/api/drais/schools/${school.id}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

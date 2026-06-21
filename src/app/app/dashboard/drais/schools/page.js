@@ -13,13 +13,12 @@
  */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, RefreshCw, Power, CheckCircle, Clock, ChevronDown } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useDRAISSchools } from '@/hooks/useDRAISSchools';
 import SchoolActionButtons from '@/components/drais/SchoolActionButtons';
 import DRAISStatusIndicator from '@/components/drais/DRAISStatusIndicator';
-import DRAISConnectionSelector from '@/components/drais/DRAISConnectionSelector';
-import DRAISConnectionFailsafe from '@/components/drais/DRAISConnectionFailsafe';
 import ErrorFallback from '@/components/drais/ErrorFallback';
 
 function SchoolsControlContent() {
@@ -68,7 +67,6 @@ function SchoolsControlContent() {
           <p className="text-gray-500 dark:text-gray-400 mt-1">Live system status from DRAIS</p>
         </div>
         <div className="flex gap-4 items-start">
-          <DRAISConnectionSelector />
           <button
             onClick={handleRefresh}
             disabled={isValidating}
@@ -184,8 +182,13 @@ function SchoolsControlContent() {
                     key={school.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                   >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                      {school.name}
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <Link
+                        href={`/app/dashboard/drais/schools/${school.external_id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {school.name}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {school.external_id}
@@ -246,13 +249,9 @@ function StatusBadge({ status }) {
 }
 
 /**
- * Main export with failsafe wrapper
- * Phase 9: Ensures active connection exists before rendering
+ * Main export. Talks to DRAIS over the platform v1 bearer path (env-configured
+ * DRAIS_PLATFORM_*), so no per-connection record is required — render directly.
  */
 export default function SchoolsControlDashboard() {
-  return (
-    <DRAISConnectionFailsafe>
-      <SchoolsControlContent />
-    </DRAISConnectionFailsafe>
-  );
+  return <SchoolsControlContent />;
 }

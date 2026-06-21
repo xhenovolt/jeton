@@ -25,7 +25,7 @@ export function useDRAISSchools() {
       setError(null); // Clear previous errors
       setIsValidating(true);
 
-      const response = await fetch('/api/drais-proxy?action=getSchools', {
+      const response = await fetch('/api/drais/schools', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
