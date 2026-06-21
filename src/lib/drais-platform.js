@@ -265,3 +265,6 @@ export const getSubscription  = (externalId)       => get(`/subscriptions/${enco
 export const setSubscription  = (externalId, body) => put(`/subscriptions/${encodeURIComponent(externalId)}`, body);
 export const getAudit         = (qs = '')          => get(`/audit${qs}`);
 export const health           = ()                 => get(`/health`);
+// Webhooks (DRAIS mints + returns the secret on register)
+export const listWebhooks     = ()                 => get(`/webhooks`);
+export const registerWebhook  = (url, eventTypes = ['*']) => post(`/webhooks`, { url, event_types: eventTypes });

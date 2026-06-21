@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { verifyWebhookSignature } from '@/lib/drais-webhook.js';
+import { getActiveWebhookSecret } from '@/lib/drais-webhook-store.js';
 import { suspendSchool } from '@/lib/drais-platform.js';
 
 export const runtime = 'nodejs';
@@ -30,7 +31,9 @@ export async function POST(request) {
   const sigHeader  = request.headers.get('x-drais-signature');
   const eventType  = request.headers.get('x-drais-event') || 'unknown';
   const deliveryId = request.headers.get('x-drais-delivery-id') || null;
-  const secret = process.env.DRAIS_WEBHOOK_SECRET;
+  // Prefer the secret minted by DRAIS at registration (stored encrypted);
+  // fall back to an env var for manual setups.
+  const secret = (await getActiveWebhookSecret()) || process.env.DRAIS_WEBHOOK_SECRET;
 
   // No secret configured → can't trust anything. 503 so DRAIS retries later.
   if (!secret) {
