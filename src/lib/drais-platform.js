@@ -241,3 +241,27 @@ export function configuredness() {
     webhook_secret_set: !!process.env.DRAIS_WEBHOOK_SECRET,
   };
 }
+
+/* --------------------------------------------------------------------------
+ * Write wrappers + named helpers. This module is the single transport for all
+ * DRAIS platform traffic; src/lib/draisClient.ts delegates here so there is
+ * exactly ONE auth path (bearer keyId.secret) and one observability ledger.
+ * ------------------------------------------------------------------------ */
+export function post(path, body, opts = {})  { return request('POST',  path, { ...opts, body }); }
+export function put(path, body, opts = {})   { return request('PUT',   path, { ...opts, body }); }
+export function patch(path, body, opts = {}) { return request('PATCH', path, { ...opts, body }); }
+
+// Schools
+export const listSchools      = (qs = '')          => get(`/schools${qs}`);
+export const getSchool        = (externalId)       => get(`/schools/${encodeURIComponent(externalId)}`);
+export const suspendSchool    = (externalId, reason) => post(`/schools/${encodeURIComponent(externalId)}/suspend`, { reason });
+export const reactivateSchool = (externalId)       => post(`/schools/${encodeURIComponent(externalId)}/reactivate`, {});
+// Observability + control (Track B1 endpoints)
+export const getUsage         = (externalId)       => get(`/usage?school=${encodeURIComponent(externalId)}`);
+export const getStaff         = (externalId)       => get(`/schools/${encodeURIComponent(externalId)}/staff`);
+export const getFeatures      = (externalId)       => get(`/schools/${encodeURIComponent(externalId)}/features`);
+export const setFeatures      = (externalId, changes) => put(`/schools/${encodeURIComponent(externalId)}/features`, changes);
+export const getSubscription  = (externalId)       => get(`/subscriptions/${encodeURIComponent(externalId)}`);
+export const setSubscription  = (externalId, body) => put(`/subscriptions/${encodeURIComponent(externalId)}`, body);
+export const getAudit         = (qs = '')          => get(`/audit${qs}`);
+export const health           = ()                 => get(`/health`);

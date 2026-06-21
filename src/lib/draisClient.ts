@@ -1,34 +1,37 @@
 /**
- * DRAIS API Client
- * Centralized client for all DRAIS API interactions
- * 
- * SECURITY NOTES:
- * - This client runs on the backend (server-side)
- * - Never expose API keys in frontend code
- * - Use proxy routes in /api/drais/* for frontend access
- * - All sensitive operations validated through Jeton auth layer
+ * DRAIS API Client (compatibility facade).
+ *
+ * HISTORY: this used to target the legacy /api/external/* surface with
+ * x-api-key + x-api-secret headers and a placeholder base URL — which never
+ * matched the real DRAIS contract (bearer keyId.secret over /api/platform/v1)
+ * and so 401'd in practice.
+ *
+ * NOW: it delegates to src/lib/drais-platform.js — the single, correct
+ * transport (bearer auth, retries, idempotency, observability logging). The
+ * exported function names + DRAISResponse shape are preserved so the existing
+ * /api/drais/* proxy routes keep working unchanged, now over the right surface.
  */
-
-const BASE_URL = process.env.DRAIS_API_BASE_URL || 'https://drais-api.example.com';
-const API_KEY = process.env.DRAIS_API_KEY || '';
-const API_SECRET = process.env.DRAIS_API_SECRET || '';
+// drais-platform.js is plain JS (this is a JS project); types are best-effort.
+// @ts-ignore
+import * as platform from './drais-platform.js';
 
 interface DRAISSchool {
   id: string;
   external_id: string;
   name: string;
-  status: 'active' | 'suspended' | 'inactive';
-  created_at: string;
-  updated_at: string;
+  status: 'active' | 'suspended' | 'inactive' | string;
+  created_at?: string;
+  updated_at?: string;
   last_activity?: string;
-  subscription_plan?: string;
+  subscription_plan?: string | null;
+  subscription_status?: string | null;
   monthly_price?: number;
 }
 
 interface DRAISAuditLog {
   id: string;
-  school_id: string;
-  school_name: string;
+  school_id?: string;
+  school_name?: string;
   action: string;
   user_id?: string;
   user_email?: string;
@@ -43,186 +46,93 @@ interface DRAISResponse<T> {
   message?: string;
 }
 
-/**
- * Build headers for DRAIS API requests
- */
-function buildHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
+function ok<T>(data: T): DRAISResponse<T> { return { success: true, data }; }
+function err<T>(e: any): DRAISResponse<T> {
+  return { success: false, error: e?.message || 'DRAIS request failed' };
+}
+
+function normalizeSchool(item: any): DRAISSchool {
   return {
-    'Content-Type': 'application/json',
-    'x-api-key': API_KEY,
-    'x-api-secret': API_SECRET,
-    ...additionalHeaders,
+    id:                  item?.external_id ?? item?.id,
+    external_id:         item?.external_id ?? item?.id,
+    name:                item?.name,
+    status:              item?.status,
+    created_at:          item?.created_at,
+    updated_at:          item?.updated_at,
+    subscription_plan:   item?.subscription_plan ?? null,
+    subscription_status: item?.subscription_status ?? null,
   };
 }
 
-/**
- * Generic API request handler with error management
- */
-async function makeRequest<T>(
-  method: string,
-  endpoint: string,
-  body?: Record<string, any>,
-  headers?: Record<string, string>
-): Promise<DRAISResponse<T>> {
-  try {
-    const url = `${BASE_URL}${endpoint}`;
-    const response = await fetch(url, {
-      method,
-      headers: buildHeaders(headers),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    // Handle non-200 responses
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`DRAIS API Error [${response.status}] ${endpoint}:`, errorData);
-      
-      return {
-        success: false,
-        error: errorData?.message || errorData?.error || `HTTP ${response.status}`,
-      };
-    }
-
-    const data: T = await response.json();
-    return {
-      success: true,
-      data,
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`DRAIS API Connection Error [${endpoint}]:`, errorMessage);
-    
-    return {
-      success: false,
-      error: `Connection failed: ${errorMessage}`,
-    };
-  }
-}
-
-/**
- * SCHOOL MANAGEMENT ENDPOINTS
- */
-
-/**
- * Get all schools from DRAIS
- */
+/** SCHOOL MANAGEMENT */
 export async function getSchools(): Promise<DRAISResponse<DRAISSchool[]>> {
-  return makeRequest<DRAISSchool[]>(
-    'GET',
-    '/api/external/schools'
-  );
+  try {
+    const r = await platform.listSchools('?limit=100');
+    const items = Array.isArray(r?.data?.items) ? r.data.items : [];
+    return ok(items.map(normalizeSchool));
+  } catch (e) { return err(e); }
 }
 
-/**
- * Get a specific school by ID
- */
 export async function getSchoolById(schoolId: string): Promise<DRAISResponse<DRAISSchool>> {
-  return makeRequest<DRAISSchool>(
-    'GET',
-    `/api/external/schools/${schoolId}`
-  );
+  try { const r = await platform.getSchool(schoolId); return ok(normalizeSchool(r?.data)); }
+  catch (e) { return err(e); }
 }
 
-/**
- * Update school information
- */
 export async function updateSchool(
   schoolId: string,
-  payload: Partial<DRAISSchool>
+  payload: Partial<DRAISSchool>,
 ): Promise<DRAISResponse<DRAISSchool>> {
-  return makeRequest<DRAISSchool>(
-    'PATCH',
-    `/api/external/schools/${schoolId}`,
-    payload as Record<string, any>
-  );
+  try {
+    // Platform PATCH /schools/{id} accepts name/email/phone only.
+    const body: Record<string, any> = {};
+    for (const k of ['name', 'email', 'phone']) if ((payload as any)[k] !== undefined) body[k] = (payload as any)[k];
+    const r = await platform.patch(`/schools/${encodeURIComponent(schoolId)}`, body);
+    return ok(normalizeSchool(r?.data));
+  } catch (e) { return err(e); }
 }
 
-/**
- * Suspend a school
- */
 export async function suspendSchool(schoolId: string): Promise<DRAISResponse<DRAISSchool>> {
-  return makeRequest<DRAISSchool>(
-    'POST',
-    `/api/external/schools/${schoolId}/suspend`
-  );
+  try { const r = await platform.suspendSchool(schoolId, 'suspended via Jeton'); return ok(r?.data); }
+  catch (e) { return err(e); }
 }
 
-/**
- * Activate a school
- */
 export async function activateSchool(schoolId: string): Promise<DRAISResponse<DRAISSchool>> {
-  return makeRequest<DRAISSchool>(
-    'POST',
-    `/api/external/schools/${schoolId}/activate`
-  );
+  try { const r = await platform.reactivateSchool(schoolId); return ok(r?.data); }
+  catch (e) { return err(e); }
 }
 
-/**
- * PRICING ENDPOINTS
- */
-
-/**
- * Update school pricing (subscription plan and price)
- */
+/** PRICING / SUBSCRIPTION */
 export async function updateSchoolPricing(
   schoolId: string,
-  pricing: {
-    subscription_plan: string;
-    monthly_price: number;
-  }
+  pricing: { subscription_plan: string; monthly_price?: number },
 ): Promise<DRAISResponse<DRAISSchool>> {
-  return makeRequest<DRAISSchool>(
-    'PATCH',
-    `/api/external/schools/${schoolId}`,
-    pricing
-  );
+  try {
+    // Maps to PUT /subscriptions/{id} (subscription_plan). monthly_price is not
+    // a platform field — Jeton owns billing amounts in its own Postgres.
+    const r = await platform.setSubscription(schoolId, { subscription_plan: pricing.subscription_plan });
+    return ok(r?.data);
+  } catch (e) { return err(e); }
 }
 
-/**
- * ACTIVITY MONITORING ENDPOINTS
- */
-
-interface AuditLogsQuery {
-  school_id?: string;
-  start_date?: string;
-  end_date?: string;
-  limit?: number;
-  offset?: number;
-}
-
-/**
- * Get audit logs from DRAIS
- * Supports filtering by date range and school
- */
+/** ACTIVITY MONITORING */
 export async function getAuditLogs(
-  query?: AuditLogsQuery
+  q?: { school_id?: string; start_date?: string; end_date?: string; limit?: number; offset?: number },
 ): Promise<DRAISResponse<DRAISAuditLog[]>> {
-  const params = new URLSearchParams();
-  if (query?.school_id) params.append('school_id', query.school_id);
-  if (query?.start_date) params.append('start_date', query.start_date);
-  if (query?.end_date) params.append('end_date', query.end_date);
-  if (query?.limit) params.append('limit', String(query.limit));
-  if (query?.offset) params.append('offset', String(query.offset));
-
-  const endpoint = `/api/external/audit-logs${params.size > 0 ? `?${params}` : ''}`;
-  return makeRequest<DRAISAuditLog[]>('GET', endpoint);
+  try {
+    const params = new URLSearchParams();
+    if (q?.limit) params.append('limit', String(q.limit));
+    if (q?.school_id) params.append('school', q.school_id);
+    const qs = params.toString() ? `?${params}` : '';
+    const r = await platform.getAudit(qs);
+    const items = Array.isArray(r?.data?.items) ? r.data.items : (Array.isArray(r?.data) ? r.data : []);
+    return ok(items);
+  } catch (e) { return err(e); }
 }
 
-/**
- * HEALTH CHECK & CONNECTIVITY
- */
-
-/**
- * Verify DRAIS API is accessible and credentials are valid
- */
+/** HEALTH */
 export async function healthCheck(): Promise<DRAISResponse<{ status: string }>> {
-  return makeRequest<{ status: string }>(
-    'GET',
-    '/api/external/health'
-  );
+  try { const r = await platform.health(); return ok({ status: r?.data?.status ?? 'ok' }); }
+  catch (e) { return err(e); }
 }
 
-/**
- * Type exports for frontend use
- */
 export type { DRAISSchool, DRAISAuditLog, DRAISResponse };
