@@ -59,6 +59,17 @@ export function useChat() {
       if (!selectedConvId) throw new Error('No conversation selected');
 
       try {
+        // attachment.type is a MIME string (e.g. 'image/png'). The server
+        // expects message_type to be the CATEGORY (image/video/audio/file)
+        // and media_type to hold the MIME.
+        const mime = attachment?.type || '';
+        let category = 'text';
+        if (attachment) {
+          if      (mime.startsWith('image/')) category = 'image';
+          else if (mime.startsWith('video/')) category = 'video';
+          else if (mime.startsWith('audio/')) category = 'audio';
+          else                                 category = 'file';
+        }
         const res = await fetch(
           `/api/communication/${selectedConvId}/messages`,
           {
@@ -67,11 +78,11 @@ export function useChat() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               content,
-              message_type: attachment ? attachment.type : 'text',
-              media_url: attachment?.url,
-              media_type: attachment?.type,
-              file_name: attachment?.name,
-              file_size: attachment?.size,
+              message_type: category,
+              media_url:  attachment?.url  || null,
+              media_type: mime || null,
+              file_name:  attachment?.name || null,
+              file_size:  attachment?.size || null,
             }),
           }
         );

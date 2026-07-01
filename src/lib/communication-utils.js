@@ -17,14 +17,17 @@ export async function createMessage({
   mediaUrl = null,
   mediaType = null,
   mediaSize = null,
+  fileName = null,
+  fileMime = null,
   replyToMessageId = null,
 }) {
   const result = await query(
     `WITH inserted AS (
        INSERT INTO messages (
          conversation_id, sender_id, content, message_type,
-         media_url, media_type, media_size, reply_to_message_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         media_url, media_type, media_size, file_name, file_mime,
+         reply_to_message_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *
      )
      SELECT i.*,
@@ -34,7 +37,7 @@ export async function createMessage({
      FROM inserted i
      LEFT JOIN users u ON u.id = i.sender_id
      LEFT JOIN staff s ON s.user_id = u.id`,
-    [conversationId, senderId, content, messageType, mediaUrl, mediaType, mediaSize, replyToMessageId]
+    [conversationId, senderId, content, messageType, mediaUrl, mediaType, mediaSize, fileName, fileMime, replyToMessageId]
   );
 
   const message = result.rows[0];

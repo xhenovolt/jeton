@@ -108,18 +108,32 @@ export async function POST(req, { params }) {
       );
     }
     
-    // If media, validate against permissions
+    // If media, validate against permissions. messageType is the category
+    // ('image'|'video'|'audio'|'file') and mediaType is the MIME string
+    // ('image/png', 'application/pdf', …). Media permissions rows are keyed
+    // by category (file_type='image'), and their allowed_mimetypes list is
+    // the source of truth for what's OK inside that category.
     if (messageType !== 'text') {
       const permissions = await getMediaPermissions();
-      const typePerms = permissions.find(p => p.file_type === mediaType);
-      
+      // Map 'file' -> 'document' since our media_permissions row is called
+      // 'document' for generic files.
+      const category = messageType === 'file' ? 'document' : messageType;
+      const typePerms = permissions.find(p => p.file_type === category);
+
       if (!typePerms || !typePerms.allowed) {
         return NextResponse.json(
-          { success: false, error: `${mediaType} uploads are not allowed` },
+          { success: false, error: `${category} uploads are not allowed` },
           { status: 403 }
         );
       }
-      
+
+      if (typePerms.allowed_mimetypes?.length && mediaType && !typePerms.allowed_mimetypes.includes(mediaType)) {
+        return NextResponse.json(
+          { success: false, error: `MIME type ${mediaType} not permitted for ${category}` },
+          { status: 403 }
+        );
+      }
+
       if (mediaSize && typePerms.max_size_mb && mediaSize / (1024 * 1024) > typePerms.max_size_mb) {
         return NextResponse.json(
           { success: false, error: `File exceeds maximum size of ${typePerms.max_size_mb}MB` },
@@ -127,7 +141,7 @@ export async function POST(req, { params }) {
         );
       }
     }
-    
+
     // Create message
     const message = await createMessage({
       conversationId,
@@ -137,6 +151,8 @@ export async function POST(req, { params }) {
       mediaUrl,
       mediaType,
       mediaSize,
+      fileName,
+      fileMime: mediaType,
       replyToMessageId,
     });
     
