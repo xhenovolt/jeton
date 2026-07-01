@@ -236,7 +236,11 @@ export async function getUserConversations(userId, limit = 50) {
             CASE
               WHEN c.type = 'direct' THEN other.other_avatar
               ELSE NULL
-            END                                                 AS display_avatar
+            END                                                 AS display_avatar,
+            -- Per-user state exposed as booleans for the UI
+            (cp.archived_at IS NOT NULL)                        AS is_archived_for_me,
+            (cp.hidden_at   IS NOT NULL)                        AS is_hidden_for_me,
+            cp.last_read_at                                     AS my_last_read_at
      FROM conversations c
      INNER JOIN conversation_participants cp ON c.id = cp.conversation_id
      LEFT JOIN LATERAL (
@@ -244,6 +248,9 @@ export async function getUserConversations(userId, limit = 50) {
        WHERE conversation_id = c.id AND deleted_at IS NULL
        ORDER BY created_at DESC LIMIT 1
      ) lm ON TRUE
+     -- Per-user chat lifecycle state (migration 976). Exposing these lets
+     -- the client render "Archived" / "Hidden" without a second round-trip.
+     -- cp.archived_at / cp.hidden_at are per-participant, not global.
      LEFT JOIN users lu ON lm.sender_id = lu.id
      LEFT JOIN staff  ls ON ls.user_id  = lu.id
      LEFT JOIN LATERAL (
@@ -260,6 +267,7 @@ export async function getUserConversations(userId, limit = 50) {
      ) other ON c.type = 'direct'
      WHERE cp.user_id = $1 AND cp.is_active = TRUE
            AND c.deleted_at IS NULL
+           AND cp.hidden_at IS NULL
      ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
      LIMIT $2`,
     [userId, limit]

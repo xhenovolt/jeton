@@ -4,37 +4,35 @@ import { updateMessageStatus } from '@/lib/communication-utils.js';
 
 /**
  * PUT /api/communication/message-status
- * Update message read/delivery status
+ * Update a single message's read/delivery status for the current user.
+ * (Bulk mark-read lives at /api/communication/[conversationId]/read.)
  */
 export async function PUT(req) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
+    const { auth } = perm;
     const { userId } = auth;
+
     const body = await req.json();
-    const { messageId, status } = body;
-    
+    const messageId = body.message_id ?? body.messageId;
+    const status    = body.status;
+
     if (!messageId || !status) {
       return NextResponse.json(
-        { success: false, error: 'messageId and status are required' },
+        { success: false, error: 'message_id and status are required' },
         { status: 400 }
       );
     }
-    
     if (!['sent', 'delivered', 'seen'].includes(status)) {
       return NextResponse.json(
         { success: false, error: 'Invalid status' },
         { status: 400 }
       );
     }
-    
+
     const result = await updateMessageStatus(messageId, userId, status);
-    
-    return NextResponse.json({
-      success: true,
-      status: result,
-    });
+    return NextResponse.json({ success: true, status: result });
   } catch (error) {
     console.error('Error updating message status:', error);
     return NextResponse.json(

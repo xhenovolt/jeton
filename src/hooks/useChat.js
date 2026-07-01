@@ -135,11 +135,26 @@ export function useChat() {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Load messages when conversation selected
+  // Load messages when conversation selected + fire bulk mark-read so the
+  // sidebar's unread dot clears on open (WhatsApp parity).
   useEffect(() => {
-    if (selectedConvId) {
-      fetchMessages(selectedConvId);
-    }
+    if (!selectedConvId) return;
+    fetchMessages(selectedConvId);
+    fetch(`/api/communication/${selectedConvId}/read`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data?.success && data.marked_read > 0) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConvId ? { ...c, unread_count: 0 } : c
+            )
+          );
+        }
+      })
+      .catch(() => {});
   }, [selectedConvId, fetchMessages]);
 
   return {

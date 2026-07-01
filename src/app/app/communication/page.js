@@ -77,10 +77,10 @@ export default function CommunicationPage() {
   // Get selected conversation name
   const selectedConv = chat.conversations.find(c => c.id === chat.selectedConvId);
 
-  // Archive/unarchive handler
+  // Archive/unarchive handler (per-user, WhatsApp-parity)
   const handleArchive = useCallback(async (convId) => {
     const conv = chat.conversations.find(c => c.id === convId);
-    const archiving = !conv?.is_archived;
+    const archiving = !(conv?.is_archived_for_me ?? conv?.is_archived);
     const confirmed = await confirmAction(
       archiving ? 'Archive Conversation?' : 'Unarchive Conversation?',
       archiving ? 'This will hide the conversation from your main list.' : 'This will move the conversation back to your main list.',
@@ -128,10 +128,11 @@ export default function CommunicationPage() {
     }
   }, [chat, toast]);
 
-  // Filter conversations based on archived state
-  const visibleConversations = chat.conversations.filter(c =>
-    showArchived ? c.is_archived : !c.is_archived
-  );
+  // Filter conversations based on archived state (per-user flag).
+  const visibleConversations = chat.conversations.filter(c => {
+    const archived = c.is_archived_for_me ?? c.is_archived;
+    return showArchived ? archived : !archived;
+  });
 
   return (
     <PageTransition className="h-screen">
