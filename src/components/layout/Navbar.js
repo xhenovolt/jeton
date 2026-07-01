@@ -1,25 +1,80 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type, Check, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { menuItems as configMenuItems } from '@/lib/navigation-config';
+import { filterMenuByPermissions } from '@/lib/nav-permissions';
+import { usePermissions } from '@/components/providers/PermissionProvider';
+
+// Category → readable label + icon glyph. Kept as a plain map so adding
+// a new bucket to /api/search only needs a one-line entry here.
+const CATEGORY_META = {
+  routes:        { label: 'Pages',         icon: '↗' },
+  prospects:     { label: 'Prospects',     icon: '🎯' },
+  clients:       { label: 'Clients',       icon: '🏢' },
+  deals:         { label: 'Deals',         icon: '💼' },
+  payments:      { label: 'Payments',      icon: '💰' },
+  invoices:      { label: 'Invoices',      icon: '🧾' },
+  documents:     { label: 'Documents',     icon: '📄' },
+  systems:       { label: 'Systems',       icon: '🧩' },
+  licenses:      { label: 'Licenses',      icon: '🔑' },
+  staff:         { label: 'Staff',         icon: '👤' },
+  subscriptions: { label: 'Subscriptions', icon: '📆' },
+  media:         { label: 'Media',         icon: '🖼' },
+};
+
+// Order categories in the dropdown — routes first (fast-path), then most
+// commonly-searched surfaces.
+const CATEGORY_ORDER = [
+  'routes', 'prospects', 'clients', 'deals', 'documents',
+  'systems', 'licenses', 'staff', 'payments', 'invoices',
+  'subscriptions', 'media',
+];
 
 /**
  * Top Navigation Bar - Futuristic Design
  * Global search, notifications, theme toggle, and user profile
  */
 export function Navbar() {
+  const router = useRouter();
   const { colorMode, setColorMode, isDark } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState(emptyResults());
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const searchInputRef = useRef(null);
   const profileRef = useRef(null);
+  const searchDebounceRef = useRef(null);
+  const searchAbortRef = useRef(null);
+
+  // Route search source. Uses the SAME nav-permissions filter as the
+  // sidebar so we don't leak links the user can't reach.
+  const { user: permUser, hasPermission, hasModuleAccess, hierarchyLevel, loading: permLoading } = usePermissions();
+  const permittedMenu = useMemo(
+    () => filterMenuByPermissions(configMenuItems, {
+      user: permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess,
+    }),
+    [permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess]
+  );
+  // Flatten to { label, href, description } for fuzzy contains-matching.
+  const routeIndex = useMemo(() => {
+    const acc = [];
+    for (const item of permittedMenu) {
+      if (item.href) acc.push({ label: item.label, href: item.href, description: item.description });
+      for (const sub of item.submenu || []) {
+        acc.push({ label: sub.label, href: sub.href, description: sub.description, parent: item.label });
+      }
+    }
+    return acc;
+  }, [permittedMenu]);
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -181,22 +236,81 @@ export function Navbar() {
     if (profileOpen) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }
   }, [profileOpen]);
 
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    if (query.length > 0) {
-      const mockResults = [
-        { id: 1, title: 'Dashboard', category: 'Pages', path: '/app/dashboard' },
-        { id: 2, title: 'Prospects', category: 'Pipeline', path: '/app/prospects' },
-        { id: 3, title: 'Deals', category: 'Sales', path: '/app/deals' },
-        { id: 4, title: 'Finance', category: 'Money', path: '/app/finance' },
-        { id: 5, title: 'Settings', category: 'Admin', path: '/app/settings' },
-        { id: 6, title: 'Users', category: 'Admin', path: '/app/admin/users' },
-      ].filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
-      setSearchResults(mockResults);
-    } else {
-      setSearchResults([]);
+  // ── Real global search ─────────────────────────────────────────────────
+  // Client-side route match is instant. DB search is debounced (300ms) and
+  // any in-flight request is aborted when the user keeps typing so we don't
+  // race a stale response into the dropdown.
+  const handleSearch = (q) => {
+    setSearchQuery(q);
+    setActiveIdx(0);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (searchAbortRef.current) { try { searchAbortRef.current.abort(); } catch {} }
+
+    if (q.trim().length < 2) {
+      setSearchResults(emptyResults());
+      setSearchLoading(false);
+      return;
     }
+
+    // Immediate route match — nothing to wait on for that bucket.
+    const routes = routeIndex
+      .filter(r =>
+        r.label.toLowerCase().includes(q.toLowerCase()) ||
+        (r.description || '').toLowerCase().includes(q.toLowerCase())
+      )
+      .slice(0, 6);
+    setSearchResults(prev => ({ ...prev, routes }));
+    setSearchLoading(true);
+
+    searchDebounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=5`, {
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (data?.success) {
+          setSearchResults({ routes, ...data.results });
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error('[search] failed:', err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
   };
+
+  // Flatten results into an ordered list for keyboard navigation.
+  const flatResults = useMemo(() => {
+    const out = [];
+    for (const cat of CATEGORY_ORDER) {
+      const arr = searchResults[cat] || [];
+      for (const r of arr) out.push({ category: cat, ...r });
+    }
+    return out;
+  }, [searchResults]);
+
+  const openResult = (r) => {
+    if (!r?.href) return;
+    router.push(r.href);
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults(emptyResults());
+  };
+
+  // Enter opens the highlighted result. Arrow keys move the highlight.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, Math.max(0, flatResults.length - 1))); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1)); }
+      else if (e.key === 'Enter' && flatResults[activeIdx]) { e.preventDefault(); openResult(flatResults[activeIdx]); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [searchOpen, flatResults, activeIdx]);
 
   return (
     <motion.nav
@@ -235,29 +349,67 @@ export function Navbar() {
             )}
           </div>
 
-          {searchOpen && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 overflow-hidden" style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
-              <div className="max-h-80 overflow-y-auto">
-                {searchResults.map((result) => (
-                  <button
-                    key={result.id}
-                    onClick={() => { window.location.href = result.path; setSearchOpen(false); setSearchQuery(''); }}
-                    className="w-full text-left px-4 py-3 transition-colors"
-                    style={{ borderBottom: '1px solid var(--navbar-border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}
-                  >
-                    <p className="font-medium text-sm" style={{ color: 'var(--navbar-text)' }}>{result.title}</p>
-                    <p className="text-xs" style={{ color: 'var(--navbar-muted)' }}>{result.category}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {searchOpen && searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 overflow-hidden max-w-2xl min-w-[24rem]"
+              style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
+              <div className="max-h-[70vh] overflow-y-auto">
+                {flatResults.length === 0 && !searchLoading && (
+                  <div className="p-4 text-center text-sm" style={{ color: 'var(--navbar-muted)' }}>
+                    No matching records found for &ldquo;{searchQuery}&rdquo;.
+                  </div>
+                )}
 
-          {searchOpen && searchQuery && searchResults.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 p-4 text-center" style={{ background: 'var(--theme-navbar)', border: '1px solid var(--navbar-border)' }}>
-              <p className="text-sm" style={{ color: 'var(--navbar-muted)' }}>No results for &ldquo;{searchQuery}&rdquo;</p>
+                {(() => {
+                  let idx = 0;
+                  return CATEGORY_ORDER.map(cat => {
+                    const items = searchResults[cat] || [];
+                    if (items.length === 0) return null;
+                    const meta = CATEGORY_META[cat];
+                    return (
+                      <div key={cat}>
+                        <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-2"
+                          style={{ background: 'var(--sidebar-hover)', color: 'var(--navbar-muted)' }}>
+                          <span>{meta?.icon}</span> {meta?.label || cat} <span className="opacity-60">· {items.length}</span>
+                        </div>
+                        {items.map((r) => {
+                          const myIdx = idx++;
+                          const active = myIdx === activeIdx;
+                          return (
+                            <button key={`${cat}-${r.id ?? r.href}`}
+                              onClick={() => openResult(r)}
+                              onMouseEnter={() => setActiveIdx(myIdx)}
+                              className="w-full text-left px-4 py-2.5 transition-colors block"
+                              style={{
+                                background: active ? 'var(--sidebar-hover)' : '',
+                                borderBottom: '1px solid var(--navbar-border)',
+                              }}>
+                              <div className="text-sm font-medium truncate" style={{ color: 'var(--navbar-text)' }}>
+                                {highlight(r.title, searchQuery)}
+                              </div>
+                              {r.subtitle && (
+                                <div className="text-xs truncate" style={{ color: 'var(--navbar-muted)' }}>
+                                  {r.subtitle}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  });
+                })()}
+
+                {searchLoading && (
+                  <div className="px-4 py-2 text-xs" style={{ color: 'var(--navbar-muted)' }}>
+                    Searching database…
+                  </div>
+                )}
+              </div>
+              <div className="px-4 py-2 text-[10px] flex items-center justify-between border-t"
+                style={{ borderColor: 'var(--navbar-border)', color: 'var(--navbar-muted)' }}>
+                <span>↑↓ navigate · ⏎ open · esc close</span>
+                <span>{flatResults.length} result{flatResults.length === 1 ? '' : 's'}</span>
+              </div>
             </div>
           )}
         </div>
@@ -467,9 +619,40 @@ export function Navbar() {
       </div>
 
       {/* Search backdrop */}
-      {searchOpen && searchResults.length > 0 && (
+      {searchOpen && searchQuery.trim().length >= 2 && (
         <div className="fixed inset-0 z-40" onClick={() => { setSearchOpen(false); setSearchQuery(''); }} />
       )}
     </motion.nav>
+  );
+}
+
+// ── Module-level helpers ────────────────────────────────────────────────
+function emptyResults() {
+  return {
+    routes: [], prospects: [], clients: [], deals: [], payments: [],
+    invoices: [], documents: [], systems: [], licenses: [], staff: [],
+    subscriptions: [], media: [],
+  };
+}
+
+// Wrap the matched substring in a highlighted <mark>. Falls back to the
+// raw title if the needle isn't found (e.g. numeric phone-search hit where
+// the displayed title doesn't contain the query digits).
+function highlight(text, q) {
+  if (!text || !q) return text || '';
+  const needle = String(q).trim();
+  if (!needle) return text;
+  const lowerText = String(text).toLowerCase();
+  const idx = lowerText.indexOf(needle.toLowerCase());
+  if (idx < 0) return text;
+  const before = String(text).slice(0, idx);
+  const match  = String(text).slice(idx, idx + needle.length);
+  const after  = String(text).slice(idx + needle.length);
+  return (
+    <>
+      {before}
+      <mark className="bg-yellow-400/30 text-inherit rounded px-0.5">{match}</mark>
+      {after}
+    </>
   );
 }

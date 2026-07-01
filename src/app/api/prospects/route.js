@@ -3,6 +3,7 @@ import { query } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission, buildDataScopeFilter } from '@/lib/permissions.js';
 import { dispatch } from '@/lib/system-events.js';
+import { looksLikePhoneQuery } from '@/lib/phone-normalize.js';
 
 // GET /api/prospects - List all prospects (data-scope enforced)
 export async function GET(request) {
@@ -33,8 +34,31 @@ export async function GET(request) {
     if (stage) { params.push(stage); sql += ` AND p.stage = $${params.length}`; }
     if (source) { params.push(source); sql += ` AND p.source = $${params.length}`; }
     if (search) {
+      // Broadened search: any of these fields matches. Phone matching
+      // uses the trigger-maintained phone_search column so "0700...",
+      // "+256700..." and "256700..." all hit the same row.
       params.push(`%${search}%`);
-      sql += ` AND (p.company_name ILIKE $${params.length} OR p.contact_name ILIKE $${params.length} OR p.email ILIKE $${params.length})`;
+      const p = params.length;
+      let phonePlaceholder = null;
+      const phoneDigits = looksLikePhoneQuery(search);
+      if (phoneDigits) {
+        params.push(`%${phoneDigits}%`);
+        phonePlaceholder = params.length;
+      }
+      sql += ` AND (
+        p.company_name       ILIKE $${p}
+        OR p.contact_name    ILIKE $${p}
+        OR p.email           ILIKE $${p}
+        OR p.phone           ILIKE $${p}
+        OR p.alternative_phone ILIKE $${p}
+        OR p.whatsapp_number ILIKE $${p}
+        OR p.address         ILIKE $${p}
+        OR p.notes           ILIKE $${p}
+        OR p.stage           ILIKE $${p}
+        OR p.industry        ILIKE $${p}
+        OR p.source          ILIKE $${p}
+        ${phonePlaceholder ? `OR p.phone_search ILIKE $${phonePlaceholder}` : ''}
+      )`;
     }
 
     // ── Data scope enforcement ───────────────────────────────────────────────
