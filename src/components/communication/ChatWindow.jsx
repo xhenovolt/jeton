@@ -371,6 +371,16 @@ export function ChatWindow({
           </button>
         )}
 
+        {messages.length === 0 && !isLoading && (
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+              <Send className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-medium">No messages yet</p>
+            <p className="text-xs opacity-70">Say hello — messages you send will appear here.</p>
+          </div>
+        )}
+
         <AnimatePresence initial={false}>
           {messages.map((msg, idx) => {
             const isOwn = String(msg.sender_id) === String(currentUserId);
