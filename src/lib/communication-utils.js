@@ -73,17 +73,36 @@ export async function createMessage({
   return message;
 }
 
-export async function getConversationMessages(conversationId, userId, limit = 30, offset = 0) {
+export async function getConversationMessages(conversationId, userId, limit = 30, offset = 0, since = null) {
   // Verify user is participant
   const participant = await query(
     'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND is_active = TRUE',
     [conversationId, userId]
   );
-  
+
   if (participant.rows.length === 0) {
     throw new Error('User is not a participant in this conversation');
   }
-  
+
+  // `since` (ISO timestamp) drives the polling path — return only messages
+  // strictly newer than that watermark, no LIMIT/OFFSET, chronological order.
+  if (since) {
+    const result = await query(
+      `SELECT m.*,
+              u.email                                        AS sender_email,
+              COALESCE(u.full_name, u.name, s.name, u.email) AS sender_name,
+              u.profile_image_url                            AS sender_avatar
+       FROM messages m
+       LEFT JOIN users u ON m.sender_id = u.id
+       LEFT JOIN staff s ON s.user_id = u.id
+       WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
+         AND m.created_at > $2::timestamptz
+       ORDER BY m.created_at ASC`,
+      [conversationId, since]
+    );
+    return result.rows;
+  }
+
   const result = await query(
     `SELECT m.*,
             u.email                                                    AS sender_email,

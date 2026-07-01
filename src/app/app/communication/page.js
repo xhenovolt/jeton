@@ -163,7 +163,8 @@ export default function CommunicationPage() {
             onSendMessage={handleSendMessage}
             onLoadMore={() => {}}
             onStartCall={handleStartCall}
-            typingUsers={[]}
+            typingUsers={chat.typingUsers}
+            onInputChange={chat.notifyTyping}
           />
         </div>
 

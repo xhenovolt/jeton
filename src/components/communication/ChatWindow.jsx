@@ -214,6 +214,7 @@ export function ChatWindow({
   onLoadMore,
   hasMore = false,
   typingUsers = [],
+  onInputChange,
   onStartCall,
 }) {
   const messagesEndRef = useRef(null);
@@ -499,7 +500,7 @@ export function ChatWindow({
 
               <textarea
                 value={text}
-                onChange={(e) => { setText(e.target.value); setShowEmoji(false); }}
+                onChange={(e) => { setText(e.target.value); setShowEmoji(false); onInputChange?.(); }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2 bg-muted text-foreground rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-primary resize-none max-h-24 text-sm"

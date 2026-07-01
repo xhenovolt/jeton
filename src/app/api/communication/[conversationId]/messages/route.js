@@ -26,7 +26,10 @@ export async function GET(req, { params }) {
     const url = new URL(req.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit')) || 30, 100);
     const offset = parseInt(url.searchParams.get('offset')) || 0;
-    
+    // Polling watermark: return only messages created strictly after this
+    // ISO timestamp. When set, limit/offset are ignored.
+    const since = url.searchParams.get('since');
+
     // Verify user is participant
     const isParticipantRes = await isParticipant(conversationId, userId);
     if (!isParticipantRes) {
@@ -35,14 +38,15 @@ export async function GET(req, { params }) {
         { status: 403 }
       );
     }
-    
-    const messages = await getConversationMessages(conversationId, userId, limit, offset);
-    
+
+    const messages = await getConversationMessages(conversationId, userId, limit, offset, since);
+
     return NextResponse.json({
       success: true,
       data: messages,
       count: messages.length,
-      hasMore: messages.length === limit,
+      hasMore: !since && messages.length === limit,
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error fetching messages:', error);
