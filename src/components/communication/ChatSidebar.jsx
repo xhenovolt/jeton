@@ -30,7 +30,8 @@ export function ChatSidebar({
   useEffect(() => {
     let filtered = conversations.filter(
       (conv) =>
-        (conv.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (conv.display_name || conv.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (conv.other_participant_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (conv.last_sender_name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -181,7 +182,7 @@ export function ChatSidebar({
                           <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                         )}
                         <h3 className="font-medium text-foreground text-sm truncate">
-                          {conv.name || conv.last_sender_name || 'Conversation'}
+                          {conv.display_name || conv.name || conv.other_participant_name || conv.last_sender_name || 'Conversation'}
                         </h3>
                         {conv.unread_count > 0 && (
                           <div className="w-2 h-2 bg-destructive rounded-full shrink-0" />

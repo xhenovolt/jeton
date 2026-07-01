@@ -75,23 +75,32 @@ export async function POST(req, { params }) {
     }
     
     const body = await req.json();
-    const {
-      content,
-      messageType = 'text',
-      mediaUrl = null,
-      mediaType = null,
-      mediaSize = null,
-      replyToMessageId = null,
-    } = body;
+    // Accept both camelCase and snake_case — the client (useChat.js) sends
+    // snake_case, older code sent camelCase. Normalize once here.
+    const content = body.content ?? null;
+    const messageType = body.message_type ?? body.messageType ?? 'text';
+    const mediaUrl    = body.media_url    ?? body.mediaUrl    ?? null;
+    const mediaType   = body.media_type   ?? body.mediaType   ?? null;
+    const mediaSize   = body.file_size    ?? body.media_size  ?? body.mediaSize ?? null;
+    const fileName    = body.file_name    ?? body.fileName    ?? null;
+    const replyToMessageId = body.reply_to_message_id ?? body.replyToMessageId ?? null;
     
-    // Validation
-    if (!content && messageType === 'text') {
+    // Validation — text messages need content; media messages need a URL
+    // (the caption is optional). This unblocks image/file sends where the
+    // client historically had to send both, and previously 400'd on either.
+    if (messageType === 'text' && (!content || !content.trim())) {
       return NextResponse.json(
         { success: false, error: 'Message content is required' },
         { status: 400 }
       );
     }
-    
+    if (messageType !== 'text' && !mediaUrl) {
+      return NextResponse.json(
+        { success: false, error: 'media_url is required for non-text messages' },
+        { status: 400 }
+      );
+    }
+
     if (!['text', 'image', 'video', 'audio', 'file'].includes(messageType)) {
       return NextResponse.json(
         { success: false, error: 'Invalid message type' },

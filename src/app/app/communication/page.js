@@ -155,7 +155,7 @@ export default function CommunicationPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <ChatWindow
             conversationId={chat.selectedConvId}
-            conversationName={selectedConv?.name || selectedConv?.last_sender_name}
+            conversationName={selectedConv?.display_name || selectedConv?.name || selectedConv?.other_participant_name || selectedConv?.last_sender_name}
             messages={chat.messages}
             currentUserId={currentUserId}
             isLoading={chat.isLoadingMessages}

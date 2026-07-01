@@ -20,14 +20,23 @@ export async function createMessage({
   replyToMessageId = null,
 }) {
   const result = await query(
-    `INSERT INTO messages (
-      conversation_id, sender_id, content, message_type,
-      media_url, media_type, media_size, reply_to_message_id
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING id, conversation_id, sender_id, content, message_type, created_at`,
+    `WITH inserted AS (
+       INSERT INTO messages (
+         conversation_id, sender_id, content, message_type,
+         media_url, media_type, media_size, reply_to_message_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *
+     )
+     SELECT i.*,
+            COALESCE(u.full_name, u.name, s.name, u.email) AS sender_name,
+            u.email AS sender_email,
+            u.profile_image_url AS sender_avatar
+     FROM inserted i
+     LEFT JOIN users u ON u.id = i.sender_id
+     LEFT JOIN staff s ON s.user_id = u.id`,
     [conversationId, senderId, content, messageType, mediaUrl, mediaType, mediaSize, replyToMessageId]
   );
-  
+
   const message = result.rows[0];
   
   // Update conversation last_message_at
@@ -73,9 +82,12 @@ export async function getConversationMessages(conversationId, userId, limit = 30
   }
   
   const result = await query(
-    `SELECT m.*, u.email, COALESCE(u.full_name, u.name, s.name) as sender_name,
+    `SELECT m.*,
+            u.email                                                    AS sender_email,
+            COALESCE(u.full_name, u.name, s.name, u.email)             AS sender_name,
+            u.profile_image_url                                        AS sender_avatar,
             (SELECT json_agg(json_build_object('user_id', user_id, 'status', status))
-             FROM message_status WHERE message_id = m.id) as status_info
+             FROM message_status WHERE message_id = m.id)              AS status_info
      FROM messages m
      LEFT JOIN users u ON m.sender_id = u.id
      LEFT JOIN staff s ON s.user_id = u.id
@@ -84,7 +96,7 @@ export async function getConversationMessages(conversationId, userId, limit = 30
      LIMIT $2 OFFSET $3`,
     [conversationId, limit, offset]
   );
-  
+
   return result.rows.reverse();
 }
 
@@ -208,10 +220,23 @@ export async function getUserConversations(userId, limit = 50) {
                JOIN message_status ms2 ON ms2.message_id = m2.id AND ms2.user_id = $1 AND ms2.status != 'seen'
                WHERE m2.conversation_id = c.id AND m2.deleted_at IS NULL AND m2.sender_id != $1
               ), 0
-            )::int as unread_count,
-            lm.content as last_message,
-            lm.created_at as last_msg_time,
-            COALESCE(lu.full_name, lu.name, ls.name) as last_sender_name
+            )::int                                             AS unread_count,
+            lm.content                                          AS last_message,
+            lm.created_at                                       AS last_msg_time,
+            COALESCE(lu.full_name, lu.name, ls.name)            AS last_sender_name,
+            -- For direct conversations, expose the OTHER participant so
+            -- the UI has something to render as the chat title/avatar.
+            other.other_user_id,
+            other.other_name                                    AS other_participant_name,
+            other.other_avatar                                  AS other_participant_avatar,
+            CASE
+              WHEN c.type = 'direct' THEN COALESCE(other.other_name, 'Direct chat')
+              ELSE c.name
+            END                                                 AS display_name,
+            CASE
+              WHEN c.type = 'direct' THEN other.other_avatar
+              ELSE NULL
+            END                                                 AS display_avatar
      FROM conversations c
      INNER JOIN conversation_participants cp ON c.id = cp.conversation_id
      LEFT JOIN LATERAL (
@@ -220,14 +245,26 @@ export async function getUserConversations(userId, limit = 50) {
        ORDER BY created_at DESC LIMIT 1
      ) lm ON TRUE
      LEFT JOIN users lu ON lm.sender_id = lu.id
-     LEFT JOIN staff ls ON ls.user_id = lu.id
+     LEFT JOIN staff  ls ON ls.user_id  = lu.id
+     LEFT JOIN LATERAL (
+       SELECT ou.id                                             AS other_user_id,
+              COALESCE(ou.full_name, ou.name, os.name, ou.email) AS other_name,
+              ou.profile_image_url                               AS other_avatar
+       FROM conversation_participants ocp
+       LEFT JOIN users ou ON ou.id = ocp.user_id
+       LEFT JOIN staff os ON os.user_id = ou.id
+       WHERE ocp.conversation_id = c.id
+         AND ocp.user_id != $1
+         AND ocp.is_active = TRUE
+       LIMIT 1
+     ) other ON c.type = 'direct'
      WHERE cp.user_id = $1 AND cp.is_active = TRUE
            AND c.deleted_at IS NULL
      ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
      LIMIT $2`,
     [userId, limit]
   );
-  
+
   return result.rows;
 }
 
