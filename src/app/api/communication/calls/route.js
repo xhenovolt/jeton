@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/permissions.js';
 import { createCall, isParticipant } from '@/lib/communication-utils.js';
+import { notifyIncomingCall } from '@/lib/communication-notifications.js';
 import { query } from '@/lib/db.js';
 
 /**
@@ -65,6 +66,28 @@ export async function POST(req) {
     }
 
     const call = await createCall({ callType, conversationId, callerId: userId });
+
+    // Fanout: notify every OTHER participant that a call is incoming.
+    // Non-blocking — the caller shouldn't wait for the notification insert.
+    query(
+      `SELECT cp.user_id,
+              COALESCE(us.full_name, us.name, ss.name, us.email) AS caller_name
+       FROM conversation_participants cp
+       CROSS JOIN LATERAL (SELECT * FROM users WHERE id = $2) us
+       LEFT JOIN staff ss ON ss.user_id = us.id
+       WHERE cp.conversation_id = $1 AND cp.user_id != $2 AND cp.is_active = TRUE`,
+      [conversationId, userId]
+    ).then(async res => {
+      const callerName = res.rows[0]?.caller_name || 'Someone';
+      for (const row of res.rows) {
+        await notifyIncomingCall({
+          callerUserId: userId,
+          callerName,
+          recipientUserId: row.user_id,
+          callType,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
 
     // Drop a system message into the thread so the conversation records the
     // call event even if the caller never picks it up.

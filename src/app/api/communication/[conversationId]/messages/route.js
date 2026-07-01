@@ -160,17 +160,25 @@ export async function POST(req, { params }) {
       replyToMessageId,
     });
     
-    // Notify other participants (async, non-blocking)
+    // Notify other participants (async, non-blocking).
+    // sender_name comes from the message row via a small extra lookup so
+    // notifications don't show "undefined shared a file" when u.name is
+    // NULL (which is common — users.name isn't populated for everyone).
     query(
-      `SELECT cp.user_id, u.name as sender_name FROM conversation_participants cp
-       JOIN users u ON u.id = $2
-       WHERE cp.conversation_id = $1 AND cp.user_id != $2`,
+      `SELECT cp.user_id,
+              COALESCE(us.full_name, us.name, ss.name, us.email) AS sender_name
+       FROM conversation_participants cp
+       CROSS JOIN LATERAL (SELECT * FROM users WHERE id = $2) us
+       LEFT JOIN staff ss ON ss.user_id = us.id
+       WHERE cp.conversation_id = $1
+         AND cp.user_id != $2
+         AND cp.is_active = TRUE`,
       [conversationId, userId]
     ).then(res => {
       const senderName = res.rows[0]?.sender_name || 'Someone';
       for (const row of res.rows) {
         if (messageType !== 'text') {
-          notifyFileShared({ senderUserId: userId, senderName, recipientUserId: row.user_id, conversationId, fileName: content || mediaType });
+          notifyFileShared({ senderUserId: userId, senderName, recipientUserId: row.user_id, conversationId, fileName: fileName || content || mediaType });
         } else {
           notifyNewMessage({ senderUserId: userId, senderName, recipientUserId: row.user_id, conversationId, messagePreview: content });
         }
