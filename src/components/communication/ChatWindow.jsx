@@ -352,11 +352,24 @@ export function ChatWindow({
         <div className="flex items-center gap-1">
           {onStartCall && (
             <>
-              <button onClick={() => onStartCall('audio')} className="p-2 hover:bg-muted rounded-lg transition text-muted-foreground hover:text-foreground cursor-pointer" title="Voice call">
+              {/* Audio/video buttons intentionally show 'Coming soon' — the
+                  call ledger works but WebRTC streaming needs signaling
+                  + TURN infra that isn't wired up yet. See handleStartCall. */}
+              <button
+                onClick={() => onStartCall('audio')}
+                className="relative p-2 rounded-lg transition text-muted-foreground/60 hover:text-muted-foreground cursor-pointer"
+                title="Voice call — coming soon"
+              >
                 <Phone className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 text-[8px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">soon</span>
               </button>
-              <button onClick={() => onStartCall('video')} className="p-2 hover:bg-muted rounded-lg transition text-muted-foreground hover:text-foreground cursor-pointer" title="Video call">
+              <button
+                onClick={() => onStartCall('video')}
+                className="relative p-2 rounded-lg transition text-muted-foreground/60 hover:text-muted-foreground cursor-pointer"
+                title="Video call — coming soon"
+              >
                 <VideoIcon className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 text-[8px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">soon</span>
               </button>
             </>
           )}
