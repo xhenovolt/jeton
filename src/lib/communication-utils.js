@@ -123,6 +123,26 @@ export async function getConversationMessages(conversationId, userId, limit = 30
 }
 
 export async function updateMessageStatus(messageId, userId, status) {
+  // Defense-in-depth: participant check before touching the row. The
+  // caller may not have a message_status row (they might not be a
+  // participant at all), in which case the UPDATE would be a silent
+  // no-op — safe, but this makes the intent explicit and lets the
+  // handler return 403 rather than a phantom success.
+  const guard = await query(
+    `SELECT 1
+     FROM messages m
+     JOIN conversation_participants cp
+       ON cp.conversation_id = m.conversation_id
+      AND cp.user_id = $2
+      AND cp.is_active = TRUE
+     WHERE m.id = $1
+     LIMIT 1`,
+    [messageId, userId]
+  );
+  if (guard.rows.length === 0) {
+    throw new Error('User is not a participant in this conversation');
+  }
+
   const result = await query(
     `UPDATE message_status SET status = $1, updated_at = NOW()
      WHERE message_id = $2 AND user_id = $3

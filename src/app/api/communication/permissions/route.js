@@ -13,8 +13,8 @@ import { query } from '@/lib/db.js';
  */
 export async function GET(req) {
   try {
-    const auth = await requirePermission(req, 'communication.view_conversations');
-    if (auth.status === 403) return auth;
+    const perm = await requirePermission(req, 'communication.view_conversations');
+    if (perm instanceof NextResponse) return perm;
     
     const permissions = await getMediaPermissions();
     
@@ -37,9 +37,10 @@ export async function GET(req) {
  */
 export async function PUT(req) {
   try {
-    const auth = await requirePermission(req, 'communication.manage_media_permissions');
-    if (auth.status === 403) return auth;
-    
+    const perm = await requirePermission(req, 'communication.manage_media_permissions');
+    if (perm instanceof NextResponse) return perm;
+
+    const { auth } = perm;
     const { userId } = auth;
     const body = await req.json();
     const { fileType, allowed, maxSizeMb } = body;
