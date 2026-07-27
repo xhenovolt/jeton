@@ -23,7 +23,13 @@
 
 export function filterMenuByPermissions(menuItems, ctx) {
   const { user, permLoading, hierarchyLevel, hasPermission, hasModuleAccess } = ctx;
-  if (permLoading || !user) return [];
+  // Still loading with no cached user: return null so the caller can
+  // render a proper skeleton instead of a collapsed sidebar. Returning
+  // [] here was the historical bug — it made the sidebar look empty for
+  // the entire duration of the /api/auth/me fetch (up to 30s on Neon
+  // cold starts).
+  if (permLoading && !user) return null;
+  if (!user) return [];
   if (user.is_superadmin) return menuItems;
 
   return menuItems.reduce((acc, item) => {

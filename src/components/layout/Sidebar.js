@@ -132,6 +132,9 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
+      // Flush the client-side permission cache so the next login can't
+      // hydrate as the previous user for a split second.
+      try { localStorage.removeItem('jeton.auth.v1'); } catch { /* ignore */ }
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (response.ok) window.location.href = '/login';
     } catch (error) {
@@ -172,8 +175,27 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-thin">
+        {/* Skeleton state: only shows on a true first visit (no cache).
+            Returning users hydrate synchronously from localStorage and
+            skip this branch entirely. See PermissionProvider. */}
+        {displayMenuItems === null && (
+          <div className="space-y-2 px-1" aria-hidden="true">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                style={{ background: 'var(--sidebar-hover)', opacity: 0.35 }}
+              >
+                <div className="w-5 h-5 rounded" style={{ background: 'var(--sidebar-muted)' }} />
+                {!isCollapsed && (
+                  <div className="h-3 flex-1 rounded" style={{ background: 'var(--sidebar-muted)' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <AnimatePresence>
-          {displayMenuItems.map((item) => {
+          {(displayMenuItems || []).map((item) => {
             const Icon = item.icon;
             const hasSubmenu = item.submenu && item.submenu.length > 0;
             const isExpanded = expandedSections[item.label];
@@ -399,7 +421,37 @@ export default function Sidebar() {
             )}
           </button>
         </Tooltip>
+
+        {/* Version badge — reads /api/version once on mount */}
+        <VersionBadge collapsed={isCollapsed} />
       </div>
     </motion.aside>
+  );
+}
+
+/** Small footer badge showing the running Jeton version. */
+function VersionBadge({ collapsed }) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    fetch('/api/version')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setInfo(j))
+      .catch(() => {});
+  }, []);
+  if (!info) return null;
+  const label = collapsed ? `v${info.version}` : `Jeton v${info.version}`;
+  const detail = `${info.branch} · ${info.commit} · ${info.env}`;
+  return (
+    <Tooltip label={detail}>
+      <Link
+        href="/app/about"
+        className="mt-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wide"
+        style={{ color: 'var(--sidebar-muted)', opacity: 0.55 }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.55')}
+      >
+        {label}
+      </Link>
+    </Tooltip>
   );
 }

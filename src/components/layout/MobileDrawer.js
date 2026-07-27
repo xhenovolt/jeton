@@ -27,9 +27,14 @@ export function MobileDrawer({ isOpen, onClose, user }) {
   const closeButtonRef = useRef(null);
   const { user: permUser, hasPermission, hasModuleAccess, hierarchyLevel, loading: permLoading } = usePermissions();
   const navMenuItems = useMemo(
+    // filterMenuByPermissions returns null while permissions are loading
+    // WITHOUT a cache (see nav-permissions.js). Coerce to [] for the
+    // mobile drawer — the desktop sidebar has a skeleton, but the mobile
+    // drawer is only open when the user tapped it, so a brief blank is
+    // acceptable rather than a busy skeleton on a small screen.
     () => filterMenuByPermissions(configMenuItems, {
       user: permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess,
-    }),
+    }) || [],
     [permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess]
   );
   const [expandedSections, setExpandedSections] = useState({
