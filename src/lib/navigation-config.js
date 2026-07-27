@@ -326,6 +326,7 @@ export const menuItems = [
       { label: 'Appearance', href: '/app/settings/appearance', icon: Palette, description: 'Colors, gradients, glass' },
       { label: 'Typography', href: '/app/settings/typography', icon: Type, description: 'Font family, size & weight' },
       { label: 'Active Sessions', href: '/app/settings/sessions', icon: Shield, description: 'Manage logged-in devices' },
+      { label: 'Invoice Themes',  href: '/app/settings/invoice-themes', description: 'Colors, fonts, layout for invoices', permission: 'invoices.manage_themes' },
     ],
   },
 ];
