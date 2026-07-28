@@ -24,8 +24,16 @@
  * session cookie name so it never leaks across accounts.
  */
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
+// Isomorphic layout effect. useLayoutEffect on the client runs after
+// commit but BEFORE the browser paints — exactly what we need to swap
+// the initial loading state for the cached user before the empty
+// sidebar ever hits the screen. On the server it degrades to a no-op
+// to avoid React's "useLayoutEffect on the server" warning.
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 const CACHE_KEY     = 'jeton.auth.v1';
 const CACHE_TTL_MS  = 12 * 60 * 60 * 1000;
@@ -80,28 +88,34 @@ const PermissionContext = createContext({
 });
 
 export function PermissionProvider({ children }) {
-  const [state, setState] = useState(() => {
-    const cached = readCache();
-    if (cached) {
-      return {
-        user: cached.user,
-        permissions: cached.user.permissions || [],
-        hierarchyLevel: cached.user.hierarchy_level ?? 5,
-        pendingApprovals: cached.user.pending_approvals ?? 0,
-        // Not loading — the sidebar can render immediately.
-        loading: false,
-        hydratedFromCache: true,
-      };
-    }
-    return {
-      user: null,
-      permissions: [],
-      hierarchyLevel: 5,
-      pendingApprovals: 0,
-      loading: true,
-      hydratedFromCache: false,
-    };
+  // Default state matches on both server and client to satisfy React's
+  // hydration invariant. The useLayoutEffect below then replaces it
+  // with the cached user before the browser paints, so the "empty"
+  // state is never visible even though it exists briefly in the tree.
+  const [state, setState] = useState({
+    user: null,
+    permissions: [],
+    hierarchyLevel: 5,
+    pendingApprovals: 0,
+    loading: true,
+    hydratedFromCache: false,
   });
+
+  // Cache hydration runs after commit but before paint on the client.
+  // If a cached user exists, swap it in synchronously and mark loading
+  // false — the sidebar's first painted frame will show the real menu.
+  useIsomorphicLayoutEffect(() => {
+    const cached = readCache();
+    if (!cached) return;
+    setState({
+      user: cached.user,
+      permissions: cached.user.permissions || [],
+      hierarchyLevel: cached.user.hierarchy_level ?? 5,
+      pendingApprovals: cached.user.pending_approvals ?? 0,
+      loading: false,
+      hydratedFromCache: true,
+    });
+  }, []);
 
   const loadPermissions = useCallback(async () => {
     try {
