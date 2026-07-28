@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+
+// (Dynamic rendering is inherited from src/app/app/layout.js.)
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Save, Trash2, Star, StarOff, RefreshCw } from 'lucide-react';

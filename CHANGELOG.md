@@ -12,6 +12,8 @@ Bump rules (used by `scripts/version.js`):
 - **PATCH** — bug fix, polish, copy change, additive idempotent migration,
   "coming soon" states, small UX improvements.
 
+## 1.1.1 — 2026-07-28 — fix build: force-dynamic on new authenticated pages
+
 ## 1.1.0 — 2026-07-27 — invoice theme editor UI with live preview
 
 ## 1.0.1 — 2026-07-27 — fix sidebar first-load flash + introduce versioning system

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
+// (Dynamic rendering is inherited from src/app/app/layout.js — every
+// /app/* route is dynamic because the layout reads the session cookie.)
+
 /**
  * /app/about — About Jeton
  *

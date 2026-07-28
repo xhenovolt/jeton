@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+
+// (Dynamic rendering is inherited from src/app/app/layout.js.)
 import Link from 'next/link';
 import {
   AlertTriangle, Clock, Flame, Snowflake, Skull, Phone, CalendarX,
