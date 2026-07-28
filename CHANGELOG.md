@@ -12,6 +12,8 @@ Bump rules (used by `scripts/version.js`):
 - **PATCH** — bug fix, polish, copy change, additive idempotent migration,
   "coming soon" states, small UX improvements.
 
+## 1.1.3 — 2026-07-28 — Navbar crashed on null menu — coerce filter result
+
 ## 1.1.2 — 2026-07-28 — sidebar hydrates cached user before paint (useLayoutEffect)
 
 ## 1.1.1 — 2026-07-28 — fix build: force-dynamic on new authenticated pages

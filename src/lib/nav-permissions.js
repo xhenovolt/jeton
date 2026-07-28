@@ -21,13 +21,21 @@
  *   - `minHierarchy` is enforced on both parent and sub-items.
  */
 
+/**
+ * Contract:
+ *   - Returns null ONLY when we're actively loading AND have no user
+ *     yet — the caller should render a skeleton, not iterate the value.
+ *   - Returns [] when the user is authenticated but denied every item.
+ *   - Returns the filtered array otherwise.
+ *
+ * Every consumer must handle the null case (coerce with `|| []` at
+ * minimum, or branch on `=== null` for a skeleton). Iterating null
+ * with for-of / spread will throw "Symbol.iterator, X is null" and
+ * crash the layout tree — Sidebar, Navbar, and MobileDrawer all
+ * import this and must stay in sync.
+ */
 export function filterMenuByPermissions(menuItems, ctx) {
   const { user, permLoading, hierarchyLevel, hasPermission, hasModuleAccess } = ctx;
-  // Still loading with no cached user: return null so the caller can
-  // render a proper skeleton instead of a collapsed sidebar. Returning
-  // [] here was the historical bug — it made the sidebar look empty for
-  // the entire duration of the /api/auth/me fetch (up to 30s on Neon
-  // cold starts).
   if (permLoading && !user) return null;
   if (!user) return [];
   if (user.is_superadmin) return menuItems;

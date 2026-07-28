@@ -59,9 +59,12 @@ export function Navbar() {
   // sidebar so we don't leak links the user can't reach.
   const { user: permUser, hasPermission, hasModuleAccess, hierarchyLevel, loading: permLoading } = usePermissions();
   const permittedMenu = useMemo(
+    // filterMenuByPermissions returns null while permissions are still
+    // loading with no cache — coerce to [] here so downstream iteration
+    // never spreads/for-ofs a null and crashes the whole app tree.
     () => filterMenuByPermissions(configMenuItems, {
       user: permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess,
-    }),
+    }) || [],
     [permUser, permLoading, hierarchyLevel, hasPermission, hasModuleAccess]
   );
   // Flatten to { label, href, description } for fuzzy contains-matching.
