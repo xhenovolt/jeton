@@ -100,6 +100,10 @@ export default function DealDetailPage() {
       terms: deal.terms || '',
     });
     setEditError('');
+    // The edit form lives in the Details tab, but the page opens on Payments.
+    // Without this, the header Edit button flips `editing` on while the form
+    // stays unmounted — the user clicks and nothing appears.
+    setTab('details');
     setEditing(true);
   };
 

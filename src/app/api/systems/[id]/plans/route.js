@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
-    const { id } = params;
+    const { id } = await params;
     const result = await query(
       `SELECT * FROM system_pricing_plans WHERE system_id = $1 ORDER BY sort_order ASC, created_at ASC`,
       [id]
@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { name, description, installation_fee, monthly_fee, annual_fee, currency, billing_cycle, features, max_users, is_active, sort_order } = body;
 

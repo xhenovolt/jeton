@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor, Code, Package, Trash2 } from 'lucide-react';
+import { Plus, ArrowLeft, AlertCircle, Zap, Briefcase, Key, CheckCircle, Clock, AlertTriangle, Activity, DollarSign, Monitor, Code, Package, Trash2, Pencil, X } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
@@ -60,6 +60,8 @@ export default function SystemDetailPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showOpForm, setShowOpForm] = useState(false);
   const [showPlanForm, setShowPlanForm] = useState(false);
+  // null while creating; holds the plan id while editing an existing plan.
+  const [editingPlanId, setEditingPlanId] = useState(null);
   const [showTechModal, setShowTechModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -164,16 +166,80 @@ export default function SystemDetailPage() {
         max_users: planForm.max_users ? parseInt(planForm.max_users) : null,
         features,
       };
-      const res = await fetchWithAuth(`/api/systems/${id}/plans`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetchWithAuth(
+        editingPlanId ? `/api/systems/${id}/plans/${editingPlanId}` : `/api/systems/${id}/plans`,
+        {
+          method: editingPlanId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
       const json = await res.json();
       if (json.success) {
-        setPlans(prev => [...prev, json.data]);
-        setPlanForm({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
-        setShowPlanForm(false);
+        setPlans(prev => editingPlanId
+          ? prev.map(p => (p.id === editingPlanId ? json.data : p))
+          : [...prev, json.data]);
+        toast.success(editingPlanId ? 'Plan updated' : 'Plan created');
+        resetPlanForm();
       } else {
-        toast.error(json.error || 'Failed to create plan');
+        toast.error(json.error || `Failed to ${editingPlanId ? 'update' : 'create'} plan`);
       }
     } catch (err) { console.error(err); } finally { setSaving(false); }
+  };
+
+  const resetPlanForm = () => {
+    setPlanForm({ name: '', description: '', installation_fee: '', monthly_fee: '', annual_fee: '', currency: 'UGX', billing_cycle: 'monthly', max_users: '', features: '' });
+    setEditingPlanId(null);
+    setShowPlanForm(false);
+  };
+
+  const startEditPlan = (plan) => {
+    setPlanForm({
+      name: plan.name || '',
+      description: plan.description || '',
+      installation_fee: plan.installation_fee ?? '',
+      monthly_fee: plan.monthly_fee ?? '',
+      annual_fee: plan.annual_fee ?? '',
+      currency: plan.currency || 'UGX',
+      billing_cycle: plan.billing_cycle || 'monthly',
+      max_users: plan.max_users ?? '',
+      // features is jsonb (an array) coming back from the API; the form edits it
+      // as one feature per line.
+      features: Array.isArray(plan.features) ? plan.features.join('\n') : '',
+    });
+    setEditingPlanId(plan.id);
+    setShowPlanForm(true);
+  };
+
+  const togglePlanActive = async (plan) => {
+    try {
+      const res = await fetchWithAuth(`/api/systems/${id}/plans/${plan.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !plan.is_active }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setPlans(prev => prev.map(p => (p.id === plan.id ? json.data : p)));
+      } else {
+        toast.error(json.error || 'Failed to update plan');
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const deletePlan = async (plan) => {
+    if (!confirm(`Delete the "${plan.name}" plan? This cannot be undone.`)) return;
+    try {
+      const res = await fetchWithAuth(`/api/systems/${id}/plans/${plan.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setPlans(prev => prev.filter(p => p.id !== plan.id));
+        toast.success('Plan deleted');
+      } else {
+        // A plan attached to deals cannot be deleted — the API says how many.
+        toast.error(json.error || 'Failed to delete plan');
+      }
+    } catch (err) { console.error(err); }
   };
 
   const submitOperation = async (e) => {
@@ -540,6 +606,166 @@ export default function SystemDetailPage() {
                     {l.notes && <p className="text-xs text-muted-foreground mt-0.5">{l.notes}</p>}
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${l.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'} dark:bg-emerald-900/30 dark:text-emerald-300`}>{l.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PLANS TAB ── */}
+      {tab === 'plans' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-foreground">Pricing Plans</h2>
+              <p className="text-sm text-muted-foreground">
+                Define each plan once here. When a deal is created for this system, the plan is picked from this list instead of being typed in by hand.
+              </p>
+            </div>
+            {!showPlanForm && (
+              <button onClick={() => { setEditingPlanId(null); setShowPlanForm(true); }}
+                className="flex items-center gap-1 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition shrink-0">
+                <Plus className="w-3.5 h-3.5" /> Add Plan
+              </button>
+            )}
+          </div>
+
+          {showPlanForm && (
+            <form onSubmit={submitPlan} className="bg-card rounded-xl border border-border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-foreground">{editingPlanId ? 'Edit Plan' : 'New Plan'}</h3>
+                <button type="button" onClick={resetPlanForm} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-muted-foreground">Plan Name *</label>
+                  <input required value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Professional"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-muted-foreground">Description</label>
+                  <textarea rows={2} value={planForm.description} onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="What this plan includes"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Currency</label>
+                  <select value={planForm.currency} onChange={e => setPlanForm(f => ({ ...f, currency: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    {['UGX', 'USD', 'KES', 'EUR', 'GBP'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Billing Cycle</label>
+                  <select value={planForm.billing_cycle} onChange={e => setPlanForm(f => ({ ...f, billing_cycle: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    {['monthly', 'annually', 'one_time'].map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Installation Fee</label>
+                  <input type="number" step="any" min="0" value={planForm.installation_fee}
+                    onChange={e => setPlanForm(f => ({ ...f, installation_fee: e.target.value }))}
+                    placeholder="0" className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Max Users</label>
+                  <input type="number" min="1" value={planForm.max_users}
+                    onChange={e => setPlanForm(f => ({ ...f, max_users: e.target.value }))}
+                    placeholder="Unlimited" className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Monthly Fee</label>
+                  <input type="number" step="any" min="0" value={planForm.monthly_fee}
+                    onChange={e => setPlanForm(f => ({ ...f, monthly_fee: e.target.value }))}
+                    placeholder="0" className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Annual Fee</label>
+                  <input type="number" step="any" min="0" value={planForm.annual_fee}
+                    onChange={e => setPlanForm(f => ({ ...f, annual_fee: e.target.value }))}
+                    placeholder="Leave blank if not offered" className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-muted-foreground">Features (one per line)</label>
+                  <textarea rows={4} value={planForm.features} onChange={e => setPlanForm(f => ({ ...f, features: e.target.value }))}
+                    placeholder={'Unlimited students\nSMS notifications\nPriority support'}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button type="submit" disabled={saving}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
+                  {saving ? 'Saving...' : editingPlanId ? 'Save Changes' : 'Create Plan'}
+                </button>
+                <button type="button" onClick={resetPlanForm}
+                  className="px-4 py-2 rounded-lg text-sm border border-border hover:bg-muted transition">Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {plansLoading ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">Loading...</div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              No plans defined yet. Add one so deals can attach to it instead of using a typed-in name.
+            </div>
+          ) : (
+            <div className="bg-card rounded-xl border border-border divide-y divide-border">
+              {plans.map(plan => (
+                <div key={plan.id} className="p-4 flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <DollarSign className="w-4 h-4 text-blue-600 shrink-0" />
+                      <p className="font-medium text-foreground">{plan.name}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.is_active
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        : 'bg-muted text-muted-foreground'}`}>
+                        {plan.is_active ? 'active' : 'inactive'}
+                      </span>
+                      <span className="text-xs text-muted-foreground capitalize">{(plan.billing_cycle || '').replace('_', ' ')}</span>
+                    </div>
+                    {plan.description && <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>}
+                    <div className="flex items-center gap-4 text-sm flex-wrap">
+                      {plan.monthly_fee != null && Number(plan.monthly_fee) > 0 && (
+                        <span className="text-foreground">{plan.currency} {Number(plan.monthly_fee).toLocaleString()}<span className="text-muted-foreground">/mo</span></span>
+                      )}
+                      {plan.annual_fee != null && Number(plan.annual_fee) > 0 && (
+                        <span className="text-foreground">{plan.currency} {Number(plan.annual_fee).toLocaleString()}<span className="text-muted-foreground">/yr</span></span>
+                      )}
+                      {plan.installation_fee != null && Number(plan.installation_fee) > 0 && (
+                        <span className="text-muted-foreground">+{plan.currency} {Number(plan.installation_fee).toLocaleString()} install</span>
+                      )}
+                      {plan.max_users && <span className="text-muted-foreground">up to {plan.max_users} users</span>}
+                    </div>
+                    {Array.isArray(plan.features) && plan.features.length > 0 && (
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {plan.features.map((f, i) => (
+                          <li key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{f}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => togglePlanActive(plan)} title={plan.is_active ? 'Deactivate' : 'Activate'}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => startEditPlan(plan)} title="Edit plan"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => deletePlan(plan)} title="Delete plan"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-muted">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

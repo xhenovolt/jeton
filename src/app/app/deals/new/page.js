@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Save, Monitor, Layers, Users, Plus, CreditCard, DollarSign, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
@@ -61,21 +62,37 @@ export default function NewDealPage() {
     } else { setPlans([]); setForm(f => ({ ...f, plan_id: '' })); }
   }, [form.system_id]);
 
+  // Retired plans stay in the catalogue for existing deals but must not be
+  // offered on new ones.
+  const activePlans = plans.filter(p => p.is_active !== false);
+
   const handlePlanSelect = (planId) => {
     setForm(f => ({ ...f, plan_id: planId }));
-    if (planId) {
-      const plan = plans.find(p => p.id === planId);
-      if (plan) {
-        const price = parseFloat(plan.annual_fee || 0) || (parseFloat(plan.monthly_fee || 0) * 12) || 0;
-        const install = parseFloat(plan.installation_fee || 0);
-        setForm(f => ({
-          ...f,
-          total_amount: price ? price.toString() : f.total_amount,
-          installation_fee: install ? install.toString() : f.installation_fee,
-          title: f.title || `${systems.find(s => s.id === f.system_id)?.name || 'System'} — ${plan.name}`,
-        }));
-      }
-    }
+    if (!planId) return;
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    // Contract value follows the plan's own billing cycle rather than always
+    // preferring the annual figure — a one-time plan has no recurring fee, and
+    // guessing annual for it produced 0.
+    const monthly = parseFloat(plan.monthly_fee || 0);
+    const annual  = parseFloat(plan.annual_fee || 0);
+    const install = parseFloat(plan.installation_fee || 0);
+    let price;
+    if (plan.billing_cycle === 'one_time')      price = install;
+    else if (plan.billing_cycle === 'annually') price = annual || monthly * 12;
+    else                                        price = monthly * 12 || annual;
+
+    setForm(f => ({
+      ...f,
+      total_amount: price ? price.toString() : f.total_amount,
+      installation_fee: install ? install.toString() : f.installation_fee,
+      currency: plan.currency || f.currency,
+      // Name the deal from the plan itself. This is the whole point of a plan
+      // catalogue: the same plan must not end up spelled five different ways
+      // across deals.
+      title: `${systems.find(s => s.id === f.system_id)?.name || 'System'} — ${plan.name}`,
+    }));
   };
 
   const handleServiceSelect = (serviceId) => {
@@ -208,15 +225,27 @@ export default function NewDealPage() {
                   {systems.map(s => <option key={s.id} value={s.id}>{s.name}{s.version ? ` v${s.version}` : ''}{s.description ? ` — ${s.description}` : ''}</option>)}
                 </select>
               </div>
-              {form.system_id && plans.length > 0 && (
+              {form.system_id && activePlans.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Pricing Plan (optional)</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Pricing Plan</label>
                   <select value={form.plan_id} onChange={e => handlePlanSelect(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground [&>option]:bg-background">
-                    <option value="">Custom pricing</option>
-                    {plans.map(p => <option key={p.id} value={p.id}>{p.name} — {p.monthly_fee ? fmt(p.monthly_fee, p.currency) + '/mo' : ''} {p.annual_fee ? fmt(p.annual_fee, p.currency) + '/yr' : ''}</option>)}
+                    <option value="">Custom pricing (one-off)</option>
+                    {activePlans.map(p => <option key={p.id} value={p.id}>{p.name} — {p.monthly_fee ? fmt(p.monthly_fee, p.currency) + '/mo' : ''} {p.annual_fee ? fmt(p.annual_fee, p.currency) + '/yr' : ''}</option>)}
                   </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Picking a plan fills in the title and amount so the same plan is named consistently across deals.
+                  </p>
                 </div>
+              )}
+              {form.system_id && activePlans.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  This system has no pricing plans yet, so this deal will use custom pricing.{' '}
+                  <Link href={`/app/systems/${form.system_id}`} className="text-blue-600 hover:underline">
+                    Define its plans
+                  </Link>{' '}
+                  to reuse them on future deals.
+                </p>
               )}
               {form.system_id && <p className="text-xs text-blue-600 dark:text-blue-400">A license will be auto-issued when this deal is completed</p>}
             </div>
