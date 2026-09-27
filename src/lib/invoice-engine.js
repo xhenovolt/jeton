@@ -49,7 +49,19 @@ export async function createInvoiceForPayment({ payment, deal, userId }) {
     const dealTotal = parseFloat(deal.total_amount || 0);
     const remaining = Math.max(0, dealTotal - paidAfter);
 
-    // Get client info
+    // Get client info.
+    //
+    // `deal.company_name` only exists when the caller joined clients (the
+    // /api/payments path does). The /api/deals path passes the raw deals row,
+    // where company_name is absent and client_name is usually NULL because the
+    // client is referenced by id — so for that path the lookup below is the
+    // only thing standing between the invoice and "Unknown Client".
+    //
+    // That lookup used to select a column named `address`, which does not
+    // exist on clients (it is `billing_address`), and the resulting error was
+    // swallowed by a bare `catch {}`. Every invoice created from the deals path
+    // was stamped "Unknown Client", and no invoice ever captured the client's
+    // email, phone or address.
     let clientName = deal.company_name || deal.client_name || 'Unknown Client';
     let clientEmail = '';
     let clientPhone = '';
@@ -59,16 +71,27 @@ export async function createInvoiceForPayment({ payment, deal, userId }) {
     if (clientId) {
       try {
         const clientResult = await query(
-          `SELECT company_name, email, phone, address FROM clients WHERE id = $1`, [clientId]
+          `SELECT company_name, email, phone, billing_address FROM clients WHERE id = $1`, [clientId]
         );
         if (clientResult.rows[0]) {
           const c = clientResult.rows[0];
           clientName = c.company_name || clientName;
           clientEmail = c.email || '';
           clientPhone = c.phone || '';
-          clientAddress = c.address || '';
+          clientAddress = c.billing_address || '';
         }
-      } catch {}
+      } catch (err) {
+        // Do not swallow this. An invoice naming the wrong client is worse
+        // than a noisy log, and silence is what let this run for 25 invoices.
+        console.error(
+          `[invoice-engine] client lookup failed for client_id=${clientId}:`, err.message);
+      }
+    }
+
+    if (clientName === 'Unknown Client') {
+      console.warn(
+        `[invoice-engine] invoice ${invoiceNumber} is being issued without a resolved client ` +
+        `(deal_id=${deal.id}, client_id=${clientId ?? 'none'}).`);
     }
 
     // Get user info for issued_by

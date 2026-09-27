@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db.js';
+import { query, withTransaction } from '@/lib/db.js';
+import { getBoolSetting } from '@/lib/settings.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { requirePermission } from '@/lib/permissions.js';
 import { Events } from '@/lib/events.js';
@@ -105,21 +106,118 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE /api/deals/[id]
+//
+// Whether a deal carrying money may be deleted is an admin policy, held in
+// system_settings as `deals_allow_delete_with_payments`:
+//
+//   off (default) — refuse, so recorded revenue always traces back to a deal.
+//   on            — delete, but take the whole money trail with it in one
+//                   transaction (ledger entries, invoices, licenses, payments)
+//                   so no orphan revenue is left inflating account balances.
+//
+// The old code deleted payments while leaving their ledger entries behind and
+// let invoices fall to ON DELETE SET NULL, which produced exactly the two
+// failure modes this policy exists to prevent: invoices belonging to no deal,
+// and ledger revenue for payments that no longer exist.
 export async function DELETE(request, { params }) {
   try {
     const perm = await requirePermission(request, 'deals', 'delete');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;
-    const payments = await query(`SELECT COUNT(*) FROM payments WHERE deal_id = $1 AND status = 'completed'`, [id]);
-    if (parseInt(payments.rows[0].count) > 0) {
-      return NextResponse.json({ success: false, error: 'Cannot delete deal with completed payments' }, { status: 409 });
+
+    const dealRow = await query(`SELECT id, title FROM deals WHERE id = $1`, [id]);
+    if (!dealRow.rows[0]) {
+      return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
     }
-    await query(`DELETE FROM payments WHERE deal_id = $1`, [id]);
-    const result = await query(`DELETE FROM deals WHERE id = $1 RETURNING id, title`, [id]);
-    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Deal not found' }, { status: 404 });
-    return NextResponse.json({ success: true, message: 'Deal deleted' });
+    const dealTitle = dealRow.rows[0].title;
+
+    // What is actually attached to this deal?
+    const attached = await query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM payments WHERE deal_id = $1) AS payments,
+         (SELECT COUNT(*)::int FROM payments WHERE deal_id = $1 AND status = 'completed') AS completed_payments,
+         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE deal_id = $1 AND status = 'completed') AS completed_total,
+         (SELECT COUNT(*)::int FROM invoices WHERE deal_id = $1) AS invoices,
+         (SELECT COUNT(*)::int FROM licenses WHERE deal_id = $1) AS licenses,
+         (SELECT COUNT(*)::int FROM ledger
+            WHERE source_type = 'payment'
+              AND source_id IN (SELECT id FROM payments WHERE deal_id = $1)) AS ledger_entries`,
+      [id]
+    );
+    const counts = attached.rows[0];
+    const hasMoney = counts.payments > 0 || counts.invoices > 0 || counts.ledger_entries > 0;
+
+    const allowDeleteWithPayments = await getBoolSetting('deals_allow_delete_with_payments');
+
+    if (hasMoney && !allowDeleteWithPayments) {
+      return NextResponse.json({
+        success: false,
+        code: 'DEAL_HAS_PAYMENTS',
+        error:
+          `"${dealTitle}" has money recorded against it ` +
+          `(${counts.payments} payment(s), ${counts.invoices} invoice(s)). ` +
+          `Deleting deals with payments is turned off in Settings, so the revenue on record always belongs to a deal.`,
+        attached: counts,
+      }, { status: 409 });
+    }
+
+    // Either there is nothing financial attached, or an admin has explicitly
+    // allowed it. Remove the deal and its money trail atomically.
+    const removed = await withTransaction(async (tx) => {
+      // 1. Ledger has no FK to payments (source_type/source_id only), so its
+      //    rows must go first and by hand, or the revenue outlives the payment.
+      const ledger = await tx(
+        `DELETE FROM ledger
+          WHERE source_type = 'payment'
+            AND source_id IN (SELECT id FROM payments WHERE deal_id = $1)
+        RETURNING id`, [id]);
+
+      // 2. invoices.deal_id is ON DELETE SET NULL, which would leave invoices
+      //    attached to no deal — the "unknown client / unknown deal" case.
+      //    invoice_items cascade from invoices.
+      const invoices = await tx(`DELETE FROM invoices WHERE deal_id = $1 RETURNING id`, [id]);
+
+      // 3. licenses.deal_id is NO ACTION, so it blocks the delete outright.
+      const licenses = await tx(`DELETE FROM licenses WHERE deal_id = $1 RETURNING id`, [id]);
+
+      // 4. payments (allocations cascade from here).
+      const payments = await tx(`DELETE FROM payments WHERE deal_id = $1 RETURNING id`, [id]);
+
+      // 5. finally the deal itself.
+      const deal = await tx(`DELETE FROM deals WHERE id = $1 RETURNING id, title`, [id]);
+      if (!deal.rows[0]) throw new Error('Deal disappeared mid-delete');
+
+      return {
+        ledger_entries: ledger.rowCount,
+        invoices: invoices.rowCount,
+        licenses: licenses.rowCount,
+        payments: payments.rowCount,
+      };
+    });
+
+    // Record what was destroyed — this is the only remaining trace of it.
+    await query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [auth.userId, 'DELETE', 'deal', id,
+       JSON.stringify({
+         title: dealTitle,
+         removed,
+         completed_payment_total: counts.completed_total,
+         policy_allowed_money_delete: allowDeleteWithPayments,
+       })]
+    ).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      message: hasMoney
+        ? `Deal deleted along with ${removed.payments} payment(s), ${removed.invoices} invoice(s) and ${removed.ledger_entries} ledger entr(ies).`
+        : 'Deal deleted',
+      removed,
+    });
   } catch (error) {
+    console.error('[Deals] DELETE error:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete deal' }, { status: 500 });
   }
 }

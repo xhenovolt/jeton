@@ -161,6 +161,40 @@ export function getPool() {
   return pool;
 }
 
+/**
+ * Run several statements on ONE connection inside a transaction.
+ *
+ * `query()` above takes a fresh client from the pool per call, so a sequence
+ * of query() calls is not atomic — a failure halfway leaves the earlier
+ * statements committed. Anything that moves money (deleting a deal along with
+ * its payments, ledger entries and invoices) has to be all-or-nothing, which
+ * is what this is for.
+ *
+ * The callback receives a `tx(text, params)` function bound to the
+ * transaction's client. Returning normally commits; throwing rolls back.
+ */
+export async function withTransaction(fn) {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const tx = (text, params = []) => client.query(text, params);
+    const result = await fn(tx);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      // A failed rollback means the connection is unusable; surface the
+      // original error, not this one.
+      console.error('[db] rollback failed:', rollbackErr.message);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function testConnection() {
   try {
     const r = await query('SELECT 1');
@@ -178,4 +212,4 @@ export async function closePool() {
   }
 }
 
-export default { query, getPool, testConnection, closePool, DatabaseUnavailableError };
+export default { query, withTransaction, getPool, testConnection, closePool, DatabaseUnavailableError };

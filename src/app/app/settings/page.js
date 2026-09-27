@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare, Building2, ShieldCheck } from 'lucide-react';
+import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare, Building2, ShieldCheck, Briefcase } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
 
@@ -39,6 +39,7 @@ export default function SettingsPage() {
         {[
           { href: '/app/settings/company', icon: Building2, label: 'Company Branding', desc: 'Logo, address & contact info' },
           { href: '/app/settings/financial', icon: DollarSign, label: 'Financial', desc: 'Currency & formatting' },
+          { href: '/app/settings/deals', icon: Briefcase, label: 'Deals', desc: 'Deletion policy for deals with payments' },
           { href: '/app/settings/appearance', icon: Palette, label: 'Appearance', desc: 'Theme & colors' },
           { href: '/app/settings/communication', icon: MessageSquare, label: 'Communication', desc: 'Calls, chat & file sharing' },
           { href: '/app/settings/security', icon: ShieldCheck, label: 'Security', desc: 'Biometric login & passkeys' },

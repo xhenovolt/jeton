@@ -162,11 +162,20 @@ export async function POST(request) {
         // like every other money-in path in the system.
         const clientLabel = client_name || 'Client';
         let clientLabelResolved = clientLabel;
+        // Held separately from the ledger label: null means "not resolved",
+        // so the invoice engine can apply its own fallback rather than being
+        // handed the placeholder string 'Client'.
+        let resolvedClientName = client_name || null;
         if (client_id) {
           try {
             const cl = await query(`SELECT company_name FROM clients WHERE id = $1`, [client_id]);
-            if (cl.rows[0]) clientLabelResolved = cl.rows[0].company_name;
-          } catch {}
+            if (cl.rows[0]?.company_name) {
+              clientLabelResolved = cl.rows[0].company_name;
+              resolvedClientName = cl.rows[0].company_name;
+            }
+          } catch (err) {
+            console.error('[Deals] client lookup failed for ledger/invoice label:', err.message);
+          }
         }
         const ledgerResult = await query(
           `INSERT INTO ledger (
@@ -207,7 +216,10 @@ export async function POST(request) {
         // succeeded.
         dealInvoice = await createInvoiceForPayment({
           payment,
-          deal: { ...deal, total_amount },
+          // company_name is what the invoice engine prefers; the deals row has
+          // no such column, so pass the name resolved above. Without it this
+          // path produced invoices stamped "Unknown Client".
+          deal: { ...deal, total_amount, company_name: resolvedClientName },
           userId: auth.userId,
         });
       } catch (payErr) {

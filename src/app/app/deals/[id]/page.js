@@ -136,9 +136,19 @@ export default function DealDetailPage() {
     try {
       const res = await fetchWithAuth(`/api/deals/${id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) { toast.success('Deal deleted'); router.push('/app/deals'); }
-      else setEditError(json.error || 'Cannot delete deal');
-    } catch { setEditError('Failed to delete'); } finally { setDeleting(false); setShowDeleteConfirm(false); }
+      if (json.success) { toast.success(json.message || 'Deal deleted'); router.push('/app/deals'); }
+      else {
+        // The refusal explains what money is attached and that the policy
+        // lives in Settings. It has to be visible from whichever tab the user
+        // is on, so it goes to a toast as well as the Details banner.
+        const msg = json.error || 'Cannot delete deal';
+        setEditError(msg);
+        toast.error(msg, { duration: 8000 });
+      }
+    } catch {
+      setEditError('Failed to delete');
+      toast.error('Failed to delete');
+    } finally { setDeleting(false); setShowDeleteConfirm(false); }
   };
 
   const submitPayment = async (e) => {
