@@ -29,6 +29,8 @@ jobs:
         run: npm run check:dumps
       - name: Every API route guarded, every page permissioned
         run: npm run check:routes
+      - name: Migration naming
+        run: npm run check:migrations
       - name: Lint
         run: npm run lint
       - name: Unit tests

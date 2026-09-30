@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Jeton
 
-## Getting Started
+Founder operating system: systems, deals, payments, licenses, finance, people and intelligence. Built on Next.js 16 (App Router) and PostgreSQL (Neon).
 
-First, run the development server:
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local     # or create it: DATABASE_URL=postgres://…
+node scripts/migrate.mjs up    # apply database migrations
+npm run dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Everyday commands
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run verify` | Everything CI runs except the build: dump check, route checks, lint, unit tests |
+| `npm test` | Vitest unit tests (`tests/`) |
+| `npm run lint` | ESLint (flat config, `eslint.config.mjs`) |
+| `npm run check:routes` | Every API route has an auth guard, and every page resolves to a permission |
+| `npm run check:dumps` | No database dumps are tracked by git |
+| `npm run build` | Production build |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database migrations
 
-## Learn More
+All schema changes go in `migrations/NNN_description.sql` and are applied **only** through `scripts/migrate.mjs`. That script records applied files in the `schema_migrations` table.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+node scripts/migrate.mjs status              # applied vs pending
+node scripts/migrate.mjs up                  # apply pending, in order, one transaction per file
+node scripts/migrate.mjs baseline --to 980   # existing DB: mark files up to 980 as already applied (run once)
+node scripts/migrate.mjs lint                # naming rules; runs without a database
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+New files need a unique prefix above every existing one. Never commit database dumps or backups: `.gitignore` blocks them and CI fails on them.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Conventions
 
-## Deploy on Vercel
+- **API routes** use `withRoute()` from `src/lib/api/route.js`. It takes one of `permission: 'module.action'`, `signedIn`, `superadmin` or `public`, plus an optional zod `body` schema, and responds with `ok(data)` or `fail(status, message)`. A route that is genuinely public must also be allowlisted in `scripts/check-route-auth.mjs`.
+- **Navigation and permissions:** `src/lib/navigation-config.js` is the single source for the sidebar, page permissions (`EXTRA_ROUTE_PERMISSIONS`), open pages (`OPEN_ROUTES`) and in-page section tabs (`getSectionTabs`).
+- **Client requests:** use `api` / `apiRequest` from `src/lib/api-client.js` in new code.
+- **Feedback:** use `useToast()` from `src/components/ui/Toast.js` for messages and `src/lib/confirm.js` for confirmations.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `WEBAUTHN_RP_ID` | Passkey relying-party ID, for example `jeton.example.com`. Recommended in production. |
+| `WEBAUTHN_ORIGIN` | Allowed passkey origin(s), comma-separated. Recommended in production. |
+
+## Documentation
+
+- [`docs/ARCHITECTURE_REVIEW_AND_ROADMAP.md`](docs/ARCHITECTURE_REVIEW_AND_ROADMAP.md): architecture review, the phased improvement plan and its status.
+- `docs/archive/`: historical implementation notes. They may be out of date.

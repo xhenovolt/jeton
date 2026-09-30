@@ -13,7 +13,9 @@
     "test:watch": "vitest",
     "check:routes": "node scripts/check-route-auth.mjs && node scripts/check-route-registry.mjs",
     "check:dumps": "node scripts/check-no-db-dumps.mjs",
-    "verify": "npm run check:dumps && npm run check:routes && npm run lint && npm test"
+    "verify": "npm run check:dumps && npm run check:routes && npm run check:migrations && npm run lint && npm test",
+    "migrate": "node scripts/migrate.mjs",
+    "check:migrations": "node scripts/migrate.mjs lint"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",

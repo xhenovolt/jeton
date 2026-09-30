@@ -2,7 +2,24 @@
 
 _Review date: 2026-09-30 · Scope: the whole repository (Next.js 16 App Router, 129 app pages, 292 API routes, 113 SQL migrations)._
 
-This document lists the architectural flaws found in the codebase and orders the fixes into phases. Phase 0 and Phase 1 are **done on this branch**. Their items are marked ✅. Everything else is a plan.
+This document lists the architectural flaws found in the codebase and orders the fixes into phases. Items marked ✅ are done on branch `claude/tender-goodall-24d74d`.
+
+## Progress
+
+| Phase | Status |
+|---|---|
+| 0 · Security | ✅ Done |
+| 0b · Leaks and dead open routes | ✅ Done, except rewriting git history (see below) |
+| 1 · Reported UX defects | ✅ Done |
+| 2 · Consolidate domains and routes | ✅ Done, except merging `employees` into `staff` (needs a data migration against production) |
+| 3 · One way to do each thing | ✅ Toolkit, conventions and removals done. Migrating existing call sites is incremental (see Phase 3). |
+| 4 · Lint, tests, CI | ✅ Done |
+| 5 · Data layer and repo hygiene | ✅ Runner and cleanup done. Transactions, pagination and moving PDF generation to a worker remain. |
+
+**Still needed from the repository owner:**
+1. **Rewrite git history to purge the removed database dumps.** Deleting the files stops future exposure, but `jeton_db_backup_2026-03-09.sql` and `Backup/jeton_backup_2026-03-08.sql` are still in every clone's history. Run `git filter-repo --path jeton_db_backup_2026-03-09.sql --path Backup/jeton_backup_2026-03-08.sql --invert-paths` and force-push all branches. Then rotate the database password and any secrets or password hashes the dumps contained, and ask collaborators to re-clone.
+2. **Baseline each existing database once:** `node scripts/migrate.mjs baseline --to 980`, then `node scripts/migrate.mjs up`. That applies migration 981 (the knowledge merge).
+3. Set `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` in production.
 
 ---
 
@@ -13,12 +30,12 @@ This document lists the architectural flaws found in the codebase and orders the
 | # | Flaw | Evidence | Status |
 |---|------|----------|--------|
 | A1 | **Admin and user APIs with no authentication at all.** Anyone on the internet could create a user with any role, wipe any user's sessions, read or create salary accounts, run the orphan-cleanup function, or validate/activate licenses. | `api/admin/staff/create-with-account`, `api/auth/sessions/invalidate`, `api/salary-accounts`, `api/admin/data-consistency`, `api/admin/licenses/validate` | ✅ These now require a superadmin (`guardSuperAdmin`) |
-| A2 | **More unauthenticated routes, all unused by the UI.** They are duplicates of routes that are properly guarded. | `api/follow-ups` (vs `api/followups`), `api/operations-log` (vs `api/operations`), `api/systems/[id]/tech-stack` (vs `api/tech-stacks`) | ⚠️ **Still open, needs you.** Deleting them was blocked by a tool permission in this session. Delete them or add `requirePermission`. |
-| A3 | **A production database backup is committed to git.** It holds real user, financial and staff data. | `jeton_db_backup_2026-03-09.sql` (245 KB), `Backup/jeton_backup_2026-03-08.sql` | Planned for Phase 0b. Remove the files, purge them from history, and rotate any secrets or password hashes they contain. |
+| A2 | **More unauthenticated routes, all unused by the UI.** They are duplicates of routes that are properly guarded. | `api/follow-ups` (vs `api/followups`), `api/operations-log` (vs `api/operations`), `api/systems/[id]/tech-stack` (vs `api/tech-stacks`) | ✅ Deleted. `scripts/check-route-auth.mjs` fails CI on any new unguarded route. |
+| A3 | **A production database backup is committed to git.** It holds real user, financial and staff data. | `jeton_db_backup_2026-03-09.sql` (245 KB), `Backup/jeton_backup_2026-03-08.sql` | ✅ Files removed. `.gitignore` blocks dumps and `scripts/check-no-db-dumps.mjs` fails CI on them. ⚠️ History rewrite still needed (see Progress). |
 | A4 | **Anonymous passkey challenges could be taken by another login.** The login flow used whichever unexpired anonymous challenge happened to be in the table, so two logins at once could steal each other's challenge. | `lib/passkeys.js` `consumeChallenge({userId:null})` | ✅ The challenge is now tied to the browser with an httpOnly cookie (`consumeChallengeById`) |
 | A5 | **Route guard opened the whole `/app/dashboard/*` tree to every role.** `/app/dashboard` was an open *prefix*, so every DRAIS control page and the integrations page skipped their permission check. | `components/layout/RoutePermissionGuard.js` | ✅ The dashboard is now an exact-match exception |
 | A6 | **The integrations page lived outside the protected tree.** It sat at `/dashboard/integrations`, which the middleware does not cover, while the sidebar linked to `/app/dashboard/integrations`, which returned 404. | `src/app/dashboard/integrations` | ✅ Moved under `/app`. The old URL redirects. |
-| A7 | **Each route created its own `pg.Pool`.** This bypassed the shared pool's SSL, retry and cold-start handling, and every Pool opened extra connections to Neon. | 9 files contained `new Pool(` | ✅ 6 files moved to the shared pool. The 3 files in A2 are still open. |
+| A7 | **Each route created its own `pg.Pool`.** This bypassed the shared pool's SSL, retry and cold-start handling, and every Pool opened extra connections to Neon. | 9 files contained `new Pool(` | ✅ All route-level pools removed (6 moved to the shared pool, 3 deleted with A2). |
 | A8 | The permission cache (`localStorage['jeton.auth.v1']`) was never cleared on sign-in, and the Navbar and MobileDrawer logouts did not clear it. The next account in the same browser briefly saw the previous user's menu. The code comment claimed the cache was "keyed on the session cookie", which was not true. | `PermissionProvider.js`, `Navbar.js`, `MobileDrawer.js` | ✅ The cache is now cleared on sign-in (`resetPermissions`) and on every logout path |
 
 ### B. Biometric authentication (the reported issue)
@@ -85,17 +102,17 @@ The backend (WebAuthn via `@simplewebauthn`) and a `/app/settings/security` page
 
 Each phase can ship on its own and leaves the app working. Phases 0 and 1 are done on this branch.
 
-### Phase 0: Stop the bleeding (security) ✅ mostly done
+### Phase 0: Stop the bleeding (security) ✅
 - ✅ Superadmin guard on the 5 open admin/user endpoints (A1).
 - ✅ Shared DB pool for those routes plus `auth/me/presence` (A7).
 - ✅ Route-guard prefix bug (A5), integrations moved under `/app` (A6), permission cache cleared on sign-in and sign-out (A8).
 - ✅ Passkey challenges tied to the browser (A4).
 
-**Phase 0b: needs an owner. Do this first.**
-1. Delete `api/follow-ups`, `api/operations-log` and `api/systems/[id]/tech-stack` (A2). None has a caller in the UI.
-2. Remove `jeton_db_backup_2026-03-09.sql` and `Backup/*.sql` from the repo **and from git history** (`git filter-repo`), then rotate DB credentials and force a password reset for affected users (A3).
-3. Add `*.sql` dumps, `Backup/` and `.env*` to `.gitignore`.
-4. Run a one-off check: grep every `route.js` for handlers that lack `requirePermission` / `verifyAuth` / `guardSuperAdmin`, and have CI fail on any new ones (see Phase 4).
+**Phase 0b** ✅
+1. ✅ Deleted `api/follow-ups`, `api/operations-log` and `api/systems/[id]/tech-stack` (A2).
+2. ✅ Removed both data dumps and the two schema-only pg_dump snapshots. ⚠️ Purging them from git history is still owner work (see Progress).
+3. ✅ `.gitignore` blocks dumps, backups and `.env*` (with a `.env.example` exception).
+4. ✅ `scripts/check-route-auth.mjs` and `scripts/check-no-db-dumps.mjs` run in CI.
 
 ### Phase 1: Fix the reported UX defects ✅ done
 - ✅ Dashboard numbers right on the first launch (C).
@@ -105,14 +122,18 @@ Each phase can ship on its own and leaves the app working. Phases 0 and 1 are do
 
 Deploy note: set `WEBAUTHN_RP_ID` (for example `jeton.example.com`) and `WEBAUTHN_ORIGIN` (for example `https://jeton.example.com,https://www.jeton.example.com`) in production. Without them, the request origin is used, which works but is less strict.
 
-### Phase 2: Consolidate domains and routes (about 2–3 weeks)
-1. **People:** keep one `staff` model. Merge `/app/hr` and `/app/hrm` into tabs under `/app/staff` (Directory · Departments · Payroll/Payouts · Accounts). Add a migration that folds `employees` into `staff`, and keep `api/employees` as a thin alias for one release.
-2. **Documents:** one tree, `/app/documents/{library,templates,generated,settings}`. Retire `/app/admin/documents/*` by redirecting it. Keep `/verify/*` as the only public tree.
-3. **Knowledge / tech stack:** migrate `knowledge_articles` → `knowledge_assets` and `tech_stack_entries` → `tech_stacks`, then delete `api/knowledge-base` and `api/tech-stack`.
-4. Delete the redirect-only pages (`/app/assets`, `/app/resources`, `/dashboard`, `/designs`, `/dashboard/integrations`) now that `next.config.mjs` handles them.
-5. **Make the route registry authoritative.** Add a `routeRegistry` (path → permission) that covers *every* page, not just nav items, and generate the sidebar from it. Fail the build if a `page.js` has no registry entry.
+### Phase 2: Consolidate domains and routes ✅
+1. ✅ **People:** one tree under `/app/staff`: Directory · Departments & HRM · Payroll · Org Hierarchy, with shared tabs. `/app/hr` never rendered (it used an undefined `styles` object) and is rebuilt as Payroll. *Remaining:* fold the `employees` table into `staff` with a data migration, once it can be checked against production data.
+2. ✅ **Documents:** `/app/admin/documents/*` is canonical, because it is what the nav and every link use. The unlinked `/app/documents/{templates,generated,settings,verify}` wrappers and their duplicate `components/documents/*` implementations were removed and now redirect. `/app/documents` stays as the uploads library. *Follow-up:* the removed components had bulk/export/search UI that could be ported into the admin pages (recover them from git history before commit 7be295a).
+3. ✅ **Knowledge / tech stack:** migration 981 copies `knowledge_articles` into `knowledge_assets`, and `api/knowledge-base` and `api/tech-stack` are deleted. `tech_stack_entries` (per-system components) is left alone: it isn't a duplicate of `tech_stacks` and has no UI yet.
+4. ✅ Redirect-only pages are replaced by `next.config.mjs` redirects. `/app/sales` is removed: its `/api/sales` never existed.
+5. ✅ **Route registry:** `EXTRA_ROUTE_PERMISSIONS` and `OPEN_ROUTES` in `navigation-config.js`. `scripts/check-route-registry.mjs` fails CI when a page resolves to no permission. This also fixed company-wide settings pages being open to every role, and `PATCH /api/settings/company` accepting `users.view`.
 
-### Phase 3: One way to do each thing (about 3–4 weeks)
+### Phase 3: One way to do each thing ✅ foundations · 🔄 call-site migration
+
+Done: ✅ `withRoute`/`ok`/`fail` (`src/lib/api/route.js`) with zod validation and a standard envelope (adopted by change-password and passkeys; `/api/auth/me` returns the envelope as well). ✅ Every `requirePermission` call uses `'module.action'`. ✅ react-hot-toast screens moved to `ui/Toast`: no Toaster was mounted, so their messages never showed. ✅ react-hot-toast and react-toastify removed. ✅ Six dead libraries deleted. ✅ `api-client` designated as the client for new code.
+
+Remaining, incremental (convert a route or page whenever you touch it):
 1. **Server auth API:** a single `lib/auth/` module exporting `getAuth(request)`, `requirePermission(request, 'module.action')` (one signature), `guardSuperAdmin`, and `getCurrentUser()` for RSC. Delete `rbac.js`, `authorization-engine.js` and the static role matrix in `permissions.js` once call sites are migrated. Have a codemod rewrite the `(req,'a','b')` call sites.
 2. **API envelope:** add `ok(data, init)` / `fail(status, message, code)` helpers and adopt `{ success, data } | { success:false, error, code }` everywhere, `/api/auth/me` included. Move route handlers to a `withRoute({ permission }, handler)` wrapper that also turns `DatabaseUnavailableError` into a 503 and validates input with `zod` (already a dependency).
 3. **Client data layer:** one `apiClient` that returns the envelope (no `.json()` shim), plus one `useApi(key, fetcher, {refreshInterval})` hook with a cache and stale-while-revalidate (SWR or TanStack Query). Delete `api-client.js`, `useFormSubmit` and the ad-hoc fetches.
@@ -120,13 +141,19 @@ Deploy note: set `WEBAUTHN_RP_ID` (for example `jeton.example.com`) and `WEBAUTH
 5. **Aggregates:** a single `lib/metrics/` service that the dashboard, command center, control tower and intelligence overview all read from. Retire the duplicated SQL in 5 routes.
 6. **Events and audit:** one `recordEvent({type, actor, entity, payload})` that writes the audit log and fans out to activity feeds and notifications. Replace `audit.js`, `rbac-audit.js`, `system-logs.js`, `events.js` and `system-events.js`.
 
-### Phase 4: Delivery safety net (runs alongside Phase 2)
+### Phase 4: Delivery safety net ✅
+Done: ESLint (0 errors; it found an unimported `<Link>`, a file that didn't parse, and missing keys), 31 Vitest tests, dump/route/registry/migration guard scripts, and a GitHub Actions workflow (`.github/workflows/ci.yml`). *Remaining:* Playwright smoke tests (login → dashboard, a virtual-authenticator passkey flow), and promoting the React-Compiler lint warnings to errors as code is cleaned up.
+
+Original plan:
 1. `eslint` (next/core-web-vitals and react-hooks) plus `tsc --checkJs` on `lib/`. Use a `jsconfig` with `checkJs` and move gradually to TypeScript.
 2. **Tests:** Vitest unit tests for `lib/permissions`, `lib/passkeys`, `nav-permissions` and the invoice/pricing engines. Playwright smoke tests: login → dashboard shows numbers without a reload; register a passkey with Chromium's virtual authenticator; old intelligence URLs redirect.
 3. **Route-auth lint:** a script that fails CI if any `src/app/api/**/route.js` handler lacks an auth guard, unless it is on an explicit public allowlist (`health`, `version`, `auth/login`, `auth/register`, `passkeys/authenticate*`, `pricing/system/*`, DRAIS webhook).
 4. **GitHub Actions:** install → lint → typecheck → test → `next build` on every PR.
 
-### Phase 5: Data layer and repo hygiene (about 1–2 weeks)
+### Phase 5: Data layer and repo hygiene ✅ runner and cleanup · 🔄 transactions and pagination
+Done: ✅ `scripts/migrate.mjs` (`schema_migrations` table with checksums, `status`/`up`/`baseline`/`lint`). It was tested against PostgreSQL 16, including a failed migration rolling back and baselining legacy files. It replaced the ten untracked runners. ✅ The root is now README + CHANGELOG. 64 status files moved to `docs/archive/root/`, `Documentation/` moved to `docs/archive/Documentation/`, and `Backup/` assets moved to `docs/reference/`. ✅ Shell-typo junk files and one-off scripts removed. ✅ `.env.example` added. *Remaining:* items 3 and 5 below. The unreferenced root `lib/design-system/` templates were kept, since they look like seed content, and can move under `src/`.
+
+Original plan:
 1. Adopt a real migration tool (`node-pg-migrate` or a `schema_migrations` table with a small runner). Renumber the duplicate prefixes, record which migrations have run in each environment, and delete the root `run-migration-*.mjs` scripts.
 2. Delete the committed schema snapshots and generate them in CI when needed.
 3. Wrap every multi-statement write that moves money or identity in `withTransaction`. Add pagination (`limit`/`cursor`) to list endpoints.
