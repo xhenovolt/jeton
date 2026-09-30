@@ -79,7 +79,7 @@ export default function CommandCenterPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Monitor} label="Systems" value={data.systems.total} sublabel={`${data.systems.active_licenses} active licenses`} color="#6366f1" href="/app/systems" />
         <StatCard icon={Shield} label="Pending Approvals" value={data.approvals.pending} color={data.approvals.pending > 0 ? '#f59e0b' : '#10b981'} href="/app/admin/approvals" />
-        <StatCard icon={Bug} label="Open Bugs" value={data.bugs.open} sublabel={data.bugs.critical > 0 ? `${data.bugs.critical} critical!` : 'No critical'} color={data.bugs.critical > 0 ? '#ef4444' : '#3b82f6'} href="/app/tech-intelligence" />
+        <StatCard icon={Bug} label="Open Bugs" value={data.bugs.open} sublabel={data.bugs.critical > 0 ? `${data.bugs.critical} critical!` : 'No critical'} color={data.bugs.critical > 0 ? '#ef4444' : '#3b82f6'} href="/app/intelligence/issues" />
         <StatCard icon={BookMarked} label="Decisions (Month)" value={data.decisions.this_month} color="#8b5cf6" href="/app/decision-log" />
       </div>
 
@@ -145,7 +145,7 @@ export default function CommandCenterPage() {
               <p>• <Link href="/app/admin/approvals" className="underline">{data.approvals.pending} pending approval{data.approvals.pending > 1 ? 's' : ''}</Link> need your review</p>
             )}
             {data.bugs.critical > 0 && (
-              <p>• <Link href="/app/tech-intelligence" className="underline">{data.bugs.critical} critical bug{data.bugs.critical > 1 ? 's' : ''}</Link> require immediate attention</p>
+              <p>• <Link href="/app/intelligence/issues" className="underline">{data.bugs.critical} critical bug{data.bugs.critical > 1 ? 's' : ''}</Link> require immediate attention</p>
             )}
           </div>
         </div>

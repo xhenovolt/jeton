@@ -6,6 +6,7 @@
  */
 
 import { cookies } from 'next/headers.js';
+import { NextResponse } from 'next/server';
 import { getSession } from './session.js';
 import { getUserScopeInfo } from './permissions.js';
 
@@ -152,8 +153,28 @@ export async function requireSuperAdmin(request) {
   return authData;
 }
 
+/**
+ * Route-handler friendly superadmin gate.
+ * Returns the auth object on success, or a NextResponse (401/403) the caller
+ * should return as-is:
+ *
+ *   const gate = await guardSuperAdmin(request);
+ *   if (gate instanceof NextResponse) return gate;
+ */
+export async function guardSuperAdmin(request) {
+  const authData = await verifyAuth(request);
+  if (!authData) {
+    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+  }
+  if (!authData.is_superadmin) {
+    return NextResponse.json({ success: false, error: 'Superadmin privileges required' }, { status: 403 });
+  }
+  return authData;
+}
+
 export default {
   verifyAuth,
+  guardSuperAdmin,
   requireAuth,
   requireAdmin,
   requireSuperAdmin,

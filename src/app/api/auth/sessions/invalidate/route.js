@@ -1,15 +1,21 @@
-import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
+import { getPool } from '@/lib/db.js';
+import { guardSuperAdmin } from '@/lib/auth-utils.js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Shared, lazily-initialised pool from lib/db (no per-route pools).
+const pool = {
+  query: (text, params) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 /**
  * POST /api/auth/sessions/invalidate
  * Invalidate all sessions for a user
  */
 export async function POST(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { user_id, reason } = await req.json();
   
   if (!user_id) {
@@ -45,6 +51,9 @@ export async function POST(req) {
  * Delete a specific session
  */
 export async function DELETE(req, { params }) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { sessionId } = params;
   
   try {

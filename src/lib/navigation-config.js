@@ -46,6 +46,7 @@ import {
   Grid3X3,
   Banknote,
   TrendingUp,
+  Fingerprint,
 } from 'lucide-react';
 
 /**
@@ -125,7 +126,6 @@ export const menuItems = [
     submenu: [
       { label: 'Pipeline Board', href: '/app/pipeline', description: 'Visual pipeline intelligence', permission: 'pipeline.view' },
       { label: 'Prospects', href: '/app/prospects', description: 'Track and qualify leads', permission: 'prospects.view' },
-      { label: 'Intelligence', href: '/app/prospects/intelligence', description: 'Follow-up discipline & dormancy', permission: 'prospects.view' },
       { label: 'Proposals', href: '/app/proposals', description: 'DRAIS sales proposals', permission: 'prospects.view' },
       { label: 'Follow-ups', href: '/app/followups', description: 'Scheduled touchpoints', permission: 'prospects.view' },
       { label: 'Clients', href: '/app/clients', description: 'Converted prospects', permission: 'clients.view' },
@@ -167,6 +167,8 @@ export const menuItems = [
       { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'staff.view' },
       { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'staff.view' },
       { label: 'Control Tower', href: '/app/control-tower', description: 'Authority & structural health', permission: 'staff.view' },
+      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
+      { label: 'Decision Log', href: '/app/decision-log', description: 'Key decisions & rationale', permission: 'decision_logs.view' },
       { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
       { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
       { label: 'Liabilities', href: '/app/liabilities', description: 'Obligations and debts', permission: 'finance.view' },
@@ -206,21 +208,32 @@ export const menuItems = [
   },
 
   // === INTELLIGENCE ===
+  // One hub, one URL tree: every analytics / "intelligence" view lives under
+  // /app/intelligence/* and shares the tab bar in app/intelligence/layout.js.
+  // Old URLs (/app/issue-intelligence, /app/tech-intelligence,
+  // /app/financial-intelligence, /app/prospects/intelligence) redirect via
+  // next.config.mjs. Keep INTELLIGENCE_TABS below in sync with this list.
   {
     label: 'Intelligence',
     icon: Brain,
     category: 'sections',
     module: 'intelligence',
     submenu: [
-      { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview', permission: 'intelligence.view' },
-      { label: 'Tech Stacks', href: '/app/tech-intelligence', description: 'Reusable technology stacks', permission: 'systems.view' },
-      { label: 'Engineering', href: '/app/engineering', description: 'Bugs, features & tech tracking', permission: 'bug_tracking.view' },
-      { label: 'Issue Intelligence', href: '/app/issue-intelligence', description: 'Root causes & resolutions', permission: 'issue_intelligence.view' },
-      { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue', permission: 'finance.view' },
-      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
-      { label: 'Documents', href: '/app/documents', description: 'Document center', permission: 'documents.view' },
-      { label: 'Decision Log', href: '/app/decision-log', description: 'Key decisions & rationale', permission: 'decision_logs.view' },
+      { label: 'Overview',   href: '/app/intelligence',           description: 'Role-based intelligence overview',    permission: 'intelligence.view' },
+      { label: 'Financial',  href: '/app/intelligence/financial', description: 'Capital allocation & revenue',        permission: 'finance.view' },
+      { label: 'Pipeline',   href: '/app/intelligence/pipeline',  description: 'Follow-up discipline & dormancy',     permission: 'prospects.view' },
+      { label: 'Issues',     href: '/app/intelligence/issues',    description: 'Root causes & resolutions',           permission: 'issue_intelligence.view' },
+      { label: 'Tech Stacks',href: '/app/intelligence/tech',      description: 'Reusable technology stacks',          permission: 'systems.view' },
     ],
+  },
+
+  // === ENGINEERING ===
+  {
+    label: 'Engineering',
+    href: '/app/issues',
+    icon: Bug,
+    category: 'sections',
+    permission: 'bug_tracking.view',
   },
 
   // === DESIGNS ===
@@ -308,6 +321,7 @@ export const menuItems = [
     permission: 'documents.view',
     submenu: [
       { label: 'Overview',            href: '/app/admin/documents',           description: 'Document module dashboard',         permission: 'documents.view' },
+      { label: 'Document Center',     href: '/app/documents',                 description: 'Uploaded files & folders',          permission: 'documents.view' },
       { label: 'Templates',           href: '/app/admin/documents/templates', description: 'Manage document templates',        permission: 'documents.manage' },
       { label: 'Generated Documents', href: '/app/admin/documents/generated', description: 'View and manage generated documents', permission: 'documents.view' },
       { label: 'Verification Portal', href: '/app/admin/documents/verify',    description: 'Look up a document verification ID',  permission: 'documents.view' },
@@ -325,6 +339,7 @@ export const menuItems = [
       { label: 'General', href: '/app/settings', description: 'Account & preferences' },
       { label: 'Appearance', href: '/app/settings/appearance', icon: Palette, description: 'Colors, gradients, glass' },
       { label: 'Typography', href: '/app/settings/typography', icon: Type, description: 'Font family, size & weight' },
+      { label: 'Security & Biometrics', href: '/app/settings/security', icon: Fingerprint, description: 'Fingerprint / Face ID login & passkeys' },
       { label: 'Active Sessions', href: '/app/settings/sessions', icon: Shield, description: 'Manage logged-in devices' },
       { label: 'Invoice Themes',  href: '/app/settings/invoice-themes', description: 'Colors, fonts, layout for invoices', permission: 'invoices.manage_themes' },
     ],
@@ -456,3 +471,10 @@ export function getRoutePermission(path) {
 
   return null;
 }
+
+/**
+ * Tabs rendered by app/intelligence/layout.js. Derived from the Intelligence
+ * section above so the sidebar and the in-page tabs can never drift apart.
+ */
+export const INTELLIGENCE_TABS =
+  menuItems.find(item => item.module === 'intelligence')?.submenu ?? [];

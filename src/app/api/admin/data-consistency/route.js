@@ -1,15 +1,21 @@
-import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
+import { getPool } from '@/lib/db.js';
+import { guardSuperAdmin } from '@/lib/auth-utils.js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Shared, lazily-initialised pool from lib/db (no per-route pools).
+const pool = {
+  query: (text, params) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 /**
  * GET /api/admin/data-consistency/scan
  * Scan database for orphaned and inconsistent records
  */
 export async function GET(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const results = {};
     
@@ -62,6 +68,9 @@ export async function GET(req) {
  * Fix known data consistency issues
  */
 export async function POST(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { issue_type } = await req.json();
   
   try {

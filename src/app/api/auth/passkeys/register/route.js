@@ -49,13 +49,24 @@ export async function POST(request) {
       );
     }
 
-    const verification = await verifyRegistrationResponse({
-      response:          credential,
-      expectedChallenge,
-      expectedOrigin:    getRpOrigin(),
-      expectedRPID:      getRpId(),
-      requireUserVerification: true,
-    });
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response:          credential,
+        expectedChallenge,
+        expectedOrigin:    getRpOrigin(request),
+        expectedRPID:      getRpId(request),
+        requireUserVerification: true,
+      });
+    } catch (verifyErr) {
+      // Surface the real reason (typically an origin / rpId mismatch) instead
+      // of a generic 500, so a misconfigured deployment is diagnosable.
+      console.error('[passkeys/register] verification error:', verifyErr.message);
+      return NextResponse.json(
+        { success: false, error: `Verification failed: ${verifyErr.message}` },
+        { status: 400 }
+      );
+    }
 
     if (!verification.verified || !verification.registrationInfo) {
       return NextResponse.json({ success: false, error: 'Verification failed' }, { status: 400 });

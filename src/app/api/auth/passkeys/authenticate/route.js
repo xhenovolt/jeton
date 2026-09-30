@@ -23,7 +23,7 @@ import { logAuthEvent, extractRequestMetadata } from '@/lib/audit.js';
 import { createSession, getSecureCookieOptions } from '@/lib/session.js';
 import {
   getRpId, getRpOrigin,
-  consumeChallenge,
+  consumeChallenge, consumeChallengeById, CHALLENGE_COOKIE,
   getPasskeyByCredentialId, updatePasskeyCounter,
 } from '@/lib/passkeys.js';
 
@@ -59,14 +59,19 @@ export async function POST(request) {
       );
     }
 
-    // Retrieve & delete the stored challenge
-    // Try user-scoped first, then fall back to anonymous row
-    let expectedChallenge = await consumeChallenge({
-      userId: passkey.user_id,
-      type:   'authentication',
+    // Retrieve & delete the stored challenge. Preferred: the exact row this
+    // browser was issued (cookie-bound). Fallback: the user-scoped row (only
+    // exists when the email was supplied). The old "any anonymous row"
+    // fallback let concurrent logins steal each other's challenges.
+    let expectedChallenge = await consumeChallengeById({
+      id:   request.cookies.get(CHALLENGE_COOKIE)?.value,
+      type: 'authentication',
     });
     if (!expectedChallenge) {
-      expectedChallenge = await consumeChallenge({ userId: null, type: 'authentication' });
+      expectedChallenge = await consumeChallenge({
+        userId: passkey.user_id,
+        type:   'authentication',
+      });
     }
     if (!expectedChallenge) {
       return NextResponse.json(
@@ -81,8 +86,8 @@ export async function POST(request) {
     const verification = await verifyAuthenticationResponse({
       response:          credential,
       expectedChallenge,
-      expectedOrigin:    getRpOrigin(),
-      expectedRPID:      getRpId(),
+      expectedOrigin:    getRpOrigin(request),
+      expectedRPID:      getRpId(request),
       requireUserVerification: true,
       credential: {
         id:         passkey.credential_id,
@@ -145,6 +150,7 @@ export async function POST(request) {
 
     const response = NextResponse.json({ success: true, message: 'Authenticated successfully' });
     response.cookies.set('jeton_session', sessionId, getSecureCookieOptions());
+    response.cookies.set(CHALLENGE_COOKIE, '', { path: '/api/auth/passkeys', maxAge: 0 });
 
     return response;
   } catch (error) {

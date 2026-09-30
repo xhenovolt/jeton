@@ -124,14 +124,19 @@ export default function DashboardPage() {
       }
     };
 
-    if (!permLoading) {
+    // Wait for a resolved identity. Keying on user.id (not just permLoading)
+    // guarantees a fresh fetch as soon as the user becomes known — e.g. the
+    // first render after sign-in — instead of rendering widgets that are all
+    // hidden by can() and require a manual refresh.
+    if (!permLoading && user?.id) {
+      setLoading(true);
       fetchData();
       const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
-  }, [permLoading]);
+  }, [permLoading, user?.id]);
 
-  if (loading || permLoading) {
+  if (loading || permLoading || !user) {
     return (
       <div className="p-6">
         <SkeletonDashboard />

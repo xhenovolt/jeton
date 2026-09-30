@@ -20,7 +20,7 @@ import { NextResponse } from 'next/server';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { query } from '@/lib/db.js';
 import {
-  getRpId, saveChallenge, getPasskeysByUserId,
+  getRpId, saveChallenge, getPasskeysByUserId, CHALLENGE_COOKIE,
 } from '@/lib/passkeys.js';
 
 export async function GET(request) {
@@ -50,21 +50,32 @@ export async function GET(request) {
     }
 
     const options = await generateAuthenticationOptions({
-      rpID:             getRpId(),
+      rpID:             getRpId(request),
       userVerification: 'required',
       allowCredentials,
       timeout:          60_000,
     });
 
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
-    await saveChallenge({
+    const challengeId = await saveChallenge({
       challenge:  options.challenge,
       type:       'authentication',
       userId,       // null if no email supplied
       ipAddress:  ip,
     });
 
-    return NextResponse.json({ success: true, options });
+    const response = NextResponse.json({ success: true, options });
+    // Bind this challenge to this browser (see consumeChallengeById).
+    if (challengeId) {
+      response.cookies.set(CHALLENGE_COOKIE, challengeId, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure:   process.env.NODE_ENV === 'production',
+        path:     '/api/auth/passkeys',
+        maxAge:   5 * 60,
+      });
+    }
+    return response;
   } catch (error) {
     console.error('[passkeys/authenticate-options]', error);
     return NextResponse.json(

@@ -9,9 +9,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, ArrowRight, Fingerprint } from 'lucide-react';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 export default function LoginForm() {
   const router = useRouter();
+  const { resetPermissions } = usePermissions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -20,8 +22,9 @@ export default function LoginForm() {
   // query the DB — it can only see the cookie, which may be stale.
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => { if (r.ok) router.replace('/app/dashboard'); })
+      .then(async r => { if (r.ok) { await resetPermissions(); router.replace('/app/dashboard'); } })
       .catch(() => {}); // silent — let the user log in normally if check fails
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,12 +32,12 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [bioSupported, setBioSupported] = useState(false);
 
-  // Detect platform authenticator support
+  // Show biometric sign-in whenever the browser supports WebAuthn. We no
+  // longer require a *built-in* sensor: a phone (QR / hybrid) or security
+  // key registered in Settings → Security works too.
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
-      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then(ok => setBioSupported(ok))
-        .catch(() => setBioSupported(false));
+    if (typeof window !== 'undefined' && window.PublicKeyCredential && window.isSecureContext) {
+      setBioSupported(true);
     }
   }, []);
 
@@ -64,7 +67,10 @@ export default function LoginForm() {
         return;
       }
 
-      router.push('/app/dashboard');
+      // Re-resolve identity + permissions BEFORE entering /app so the
+      // dashboard's first render already has real data (no refresh needed).
+      await resetPermissions();
+      router.replace('/app/dashboard');
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Login error:', err);
@@ -128,7 +134,8 @@ export default function LoginForm() {
         return;
       }
 
-      router.push('/app/dashboard');
+      await resetPermissions();
+      router.replace('/app/dashboard');
     } catch {
       setError('Biometric authentication failed. Please try again.');
     } finally {
@@ -206,7 +213,7 @@ export default function LoginForm() {
         )}
       </button>
 
-      {/* Biometric login — only shown when platform authenticator is available */}
+      {/* Biometric login — shown whenever WebAuthn is available */}
       {bioSupported && (
         <>
           <div className="relative flex items-center gap-3 my-1">

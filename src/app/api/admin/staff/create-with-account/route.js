@@ -1,16 +1,22 @@
-import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
+import { getPool } from '@/lib/db.js';
+import { guardSuperAdmin } from '@/lib/auth-utils.js';
 import bcrypt from 'bcryptjs';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Shared, lazily-initialised pool from lib/db (no per-route pools).
+const pool = {
+  query: (text, params) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 /**
  * POST /api/admin/staff/create-with-account
  * Create staff with user account in a single transaction
  */
 export async function POST(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const client = await pool.connect();
   
   try {

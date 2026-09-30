@@ -97,7 +97,7 @@ export default function TechStackDetailPage({ params }) {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <Link href="/app/tech-intelligence" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6">
+      <Link href="/app/intelligence/tech" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6">
         <ChevronLeft className="w-4 h-4" />
         Back to Tech Stacks
       </Link>

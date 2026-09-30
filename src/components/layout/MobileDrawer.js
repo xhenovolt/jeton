@@ -97,6 +97,7 @@ export function MobileDrawer({ isOpen, onClose, user }) {
         credentials: 'include',
       });
       if (response.ok) {
+        try { localStorage.removeItem('jeton.auth.v1'); } catch { /* ignore */ }
         window.location.href = '/login';
       }
     } catch (error) {

@@ -16,30 +16,56 @@ import { query } from './db.js';
 // ─── Environment configuration ─────────────────────────────────────────────
 
 /**
- * Return the Relying Party identifier (hostname only — no port, no scheme).
- * In production this must match the domain the site is served from.
+ * Work out the origin the browser is actually on, from the request.
+ * Used only when WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID are not configured.
+ *
+ * This is safe: the authenticator signs the real page origin into
+ * clientDataJSON and scopes credentials to the rpId, so a request coming
+ * from another site can never produce an assertion valid for this one.
+ * Previously we fell back to NEXT_PUBLIC_APP_URL, which broke enrollment
+ * on every preview / custom domain / LAN IP that didn't match it exactly
+ * ("Registration failed" with no useful hint).
  */
-export function getRpId() {
+function originFromRequest(request) {
+  if (!request?.headers) return null;
+  const origin = request.headers.get('origin');
+  if (origin) return origin;
+  const host  = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (!host) return null;
+  const proto = request.headers.get('x-forwarded-proto')
+    || (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https');
+  return `${proto.split(',')[0].trim()}://${host.split(',')[0].trim()}`;
+}
+
+/**
+ * Return the Relying Party identifier (hostname only — no port, no scheme).
+ * Priority: WEBAUTHN_RP_ID → request host → NEXT_PUBLIC_APP_URL → localhost.
+ */
+export function getRpId(request) {
   if (process.env.WEBAUTHN_RP_ID) return process.env.WEBAUTHN_RP_ID;
-  if (process.env.NODE_ENV === 'production') {
-    // Fall back to the hostname of NEXT_PUBLIC_APP_URL or API_URL
-    const url = process.env.NEXT_PUBLIC_APP_URL || process.env.API_URL || '';
-    try { return new URL(url).hostname; } catch { /* ignore */ }
+  const fromReq = originFromRequest(request);
+  if (fromReq) {
+    try { return new URL(fromReq).hostname; } catch { /* ignore */ }
   }
+  const url = process.env.NEXT_PUBLIC_APP_URL || process.env.API_URL || '';
+  try { return new URL(url).hostname; } catch { /* ignore */ }
   return 'localhost';
 }
 
 /**
- * Return the fully-qualified origin the authenticator is expected to sign.
- * Must include scheme + hostname (+ port for non-standard ports).
+ * Return the origin(s) the authenticator is expected to sign.
+ * WEBAUTHN_ORIGIN may be a comma-separated list (e.g. apex + www).
+ * @returns {string|string[]}
  */
-export function getRpOrigin() {
-  if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN;
-  if (process.env.NODE_ENV === 'production') {
-    return process.env.NEXT_PUBLIC_APP_URL || process.env.API_URL || 'https://localhost';
+export function getRpOrigin(request) {
+  if (process.env.WEBAUTHN_ORIGIN) {
+    const list = process.env.WEBAUTHN_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
+    return list.length === 1 ? list[0] : list;
   }
-  const port = process.env.PORT || '3000';
-  return `http://localhost:${port}`;
+  const fromReq = originFromRequest(request);
+  if (fromReq) return fromReq;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  return `http://localhost:${process.env.PORT || '3000'}`;
 }
 
 /** Human-readable name shown in the authenticator dialog. */
@@ -59,6 +85,8 @@ export function getRpName() {
  * @returns {Promise<void>}
  */
 export async function saveChallenge({ challenge, type, userId = null, ipAddress = null }) {
+  // Opportunistic cleanup so the table never grows unbounded.
+  await query(`DELETE FROM webauthn_challenges WHERE expires_at < CURRENT_TIMESTAMP`).catch(() => {});
   // Clean up old challenges for this user+type first
   if (userId) {
     await query(
@@ -66,11 +94,34 @@ export async function saveChallenge({ challenge, type, userId = null, ipAddress 
       [userId, type]
     );
   }
-  await query(
+  const result = await query(
     `INSERT INTO webauthn_challenges (user_id, type, challenge, ip_address)
-     VALUES ($1, $2, $3, $4)`,
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
     [userId, type, challenge, ipAddress]
   );
+  return result.rows[0]?.id ?? null;
+}
+
+/** Cookie that binds an in-flight authentication challenge to one browser. */
+export const CHALLENGE_COOKIE = 'jeton_webauthn_cid';
+
+/**
+ * Consume a specific challenge row by its id (consume-once).
+ * This is the preferred path for the login flow: the id travels in an
+ * httpOnly cookie, so a browser can only ever use the challenge it was
+ * issued — not whichever anonymous challenge happens to be in the table.
+ * @returns {Promise<string|null>}
+ */
+export async function consumeChallengeById({ id, type }) {
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const result = await query(
+    `DELETE FROM webauthn_challenges
+     WHERE id = $1 AND type = $2 AND expires_at > CURRENT_TIMESTAMP
+     RETURNING challenge`,
+    [id, type]
+  );
+  return result.rows[0]?.challenge ?? null;
 }
 
 /**

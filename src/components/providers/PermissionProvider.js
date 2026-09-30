@@ -20,12 +20,13 @@
  * through a loading pass — and even for them, filterMenuByPermissions
  * now renders skeleton rows instead of nothing.
  *
- * The cache is deliberately short-lived (12h) and keyed on the user's
- * session cookie name so it never leaks across accounts.
+ * The cache is deliberately short-lived (12h) and is wiped on sign-in
+ * (resetPermissions) and sign-out (clearPermissions / Sidebar logout) so
+ * it never leaks across accounts.
  */
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 // Isomorphic layout effect. useLayoutEffect on the client runs after
 // commit but BEFORE the browser paints — exactly what we need to swap
@@ -85,6 +86,8 @@ const PermissionContext = createContext({
   hasAnyPermission: () => false,
   hasModuleAccess: () => false,
   refreshPermissions: () => {},
+  resetPermissions: () => {},
+  clearPermissions: () => {},
 });
 
 export function PermissionProvider({ children }) {
@@ -117,9 +120,19 @@ export function PermissionProvider({ children }) {
     });
   }, []);
 
-  const loadPermissions = useCallback(async () => {
+  const loadPermissions = useCallback(async ({ reset = false } = {}) => {
+    // `reset` is used right after login / account switch: drop whatever the
+    // previous (possibly anonymous or different) user left behind and show
+    // a loading state, so consumers render skeletons instead of an empty,
+    // permission-less UI.
+    if (reset) {
+      clearCache();
+      setState(prev => ({ ...prev, user: null, permissions: [], loading: true, hydratedFromCache: false }));
+    } else {
+      setState(prev => (prev.user ? prev : { ...prev, loading: true }));
+    }
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      const res = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
       if (!res.ok) {
         // 401 means the session is dead — flush cache and stop pretending.
         if (res.status === 401) clearCache();
@@ -148,6 +161,22 @@ export function PermissionProvider({ children }) {
   useEffect(() => {
     loadPermissions();
   }, [loadPermissions]);
+
+  // The provider is mounted in the ROOT layout, so it is already alive on
+  // /login where /api/auth/me returns 401 (user=null, loading=false). A
+  // client-side navigation into /app after sign-in does not remount it, so
+  // without this every permission check stayed false and the dashboard
+  // showed zeros until a hard refresh. Re-resolve whenever we enter /app
+  // without a user.
+  const pathname = usePathname();
+  const inApp = pathname?.startsWith('/app') ?? false;
+  const firstRunRef = useRef(true);
+  useEffect(() => {
+    // The mount effect above already covers the initial load.
+    if (firstRunRef.current) { firstRunRef.current = false; return; }
+    if (inApp && !state.user) loadPermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inApp]);
 
   const hasPermission = useCallback(
     (permission) => {
@@ -185,6 +214,12 @@ export function PermissionProvider({ children }) {
     hasAnyPermission,
     hasModuleAccess,
     refreshPermissions: loadPermissions,
+    // Call after sign-in or sign-out so no stale identity survives.
+    resetPermissions: () => loadPermissions({ reset: true }),
+    clearPermissions: () => {
+      clearCache();
+      setState({ user: null, permissions: [], hierarchyLevel: 5, pendingApprovals: 0, loading: false, hydratedFromCache: false });
+    },
   };
 
   return (

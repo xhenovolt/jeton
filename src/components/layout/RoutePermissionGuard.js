@@ -25,6 +25,14 @@ const OPEN_PATH_PREFIXES = [
   '/app/unauthorized',
   '/app/notifications',
   '/app/settings',         // General settings section open to all
+];
+
+/**
+ * Exact paths open to every authenticated user. The dashboard must be an
+ * EXACT match: as a prefix it also opened /app/dashboard/drais/* and
+ * /app/dashboard/integrations to every role.
+ */
+const OPEN_EXACT_PATHS = [
   '/app/dashboard',        // Dashboard is always accessible; widgets self-gate via hasPermission
 ];
 
@@ -46,7 +54,7 @@ export function RoutePermissionGuard({ children }) {
     redirectedRef.current = false;
 
     // Check open routes — no permission required
-    const isOpen = OPEN_PATH_PREFIXES.some(
+    const isOpen = OPEN_EXACT_PATHS.includes(pathname) || OPEN_PATH_PREFIXES.some(
       (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
     );
     if (isOpen) return;

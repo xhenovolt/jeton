@@ -1,15 +1,21 @@
-import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
+import { getPool } from '@/lib/db.js';
+import { guardSuperAdmin } from '@/lib/auth-utils.js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Shared, lazily-initialised pool from lib/db (no per-route pools).
+const pool = {
+  query: (text, params) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 /**
  * GET /api/salary-accounts
  * Get all salary accounts (with optional filters)
  */
 export async function GET(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { searchParams } = new URL(req.url);
     const staffId = searchParams.get('staff_id');
@@ -40,6 +46,9 @@ export async function GET(req) {
  * Create a new salary account
  */
 export async function POST(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { staff_id, account_id, salary_amount, frequency, currency } = await req.json();
   
   if (!staff_id || !account_id || !salary_amount) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type, Check, CheckCheck } from 'lucide-react';
+import { Search, X, LogOut, Settings, ChevronDown, Bell, Sun, Moon, Monitor, Palette, Type, Check, CheckCheck, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -201,7 +201,7 @@ export function Navbar() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      localStorage.removeItem('auth_token');
+      try { localStorage.removeItem('jeton.auth.v1'); } catch { /* ignore */ }
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
@@ -584,6 +584,16 @@ export function Navbar() {
                 >
                   <Settings size={16} />
                   <span>Settings</span>
+                </button>
+                <button
+                  onClick={() => { router.push('/app/settings/security'); setProfileOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                  style={{ color: 'var(--navbar-text)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--sidebar-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
+                >
+                  <Fingerprint size={16} />
+                  <span>Security &amp; Biometrics</span>
                 </button>
                 <button
                   onClick={() => { window.location.href = '/app/settings/appearance'; setProfileOpen(false); }}

@@ -23,7 +23,7 @@ export async function GET(request) {
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
 
-    const rpId   = getRpId();
+    const rpId   = getRpId(request);
     const rpName = getRpName();
 
     // Fetch existing credentials so we can exclude them
@@ -38,9 +38,12 @@ export async function GET(request) {
       rpID: rpId,
       userName:        user.email,
       userDisplayName: user.name || user.email,
-      // Prefer platform (built-in biometrics) but allow roaming keys too
+      // No authenticatorAttachment restriction: built-in sensors (Touch ID,
+      // Windows Hello, Android fingerprint) AND a phone via QR/hybrid or a
+      // security key all work. Forcing 'platform' made enrollment impossible
+      // on desktops without a sensor. Discoverable credentials are preferred
+      // so "Sign in with fingerprint" works without typing an email first.
       authenticatorSelection: {
-        authenticatorAttachment: 'platform',
         residentKey:             'preferred',
         userVerification:        'required',
       },

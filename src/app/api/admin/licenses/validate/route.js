@@ -1,15 +1,21 @@
-import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
+import { getPool } from '@/lib/db.js';
+import { guardSuperAdmin } from '@/lib/auth-utils.js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Shared, lazily-initialised pool from lib/db (no per-route pools).
+const pool = {
+  query: (text, params) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 /**
  * POST /api/admin/licenses/validate
  * Validate license chain: Deal → Client → System → Plan → License
  */
 export async function POST(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { deal_id, client_id, system_id, plan_id } = await req.json();
   
   if (!deal_id || !client_id || !system_id || !plan_id) {
@@ -110,6 +116,9 @@ export async function POST(req) {
  * Issue a license after validation
  */
 export async function PUT(req) {
+  const gate = await guardSuperAdmin(req);
+  if (gate instanceof NextResponse) return gate;
+
   const { deal_id, client_id, system_id, plan_id } = await req.json();
   
   try {

@@ -167,6 +167,10 @@ export default function SecuritySettingsPage() {
   const [showLabelPrompt, setShowLabelPrompt] = useState(false);
   const toast  = useToast();
   const platformSupported = usePlatformAuthSupport();
+  const [webauthnAvailable, setWebauthnAvailable] = useState(null); // null = detecting
+  useEffect(() => {
+    setWebauthnAvailable(Boolean(window.PublicKeyCredential && window.isSecureContext));
+  }, []);
 
   // ── Load passkeys ──────────────────────────────────────────────────────────
   const loadPasskeys = useCallback(async () => {
@@ -303,12 +307,22 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* Browser compatibility notice */}
-        {platformSupported === false && (
+        {webauthnAvailable === false && (
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-red-700 dark:text-red-300">
+              This browser does not support passkeys, or the page is not served over HTTPS
+              (localhost is the only exception). Open Jeton over HTTPS in a modern browser.
+            </p>
+          </div>
+        )}
+        {webauthnAvailable && platformSupported === false && (
           <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              Your browser does not detect a platform authenticator on this device. Make sure
-              you are on HTTPS and that the device has a biometric sensor or PIN set up.
+              No built-in fingerprint / face sensor was detected on this device. You can still
+              register — your browser will offer to use your phone (scan a QR code) or a
+              security key instead.
             </p>
           </div>
         )}
@@ -321,7 +335,7 @@ export default function SecuritySettingsPage() {
         )}
 
         {/* Explanation when no passkeys yet */}
-        {!loading && passkeys.length === 0 && platformSupported && (
+        {!loading && passkeys.length === 0 && webauthnAvailable && (
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
             <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-blue-700 dark:text-blue-300">
@@ -375,7 +389,7 @@ export default function SecuritySettingsPage() {
           {!showLabelPrompt ? (
             <button
               onClick={() => setShowLabelPrompt(true)}
-              disabled={enrolling || platformSupported === false}
+              disabled={enrolling || webauthnAvailable === false}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Plus className="w-4 h-4" />
