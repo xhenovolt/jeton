@@ -128,7 +128,7 @@ export default async function ArchitecturePage() {
         <section className="border border-border rounded-xl p-6">
           <h2 className="text-xl font-semibold text-foreground mb-4">Request Lifecycle</h2>
           <div className="font-mono text-xs bg-muted border border-border rounded-lg p-4 space-y-1">
-            <p className="text-muted-foreground">// Every authenticated request</p>
+            <p className="text-muted-foreground">{'// Every authenticated request'}</p>
             <p>Browser → middleware.ts (cookie check)</p>
             <p>  → App Router (Server Component or API route)</p>
             <p>  → getCurrentUser() (session → user lookup)</p>

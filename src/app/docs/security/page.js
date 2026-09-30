@@ -43,7 +43,7 @@ export default function SecurityPage() {
             Every API endpoint checks the user's role before processing the request. Role checks are server-side — there's no reliance on client-side state to enforce permissions.
           </p>
           <div className="font-mono text-xs bg-muted border border-border rounded-lg p-4">
-            <p className="text-muted-foreground">// Example server-side role check</p>
+            <p className="text-muted-foreground">{'// Example server-side role check'}</p>
             <p className="text-foreground">const user = await getCurrentUser(req);</p>
             <p className="text-foreground">if (!user || user.role !== <span className="text-green-600">'admin'</span>) {`{`}</p>
             <p className="text-foreground pl-4">return NextResponse.json({`{ error: 'Forbidden' }`}, {`{ status: 403 }`});</p>

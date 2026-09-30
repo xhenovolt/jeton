@@ -497,19 +497,19 @@ export async function getPendingApprovalsForUser(userId) {
  *
  * Supports two calling conventions:
  *   requirePermission(request, 'staff.view')          // 2-arg dot-notation
- *   requirePermission(request, 'staff.view')       // 3-arg explicit
+ *   requirePermission(request, 'staff', 'view')    // legacy 3-arg form — don't add new uses
  *
  * Returns { auth } if allowed, or a NextResponse error if denied.
  */
 export async function requirePermission(request, moduleOrPermission, action) {
-  // Normalise calling convention: 'module.action' string → module + action parts
-  let module, act;
+  // Normalise calling convention: 'mod.action' string → mod + action parts
+  let mod, act;
   if (action === undefined && typeof moduleOrPermission === 'string' && moduleOrPermission.includes('.')) {
     const dotIdx = moduleOrPermission.indexOf('.');
-    module = moduleOrPermission.slice(0, dotIdx);
+    mod = moduleOrPermission.slice(0, dotIdx);
     act = moduleOrPermission.slice(dotIdx + 1);
   } else {
-    module = moduleOrPermission;
+    mod = moduleOrPermission;
     act = action;
   }
 
@@ -548,12 +548,12 @@ export async function requirePermission(request, moduleOrPermission, action) {
   }
 
   const [allowed, scopeInfo] = await Promise.all([
-    hasPermission(auth.userId, module, act, auth.role),
+    hasPermission(auth.userId, mod, act, auth.role),
     getUserScopeInfo(auth.userId),
   ]);
   if (!allowed) {
     return NextResponse.json(
-      { error: `Access denied. Required permission: ${module}.${act}` },
+      { error: `Access denied. Required permission: ${mod}.${act}` },
       { status: 403 }
     );
   }

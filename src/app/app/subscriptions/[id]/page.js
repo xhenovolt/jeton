@@ -263,7 +263,7 @@ export default function SubscriptionDetailPage({ params }) {
               `#${c.cycle_number}`,
               `${fmtDate(c.period_start)} → ${fmtDate(c.period_end)}`,
               fmtCurrency(c.amount, c.currency),
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+              <span key="status" className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
                 c.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
                 c.status === 'overdue' ? 'bg-red-100 text-red-700' :
                 'bg-slate-100 text-slate-700'

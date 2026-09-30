@@ -299,7 +299,7 @@ export default function AdminBackupsPage() {
               headers={['Backup', 'Status', 'Scope', 'Tables', 'Rows', 'Requested', 'Approved', 'When']}
               rows={restorations.map(r => [
                 r.backup_name,
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] || 'bg-muted'}`}>{r.status}</span>,
+                <span key="status" className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] || 'bg-muted'}`}>{r.status}</span>,
                 r.scope, r.tables_affected ?? '—', r.rows_affected?.toLocaleString() ?? '—',
                 r.requested_by_name || '—', r.approved_by_name || '—',
                 formatDate(r.created_at),

@@ -60,7 +60,7 @@ export default function DealsPage() {
           <div className="border border-border rounded-lg p-4 font-mono text-xs text-muted-foreground space-y-1">
             <p><span className="text-green-600">DEBIT</span>  Bank Account         $3,000</p>
             <p><span className="text-red-600">CREDIT</span> Client Revenue Account $3,000</p>
-            <p className="text-muted-foreground/50 pt-1">// Auto-created when payment is recorded</p>
+            <p className="text-muted-foreground/50 pt-1">{'// Auto-created when payment is recorded'}</p>
           </div>
         </section>
 

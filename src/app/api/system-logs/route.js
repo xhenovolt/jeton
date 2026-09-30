@@ -17,7 +17,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const level   = searchParams.get('level');
-    const module  = searchParams.get('module');
+    const logModule = searchParams.get('module');
     const limit   = Math.min(parseInt(searchParams.get('limit') || '200'), 500);
 
     let sql = `
@@ -28,7 +28,7 @@ export async function GET(request) {
     `;
     const params = [];
     if (level)  { params.push(level);  sql += ` AND sl.level = $${params.length}`; }
-    if (module) { params.push(module); sql += ` AND sl.module = $${params.length}`; }
+    if (logModule) { params.push(logModule); sql += ` AND sl.module = $${params.length}`; }
     params.push(limit);
     sql += ` ORDER BY sl.created_at DESC LIMIT $${params.length}`;
 
