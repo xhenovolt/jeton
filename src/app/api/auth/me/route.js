@@ -129,28 +129,27 @@ export async function GET(request) {
       requestMetadata,
     });
 
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          full_name: user.name,
-          role: user.role,
-          status: user.status,
-          is_active: user.is_active,
-          is_superadmin: isSuperadmin,
-          roles: rbacRoles.length > 0 ? rbacRoles : [user.role],
-          permissions: permissions,
-          hierarchy_level: hierarchyLevel,
-          authority_level: authorityLevel,
-          first_login_completed: user.first_login_completed ?? true,
-          pending_approvals: pendingApprovals,
-          created_at: user.created_at,
-        },
-      },
-      { status: 200 }
-    );
+    const payload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      full_name: user.name,
+      role: user.role,
+      status: user.status,
+      is_active: user.is_active,
+      is_superadmin: isSuperadmin,
+      roles: rbacRoles.length > 0 ? rbacRoles : [user.role],
+      permissions: permissions,
+      hierarchy_level: hierarchyLevel,
+      authority_level: authorityLevel,
+      first_login_completed: user.first_login_completed ?? true,
+      pending_approvals: pendingApprovals,
+      created_at: user.created_at,
+    };
+
+    // Standard envelope ({ success, data }) plus the legacy `user` key that
+    // PermissionProvider and older callers read.
+    return NextResponse.json({ success: true, data: payload, user: payload }, { status: 200 });
   } catch (error) {
     // Surface Neon cold-start / unreachable as 503 with Retry-After so the
     // client knows it's a backend availability problem, NOT an auth issue.

@@ -45,7 +45,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ currentPassword: passwordForm.current, newPassword: passwordForm.newPass }),
       });
       if (res.success) {
-        setPwMessage(res.message || 'Password updated.');
+        setPwMessage(res.data?.message || 'Password updated.');
         setPasswordForm({ current: '', newPass: '', confirm: '' });
       } else {
         setError(res.error || 'Failed to change password');

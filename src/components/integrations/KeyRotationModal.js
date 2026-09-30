@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 
 export default function KeyRotationModal({
   isOpen,
@@ -28,6 +28,7 @@ export default function KeyRotationModal({
   connectionName,
   verificationToken,
 }) {
+  const toast = useToast();
   const [mode, setMode] = useState('auto'); // 'auto' or 'manual'
   const [manualKey, setManualKey] = useState('');
   const [manualSecret, setManualSecret] = useState('');

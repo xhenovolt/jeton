@@ -8,7 +8,7 @@ import { looksLikePhoneQuery } from '@/lib/phone-normalize.js';
 // GET /api/prospects - List all prospects (data-scope enforced)
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'prospects', 'view');
+    const perm = await requirePermission(request, 'prospects.view');
     if (perm instanceof NextResponse) return perm;
     const { auth, dataScope, departmentId } = perm;
 
@@ -99,7 +99,7 @@ export async function GET(request) {
 // POST /api/prospects - Create new prospect
 export async function POST(request) {
   try {
-    const perm = await requirePermission(request, 'prospects', 'create');
+    const perm = await requirePermission(request, 'prospects.create');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 

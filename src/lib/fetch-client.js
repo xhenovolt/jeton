@@ -1,6 +1,11 @@
 /**
  * Client-side fetch utility
  * Automatically includes credentials and parses JSON
+ *
+ * @deprecated for new code — use `api` / `apiRequest` from '@/lib/api-client',
+ * which returns { ok, data, error, status }, unwraps the { success, data }
+ * envelope and surfaces errors as toasts. Existing callers are migrated
+ * incrementally (see docs/ARCHITECTURE_REVIEW_AND_ROADMAP.md, Phase 3).
  */
 
 /**

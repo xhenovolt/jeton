@@ -497,7 +497,7 @@ export async function getPendingApprovalsForUser(userId) {
  *
  * Supports two calling conventions:
  *   requirePermission(request, 'staff.view')          // 2-arg dot-notation
- *   requirePermission(request, 'staff', 'view')       // 3-arg explicit
+ *   requirePermission(request, 'staff.view')       // 3-arg explicit
  *
  * Returns { auth } if allowed, or a NextResponse error if denied.
  */

@@ -7,7 +7,7 @@ import { sanitizeSystemDetail } from '@/lib/rbac.js';
 // GET /api/systems/[id]
 export async function GET(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'systems', 'view');
+    const perm = await requirePermission(request, 'systems.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
 // PUT /api/systems/[id]
 export async function PUT(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'systems', 'edit');
+    const perm = await requirePermission(request, 'systems.edit');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
@@ -87,7 +87,7 @@ export async function PUT(request, { params }) {
 // DELETE /api/systems/[id]
 export async function DELETE(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'systems', 'delete');
+    const perm = await requirePermission(request, 'systems.delete');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 

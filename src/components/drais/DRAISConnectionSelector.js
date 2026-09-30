@@ -9,9 +9,10 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 
 export default function DRAISConnectionSelector() {
+  const toast = useToast();
   const [connections, setConnections] = useState([]);
   const [activeConnection, setActiveConnection] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import PasswordVerificationModal from './PasswordVerificationModal';
 import SecretRevealDisplay from './SecretRevealDisplay';
 import KeyRotationModal from './KeyRotationModal';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 
 export default function SecureConnectionCard({
   connection,
@@ -25,6 +25,7 @@ export default function SecureConnectionCard({
   onToggleActive,
   onRefresh,
 }) {
+  const toast = useToast();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
   const [showRotateModal, setShowRotateModal] = useState(false);

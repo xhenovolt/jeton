@@ -8,7 +8,7 @@ import { sanitizeSystemRecord } from '@/lib/rbac.js';
 // GET /api/systems
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'systems', 'view');
+    const perm = await requirePermission(request, 'systems.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 

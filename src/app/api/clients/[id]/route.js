@@ -6,7 +6,7 @@ import { requirePermission } from '@/lib/permissions.js';
 // GET /api/clients/[id]
 export async function GET(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'clients', 'view');
+    const perm = await requirePermission(request, 'clients.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;
@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
 // PUT /api/clients/[id]
 export async function PUT(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'clients', 'edit');
+    const perm = await requirePermission(request, 'clients.edit');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;
@@ -49,7 +49,7 @@ export async function PUT(request, { params }) {
 // DELETE /api/clients/[id]
 export async function DELETE(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'clients', 'delete');
+    const perm = await requirePermission(request, 'clients.delete');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;

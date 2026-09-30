@@ -17,7 +17,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 
 export default function PasswordVerificationModal({
   isOpen,
@@ -27,6 +27,7 @@ export default function PasswordVerificationModal({
   description = 'Enter your password to access sensitive credentials',
   actionText = 'Verify',
 }) {
+  const toast = useToast();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);

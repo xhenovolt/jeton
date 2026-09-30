@@ -6,7 +6,7 @@ import { requirePermission } from '@/lib/permissions.js';
 // GET /api/pipeline — Full pipeline view with analytics
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'pipeline', 'view');
+    const perm = await requirePermission(request, 'pipeline.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 

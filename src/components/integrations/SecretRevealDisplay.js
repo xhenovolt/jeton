@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { AlertCircle, Copy, Eye, EyeOff, Clock } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 
 export default function SecretRevealDisplay({ 
   connectionName, 
@@ -19,6 +19,7 @@ export default function SecretRevealDisplay({
   onHide,
   mutableDuration = 15 // seconds
 }) {
+  const toast = useToast();
   const [timeLeft, setTimeLeft] = useState(mutableDuration);
   const [showKey, setShowKey] = useState(true);
   const [showSecret, setShowSecret] = useState(false);

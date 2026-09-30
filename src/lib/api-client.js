@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Global API Client — Zero-Silence Policy
+ * Global API Client — Zero-Silence Policy. THE client for new code.
+ * Pairs with the server's withRoute()/ok()/fail() envelope (lib/api/route.js).
  * Every API call passes through this wrapper.
  * Automatically shows loading, catches errors, and shows success.
  */

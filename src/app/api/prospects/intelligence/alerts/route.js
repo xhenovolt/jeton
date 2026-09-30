@@ -15,7 +15,7 @@ import { requirePermission } from '@/lib/permissions.js';
  * Returns { created, skipped, total_overdue }.
  */
 export async function POST(request) {
-  const perm = await requirePermission(request, 'prospects', 'view');
+  const perm = await requirePermission(request, 'prospects.view');
   if (perm instanceof NextResponse) return perm;
   const { auth } = perm;
 

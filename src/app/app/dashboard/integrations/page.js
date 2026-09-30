@@ -44,10 +44,11 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useToast } from '@/components/ui/Toast';
 import SecureConnectionCard from '@/components/integrations/SecureConnectionCard';
 
 export default function IntegrationsPage() {
+  const toast = useToast();
   const router = useRouter();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);

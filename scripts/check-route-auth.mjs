@@ -59,7 +59,9 @@ const failures = [];
 for (const file of walk(API_ROOT)) {
   const route = relative(API_ROOT, file).split(sep).slice(0, -1).join('/');
   if (route in PUBLIC) continue;
-  const src = stripComments(readFileSync(file, 'utf8'));
+  // withRoute({ public: true }) is NOT a guard — such routes must be allowlisted.
+  const src = stripComments(readFileSync(file, 'utf8'))
+    .replace(/withRoute\(\s*\{[^}]*\bpublic\s*:\s*true[^}]*\}/g, '');
   if (!/export\s+(async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)\b|export\s+const\s+(GET|POST|PUT|PATCH|DELETE)\b/.test(src)) continue;
   if (!GUARD_RE.test(src)) failures.push(route);
 }

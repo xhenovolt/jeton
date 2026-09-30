@@ -6,7 +6,7 @@ import { requirePermission } from '@/lib/permissions.js';
 // GET /api/budgets
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'budgets', 'view');
+    const perm = await requirePermission(request, 'budgets.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const result = await query(`SELECT * FROM v_budget_utilization ORDER BY start_date DESC`);

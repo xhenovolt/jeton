@@ -7,7 +7,7 @@ import { dispatch } from '@/lib/system-events.js';
 // GET /api/expenses (data-scope enforced)
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'expenses', 'view');
+    const perm = await requirePermission(request, 'expenses.view');
     if (perm instanceof NextResponse) return perm;
     const { auth, dataScope, departmentId } = perm;
 

@@ -1,72 +1,35 @@
 /**
- * /api/auth/passkeys — Device management
+ * /api/auth/passkeys — Device management for the signed-in user
  *
- * GET    → list all registered passkeys for the current user
- * PATCH  → rename a passkey (body: { passkeyId, deviceName })
- * DELETE → revoke (remove) a passkey (body: { passkeyId })
- *
- * All methods require an active session.
+ * GET    → list all registered passkeys
+ * PATCH  → rename a passkey   (body: { passkeyId, deviceName })
+ * DELETE → revoke a passkey   (body: { passkeyId })
  */
 
-import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth-utils.js';
+import { z } from 'zod';
+import { withRoute, ok, fail } from '@/lib/api/route.js';
 import {
   getPasskeysByUserId, renamePasskey, deletePasskey,
 } from '@/lib/passkeys.js';
 
-// ─── GET — list devices ─────────────────────────────────────────────────────
-export async function GET(request) {
-  try {
-    const user = await verifyAuth(request);
-    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    const passkeys = await getPasskeysByUserId(user.userId);
-    return NextResponse.json({ success: true, data: passkeys });
-  } catch (error) {
-    console.error('[passkeys GET]', error);
-    return NextResponse.json({ success: false, error: 'Failed to load passkeys' }, { status: 500 });
-  }
-}
+const Rename = z.object({
+  passkeyId:  z.string().uuid('passkeyId must be a UUID'),
+  deviceName: z.string().trim().min(1, 'deviceName is required').max(64),
+});
+const Revoke = z.object({
+  passkeyId: z.string().uuid('passkeyId must be a UUID'),
+});
 
-// ─── PATCH — rename device ──────────────────────────────────────────────────
-export async function PATCH(request) {
-  try {
-    const user = await verifyAuth(request);
-    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    const { passkeyId, deviceName } = await request.json();
+export const GET = withRoute({ signedIn: true }, async ({ auth }) =>
+  ok(await getPasskeysByUserId(auth.userId))
+);
 
-    if (!passkeyId || !deviceName?.trim()) {
-      return NextResponse.json({ success: false, error: 'passkeyId and deviceName required' }, { status: 400 });
-    }
+export const PATCH = withRoute({ signedIn: true, body: Rename }, async ({ auth, body }) => {
+  const updated = await renamePasskey(body.passkeyId, auth.userId, body.deviceName);
+  return updated ? ok({ id: body.passkeyId }) : fail(404, 'Passkey not found or not yours');
+});
 
-    const updated = await renamePasskey(passkeyId, user.userId, deviceName.trim());
-    if (!updated) {
-      return NextResponse.json({ success: false, error: 'Passkey not found or not yours' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('[passkeys PATCH]', error);
-    return NextResponse.json({ success: false, error: 'Failed to rename passkey' }, { status: 500 });
-  }
-}
-
-// ─── DELETE — revoke device ─────────────────────────────────────────────────
-export async function DELETE(request) {
-  try {
-    const user = await verifyAuth(request);
-    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    const { passkeyId } = await request.json();
-
-    if (!passkeyId) {
-      return NextResponse.json({ success: false, error: 'passkeyId required' }, { status: 400 });
-    }
-
-    const deleted = await deletePasskey(passkeyId, user.userId);
-    if (!deleted) {
-      return NextResponse.json({ success: false, error: 'Passkey not found or not yours' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, message: 'Passkey removed' });
-  } catch (error) {
-    console.error('[passkeys DELETE]', error);
-    return NextResponse.json({ success: false, error: 'Failed to remove passkey' }, { status: 500 });
-  }
-}
+export const DELETE = withRoute({ signedIn: true, body: Revoke }, async ({ auth, body }) => {
+  const deleted = await deletePasskey(body.passkeyId, auth.userId);
+  return deleted ? ok({ id: body.passkeyId }) : fail(404, 'Passkey not found or not yours');
+});

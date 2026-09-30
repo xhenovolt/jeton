@@ -6,7 +6,7 @@ import { requirePermission } from '@/lib/permissions.js';
 // GET /api/products
 export async function GET(request) {
   try {
-    const perm = await requirePermission(request, 'products', 'view');
+    const perm = await requirePermission(request, 'products.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 

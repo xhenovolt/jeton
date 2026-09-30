@@ -9,7 +9,7 @@ import { logError } from '@/lib/system-logs.js';
 // GET /api/deals/[id]
 export async function GET(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'deals', 'view');
+    const perm = await requirePermission(request, 'deals.view');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;
@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
 // PUT /api/deals/[id]
 export async function PUT(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'deals', 'edit');
+    const perm = await requirePermission(request, 'deals.edit');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;
@@ -121,7 +121,7 @@ export async function PUT(request, { params }) {
 // and ledger revenue for payments that no longer exist.
 export async function DELETE(request, { params }) {
   try {
-    const perm = await requirePermission(request, 'deals', 'delete');
+    const perm = await requirePermission(request, 'deals.delete');
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
     const { id } = await params;

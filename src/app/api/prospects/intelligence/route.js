@@ -36,7 +36,7 @@ const PROJECTION = `
 `;
 
 export async function GET(request) {
-  const perm = await requirePermission(request, 'prospects', 'view');
+  const perm = await requirePermission(request, 'prospects.view');
   if (perm instanceof NextResponse) return perm;
 
   const { searchParams } = new URL(request.url);
