@@ -45,3 +45,16 @@ update_consty_payment.mjs
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database dumps / backups — NEVER commit (contain real user & financial data)
+*.dump
+*.backup
+*.bak
+*_backup_*.sql
+*_db_backup*.sql
+*_dump*.sql
+# ...but schema migrations are always tracked
+!migrations/*.sql
+/Backup/
+/backups/
+pg_dump*
