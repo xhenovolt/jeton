@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare, Building2, ShieldCheck, Briefcase, Fingerprint, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import Link from 'next/link';
+import { usePermissions } from '@/components/providers/PermissionProvider';
+import { getRoutePermission, isOpenRoute } from '@/lib/navigation-config';
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -12,6 +14,14 @@ export default function SettingsPage() {
   const [pwMessage, setPwMessage] = useState('');
   const [error, setError] = useState('');
   const [passkeyCount, setPasskeyCount] = useState(null); // null = loading
+  const { user: permUser, hasPermission } = usePermissions();
+  // Only show tiles the user can actually open (company-wide settings need
+  // settings.manage etc.) — same rule RoutePermissionGuard enforces.
+  const canOpen = (href) => {
+    if (isOpenRoute(href) || permUser?.is_superadmin) return true;
+    const required = getRoutePermission(href);
+    return !required || hasPermission(required);
+  };
 
   useEffect(() => {
     // /api/auth/me responds with { user } (not the { success, data } envelope)
@@ -83,7 +93,7 @@ export default function SettingsPage() {
           { href: '/app/settings/communication', icon: MessageSquare, label: 'Communication', desc: 'Calls, chat & file sharing' },
           { href: '/app/settings/security', icon: ShieldCheck, label: 'Security', desc: 'Biometric login & passkeys' },
           { href: '/app/settings/sessions', icon: Lock, label: 'Active Sessions', desc: 'Signed-in devices' },
-        ].map(item => (
+        ].filter(item => canOpen(item.href)).map(item => (
           <Link key={item.href} href={item.href} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted/50 transition group">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">

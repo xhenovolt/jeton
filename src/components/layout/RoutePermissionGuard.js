@@ -8,33 +8,14 @@
  * permission. If the user lacks it, they are redirected to /app/unauthorized.
  *
  * Superadmin bypasses all permission checks.
- * Routes with no mapped permission (open routes, settings, notifications) are
- * accessible to every authenticated user.
+ * Open routes (OPEN_ROUTES in lib/navigation-config) are accessible to every
+ * authenticated user; every other page resolves to a permission.
  */
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePermissions } from '@/components/providers/PermissionProvider';
-import { getRoutePermission } from '@/lib/navigation-config';
-
-/**
- * Routes that are always accessible to authenticated users regardless of role.
- * Add any path prefix here to exempt it from permission enforcement.
- */
-const OPEN_PATH_PREFIXES = [
-  '/app/unauthorized',
-  '/app/notifications',
-  '/app/settings',         // General settings section open to all
-];
-
-/**
- * Exact paths open to every authenticated user. The dashboard must be an
- * EXACT match: as a prefix it also opened /app/dashboard/drais/* and
- * /app/dashboard/integrations to every role.
- */
-const OPEN_EXACT_PATHS = [
-  '/app/dashboard',        // Dashboard is always accessible; widgets self-gate via hasPermission
-];
+import { getRoutePermission, isOpenRoute } from '@/lib/navigation-config';
 
 export function RoutePermissionGuard({ children }) {
   const pathname = usePathname();
@@ -54,10 +35,10 @@ export function RoutePermissionGuard({ children }) {
     redirectedRef.current = false;
 
     // Check open routes — no permission required
-    const isOpen = OPEN_EXACT_PATHS.includes(pathname) || OPEN_PATH_PREFIXES.some(
-      (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
-    );
-    if (isOpen) return;
+    // Open routes are exact matches (see OPEN_ROUTES). The old prefix list
+    // opened every /app/settings/* and /app/dashboard/* page to all roles,
+    // including company branding, invoice themes and DRAIS control.
+    if (isOpenRoute(pathname)) return;
 
     // Get the required permission for this route
     const required = getRoutePermission(pathname);

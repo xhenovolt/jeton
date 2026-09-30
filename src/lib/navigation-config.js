@@ -158,16 +158,30 @@ export const menuItems = [
     permission: 'products.view',
   },
 
+  // === PEOPLE ===
+  // One tree for everything about the team: /app/staff/*. Replaces the
+  // separate /app/hr (broken, unlinked), /app/hrm and /app/org-hierarchy
+  // pages; old URLs redirect via next.config.mjs.
+  {
+    label: 'People',
+    icon: Users,
+    category: 'sections',
+    section: 'staff',
+    submenu: [
+      { label: 'Directory',          href: '/app/staff',           description: 'Team members & accounts',     permission: 'staff.view' },
+      { label: 'Departments & HRM',  href: '/app/staff/hrm',       description: 'Employees & departments',     permission: 'hrm.view' },
+      { label: 'Payroll',            href: '/app/staff/payroll',   description: 'Payouts & employee accounts', permission: 'staff.view' },
+      { label: 'Org Hierarchy',      href: '/app/staff/hierarchy', description: 'Department & role tree',      permission: 'staff.view' },
+    ],
+  },
+
   // === COMPANY ===
   {
     label: 'Company',
     icon: Building2,
     category: 'sections',
     submenu: [
-      { label: 'Staff', href: '/app/staff', description: 'Team members & hierarchy', permission: 'staff.view' },
-      { label: 'Org Hierarchy', href: '/app/org-hierarchy', description: 'Department & role tree', permission: 'staff.view' },
       { label: 'Control Tower', href: '/app/control-tower', description: 'Authority & structural health', permission: 'staff.view' },
-      { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },
       { label: 'Decision Log', href: '/app/decision-log', description: 'Key decisions & rationale', permission: 'decision_logs.view' },
       { label: 'Items', href: '/app/items', description: 'Unified assets, tools & infrastructure', permission: 'assets.view' },
       { label: 'Knowledge Base', href: '/app/knowledge', description: 'Company IP & documentation', permission: 'knowledge.view' },
@@ -212,12 +226,13 @@ export const menuItems = [
   // /app/intelligence/* and shares the tab bar in app/intelligence/layout.js.
   // Old URLs (/app/issue-intelligence, /app/tech-intelligence,
   // /app/financial-intelligence, /app/prospects/intelligence) redirect via
-  // next.config.mjs. Keep INTELLIGENCE_TABS below in sync with this list.
+  // next.config.mjs. The hub's tab bar is generated from this submenu.
   {
     label: 'Intelligence',
     icon: Brain,
     category: 'sections',
     module: 'intelligence',
+    section: 'intelligence',
     submenu: [
       { label: 'Overview',   href: '/app/intelligence',           description: 'Role-based intelligence overview',    permission: 'intelligence.view' },
       { label: 'Financial',  href: '/app/intelligence/financial', description: 'Capital allocation & revenue',        permission: 'finance.view' },
@@ -437,6 +452,46 @@ export function getAllValidRoutes() {
 
 const _routePermissionMap = {};
 
+/**
+ * Pages that are NOT in the sidebar but still need a permission. Every page
+ * under src/app/app must resolve to a permission (via the menu above, this
+ * table, or a parent path) or be listed in OPEN_ROUTES —
+ * scripts/check-route-registry.mjs enforces that in CI.
+ */
+export const EXTRA_ROUTE_PERMISSIONS = {
+  '/app/admin':                  'users.view',
+  '/app/admin/identity':         'identity.view_health',
+  '/app/settings/company':       'settings.manage',
+  '/app/settings/financial':     'settings.manage',
+  '/app/settings/deals':         'settings.manage',
+  '/app/settings/communication': 'communication.admin',
+};
+
+/**
+ * Pages every signed-in user may open. Exact paths; a trailing '/*' also
+ * opens descendants. RoutePermissionGuard reads this list.
+ */
+export const OPEN_ROUTES = [
+  '/app',
+  '/app/dashboard',            // widgets self-gate via hasPermission
+  '/app/notifications',
+  '/app/profile',
+  '/app/about',
+  '/app/unauthorized',
+  '/app/settings',             // personal settings ↓
+  '/app/settings/appearance',
+  '/app/settings/theme',
+  '/app/settings/typography',
+  '/app/settings/security',
+  '/app/settings/sessions',
+];
+
+export function isOpenRoute(path) {
+  return OPEN_ROUTES.some(r =>
+    r.endsWith('/*') ? path === r.slice(0, -2) || path.startsWith(r.slice(0, -1)) : path === r
+  );
+}
+
 function _buildMap(items) {
   items.forEach((item) => {
     if (item.href) {
@@ -450,6 +505,7 @@ function _buildMap(items) {
   });
 }
 _buildMap(menuItems);
+Object.assign(_routePermissionMap, EXTRA_ROUTE_PERMISSIONS);
 
 /**
  * Return the required permission key for a given path, or null if open to all.
@@ -473,8 +529,25 @@ export function getRoutePermission(path) {
 }
 
 /**
- * Tabs rendered by app/intelligence/layout.js. Derived from the Intelligence
- * section above so the sidebar and the in-page tabs can never drift apart.
+ * Tabs for a consolidated section's layout (see components/layout/SectionTabs).
+ * Derived from the section's submenu above, so sidebar and tabs never drift.
+ * @param {string} section  the `section` key on a menu item, e.g. 'staff'
  */
-export const INTELLIGENCE_TABS =
-  menuItems.find(item => item.module === 'intelligence')?.submenu ?? [];
+export function getSectionTabs(section) {
+  return menuItems.find(item => item.section === section)?.submenu ?? [];
+}
+
+/**
+ * Human-readable title for a path: the label of the exact menu entry, or of
+ * its nearest registered ancestor. Returns null for unregistered paths.
+ */
+export function getRouteTitle(path) {
+  if (!path) return null;
+  const parts = path.split('/');
+  while (parts.length > 2) {
+    const item = findMenuItemByHref(parts.join('/'));
+    if (item) return item.label;
+    parts.pop();
+  }
+  return null;
+}

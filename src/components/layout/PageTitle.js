@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { getRouteTitle } from '@/lib/navigation-config';
 
 /**
  * Page Title Component
@@ -10,23 +11,9 @@ import { useEffect } from 'react';
 export function PageTitle() {
   const pathname = usePathname();
 
-  // Map routes to readable titles
-  const routeTitles = {
-    '/app/dashboard': 'Dashboard',
-    '/app/assets-accounting': 'Accounting Assets',
-    '/app/intellectual-property': 'Intellectual Property',
-    '/app/infrastructure': 'Infrastructure',
-    '/app/liabilities': 'Liabilities',
-    '/app/deals': 'Deals',
-    '/app/pipeline': 'Pipeline',
-    '/app/prospecting': 'Prospecting Notebook',
-    '/app/prospecting/dashboard': 'Today\'s Prospecting',
-    '/app/staff': 'Staff',
-    '/app/audit-logs': 'Audit Logs',
-    '/app/settings': 'Settings',
-  };
-
-  const pageTitle = routeTitles[pathname] || 'Jeton';
+  // Titles come from the navigation config (single source of truth) —
+  // nearest registered ancestor wins, so /app/deals/123 reads "All Deals".
+  const pageTitle = getRouteTitle(pathname) || 'Jeton';
   const fullTitle = pageTitle === 'Jeton' ? 'Jeton - Executive Operating System' : `${pageTitle} | Jeton`;
 
   // Update HTML title

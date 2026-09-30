@@ -43,7 +43,9 @@ export async function GET(request) {
  * The company_logo key accepts a base64 data URL (max ~2MB).
  */
 export async function PATCH(request) {
-  const perm = await requirePermission(request, 'users.view');
+  // Writing company-wide branding needs a manage permission — it used to
+  // accept 'users.view', i.e. any read-only user could rebrand the company.
+  const perm = await requirePermission(request, 'settings.manage');
   if (perm instanceof NextResponse) return perm;
 
   try {

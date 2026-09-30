@@ -27,7 +27,7 @@ const NOTIF_ROUTES = {
   operation: () => '/app/operations',
   expense: () => '/app/finance/expenses',
   invoice: (id) => `/app/deals/${id}`,
-  employee: () => '/app/hrm',
+  employee: () => '/app/staff/hrm',
   license: () => '/app/licenses',
 };
 

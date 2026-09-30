@@ -42,7 +42,8 @@ export async function GET(request) {
       const operations = await query(`
         SELECT 
           COUNT(*) as total,
-          COUNT(*) FILTER (WHERE created_at >= date_trunc('week', CURRENT_DATE)) as this_week
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('week', CURRENT_DATE)) as this_week,
+          (SELECT COUNT(*) FROM knowledge_assets WHERE status = 'active') as knowledge_articles
         FROM operations
       `);
       data.operations = operations.rows[0];
