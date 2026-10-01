@@ -1,58 +1,48 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db.js';
-import { verifyAuth } from '@/lib/auth-utils.js';
-import { requirePermission } from '@/lib/permissions.js';
+import { withRoute, ok, fail } from '@/lib/api/route.js';
+import { query, withTransaction } from '@/lib/db.js';
+import { BUDGET_SELECT, BudgetUpdate } from '../shared.js';
 
-export async function GET(request, { params }) {
-  try {
-    const perm = await requirePermission(request, 'finance.view');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-    const { id } = await params;
-    const budget = await query(`SELECT * FROM v_budget_utilization WHERE budget_id = $1`, [id]);
-    if (!budget.rows[0]) return NextResponse.json({ success: false, error: 'Budget not found' }, { status: 404 });
-    const expenses = await query(
-      `SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE e.budget_id = $1 ORDER BY e.expense_date DESC`, [id]
-    );
-    return NextResponse.json({ success: true, data: { ...budget.rows[0], expenses: expenses.rows } });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to fetch budget' }, { status: 500 });
-  }
-}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function PUT(request, { params }) {
-  try {
-    const perm = await requirePermission(request, 'finance.create');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-    const { id } = await params;
-    const body = await request.json();
-    const fields = ['name','category','amount','currency','period','start_date','end_date','alert_threshold','is_active','notes'];
-    const updates = [];
-    const values = [];
-    fields.forEach(f => { if (body[f] !== undefined) { values.push(body[f]); updates.push(`${f} = $${values.length}`); } });
-    if (updates.length === 0) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
-    values.push(id);
-    const result = await query(`UPDATE budgets SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`, values);
-    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Budget not found' }, { status: 404 });
-    return NextResponse.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to update budget' }, { status: 500 });
-  }
-}
+// GET /api/budgets/:id — budget + its expenses
+export const GET = withRoute({ permission: 'budgets.view' }, async ({ params }) => {
+  if (!UUID_RE.test(params.id)) return fail(400, 'Invalid budget id');
+  const budget = await query(`${BUDGET_SELECT} WHERE v.budget_id = $1`, [params.id]);
+  if (!budget.rows[0]) return fail(404, 'Budget not found');
+  const expenses = await query(
+    `SELECT e.*, a.name AS account_name
+       FROM expenses e JOIN accounts a ON e.account_id = a.id
+      WHERE e.budget_id = $1
+      ORDER BY e.expense_date DESC`,
+    [params.id]
+  );
+  return ok({ ...budget.rows[0], expenses: expenses.rows });
+});
 
-export async function DELETE(request, { params }) {
-  try {
-    const perm = await requirePermission(request, 'finance.manage');
-    if (perm instanceof NextResponse) return perm;
-    const { auth } = perm;
-    const { id } = await params;
-    // Unlink expenses from this budget first
-    await query(`UPDATE expenses SET budget_id = NULL WHERE budget_id = $1`, [id]);
-    const result = await query(`DELETE FROM budgets WHERE id = $1 RETURNING id`, [id]);
-    if (!result.rows[0]) return NextResponse.json({ success: false, error: 'Budget not found' }, { status: 404 });
-    return NextResponse.json({ success: true, message: 'Budget deleted' });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to delete budget' }, { status: 500 });
-  }
-}
+// PUT /api/budgets/:id
+export const PUT = withRoute({ permission: 'budgets.update', body: BudgetUpdate }, async ({ params, body }) => {
+  if (!UUID_RE.test(params.id)) return fail(400, 'Invalid budget id');
+  const cols = Object.keys(body);
+  const values = cols.map(c => body[c]);
+  const sets = cols.map((c, i) => `${c} = $${i + 1}`);
+  sets.push('updated_at = NOW()');
+  const result = await query(
+    `UPDATE budgets SET ${sets.join(', ')} WHERE id = $${values.length + 1} RETURNING id`,
+    [...values, params.id]
+  );
+  if (!result.rows[0]) return fail(404, 'Budget not found');
+  const updated = await query(`${BUDGET_SELECT} WHERE v.budget_id = $1`, [params.id]);
+  return ok(updated.rows[0]);
+});
+
+// DELETE /api/budgets/:id — unlinks its expenses, then deletes (atomically)
+export const DELETE = withRoute({ permission: 'budgets.delete' }, async ({ params }) => {
+  if (!UUID_RE.test(params.id)) return fail(400, 'Invalid budget id');
+  const deleted = await withTransaction(async tx => {
+    await tx(`UPDATE expenses SET budget_id = NULL WHERE budget_id = $1`, [params.id]);
+    const r = await tx(`DELETE FROM budgets WHERE id = $1 RETURNING id`, [params.id]);
+    return r.rows[0];
+  });
+  if (!deleted) return fail(404, 'Budget not found');
+  return ok({ id: deleted.id });
+});
