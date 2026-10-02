@@ -295,9 +295,32 @@ export async function DELETE(request) {
   const cascadeUser = searchParams.get('cascade_user') !== 'false';
   if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
 
-  const reports = await query(`SELECT COUNT(*)::int AS n FROM staff WHERE manager_id = $1`, [id]);
-  if (reports.rows[0].n > 0) {
-    return NextResponse.json({ success: false, error: 'Cannot delete: other staff members report to this person' }, { status: 409 });
+  // Pre-flight the dependencies that would otherwise surface as an opaque
+  // 500 from a foreign-key violation. payouts.staff_id is RESTRICT and
+  // _deprecated_resources.assigned_to / staff.manager_id are NO ACTION, so any
+  // of them aborts the DELETE. Report which one, and point at termination —
+  // for anyone with payroll history that is the correct action anyway.
+  const blockers = await query(
+    `SELECT
+       (SELECT COUNT(*)::int FROM staff WHERE manager_id = $1)                   AS reports,
+       (SELECT COUNT(*)::int FROM payouts WHERE staff_id = $1)                    AS payouts,
+       (SELECT COUNT(*)::int FROM _deprecated_resources WHERE assigned_to = $1)   AS legacy_resources`,
+    [id]
+  );
+  const b = blockers.rows[0];
+  const reasons = [];
+  if (b.reports > 0) reasons.push(`${b.reports} staff member(s) report to this person`);
+  if (b.payouts > 0) reasons.push(`${b.payouts} payout record(s) reference them`);
+  if (b.legacy_resources > 0) reasons.push(`${b.legacy_resources} assigned resource(s) reference them`);
+
+  if (reasons.length > 0) {
+    return NextResponse.json({
+      success: false,
+      code: 'STAFF_HAS_DEPENDENCIES',
+      error: `This person cannot be hard-deleted because ${reasons.join(', and ')}. ` +
+             `Terminate them instead — that ends their access and keeps the employment and payroll history intact.`,
+      blockers: b,
+    }, { status: 409 });
   }
 
   const client = await getPool().connect();
@@ -321,8 +344,15 @@ export async function DELETE(request) {
           `UPDATE users SET status = 'disabled', is_active = FALSE, staff_id = NULL WHERE id = $1`,
           [linkedUserId]
         );
-        // Revoke sessions
-        try { await client.query('DELETE FROM user_sessions WHERE user_id = $1', [linkedUserId]); } catch {}
+        // Revoke sessions. This targeted `user_sessions`, which does not
+        // exist — the table is `sessions` — and the error was swallowed by the
+        // empty catch, so deleting a staff member never actually ended their
+        // active sessions. getSession() honours is_revoked, and flagging keeps
+        // the session history for audit instead of deleting it.
+        await client.query(
+          'UPDATE sessions SET is_revoked = true WHERE user_id = $1 AND is_revoked = false',
+          [linkedUserId]
+        );
       }
     }
 

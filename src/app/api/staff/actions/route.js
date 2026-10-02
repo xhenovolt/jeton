@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db.js';
+import { query, withTransaction } from '@/lib/db.js';
 import { verifyAuth } from '@/lib/auth-utils.js';
 import { dispatch } from '@/lib/system-events.js';
 import { requirePermission } from '@/lib/permissions.js';
@@ -14,7 +14,7 @@ export async function POST(request) {
     if (perm instanceof NextResponse) return perm;
     const { auth } = perm;
 
-    const { staff_id, action_type, new_role_id, reason } = await request.json();
+    const { staff_id, action_type, new_role_id, reason, effective_date } = await request.json();
     if (!staff_id || !action_type) {
       return NextResponse.json({ success: false, error: 'staff_id and action_type are required' }, { status: 400 });
     }
@@ -58,25 +58,80 @@ export async function POST(request) {
           [new_role_id, newRole.name, staff_id]);
         break;
 
+      // Termination is a status change, not a deletion: employment history,
+      // payroll and audit rows must survive it. What it MUST also do is close
+      // off access — a terminated employee keeping a working login was the
+      // security hole here.
       case 'termination':
-        await query(`UPDATE staff SET is_active = false, status = 'inactive', deactivated_at = NOW(), deactivation_reason = $1, updated_at = NOW() WHERE id = $2`,
-          [reason || 'Terminated', staff_id]);
+        await withTransaction(async (tx) => {
+          await tx(
+            `UPDATE staff
+                SET is_active = false,
+                    status = 'terminated',
+                    deactivated_at = COALESCE($1::timestamptz, NOW()),
+                    deactivation_reason = $2,
+                    deactivated_by = $3,
+                    updated_at = NOW()
+              WHERE id = $4`,
+            [effective_date || null, reason || 'Terminated', auth.userId, staff_id]
+          );
+
+          const linkedUserId = current.user_id || current.linked_user_id || null;
+          if (linkedUserId) {
+            // Disable the login and drop every live session, so access ends
+            // immediately rather than at the next token expiry.
+            await tx(
+              `UPDATE users SET status = 'disabled', is_active = FALSE WHERE id = $1`,
+              [linkedUserId]
+            );
+            // The session table is `sessions`, not `user_sessions`, and
+            // getSession() admits a row only while is_revoked = false. Setting
+            // the flag is what actually ends access, and it keeps the session
+            // history for audit rather than deleting it.
+            await tx(
+              `UPDATE sessions SET is_revoked = true WHERE user_id = $1 AND is_revoked = false`,
+              [linkedUserId]
+            );
+            await tx(
+              `INSERT INTO identity_audit_logs (action, user_id, staff_id, actor_id, reason, before_state, metadata)
+               VALUES ('terminate_staff', $1, $2, $3, $4, $5, $6)`,
+              [linkedUserId, staff_id, auth.userId, reason || null,
+               JSON.stringify({ staff: current }),
+               JSON.stringify({ sessions_revoked: true, login_disabled: true })]
+            );
+          }
+        });
         break;
 
       case 'reactivation':
-        await query(`UPDATE staff SET is_active = true, status = 'active', deactivated_at = NULL, deactivation_reason = NULL, updated_at = NOW() WHERE id = $1`,
-          [staff_id]);
+        await withTransaction(async (tx) => {
+          await tx(
+            `UPDATE staff
+                SET is_active = true, status = 'active',
+                    deactivated_at = NULL, deactivation_reason = NULL, deactivated_by = NULL,
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [staff_id]
+          );
+          const linkedUserId = current.user_id || current.linked_user_id || null;
+          if (linkedUserId) {
+            await tx(
+              `UPDATE users SET status = 'active', is_active = TRUE WHERE id = $1`,
+              [linkedUserId]
+            );
+          }
+        });
         break;
     }
 
     // Log the action
     await query(
-      `INSERT INTO staff_actions (staff_id, action_type, previous_role_id, new_role_id, previous_role_name, new_role_name, previous_authority_level, new_authority_level, reason, performed_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      `INSERT INTO staff_actions (staff_id, action_type, previous_role_id, new_role_id, previous_role_name, new_role_name, previous_authority_level, new_authority_level, reason, effective_date, performed_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10::date, CURRENT_DATE),$11)`,
       [staff_id, action_type, current.role_id || null, new_role_id || null,
        current.current_role_name || current.role || null, newRole?.name || null,
        current.current_level || null, newRole?.hierarchy_level || null,
-       reason || null, auth.userId]
+       reason || null, effective_date || null, auth.userId]
     );
 
     // Audit log
@@ -110,8 +165,13 @@ export async function POST(request) {
       data: { staff_id, action_type, previous_role: current.current_role_name, new_role: newRole?.name },
     });
   } catch (error) {
+    // Return the real reason. A flat "Failed to perform staff action" is what
+    // kept the missing-column failure invisible for so long.
     console.error('[Staff Actions] POST error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to perform staff action' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: `Failed to perform staff action: ${error.message}`, code: error.code },
+      { status: 500 }
+    );
   }
 }
 

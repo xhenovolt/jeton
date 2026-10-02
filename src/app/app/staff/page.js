@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle, UserPlus, UserCheck, Lock, Eye, EyeOff, Key } from 'lucide-react';
+import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle, UserPlus, UserCheck, Lock, Eye, EyeOff, Key, UserMinus, RotateCcw, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
@@ -153,6 +153,11 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  // Termination dialog
+  const [terminateTarget, setTerminateTarget] = useState(null);
+  const [terminateReason, setTerminateReason] = useState('');
+  const [terminateDate, setTerminateDate] = useState('');
+  const [terminating, setTerminating] = useState(false);
   const [tab, setTab] = useState('list');
   const [deptFilter, setDeptFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -339,10 +344,80 @@ export default function StaffPage() {
   const deleteStaff = async (id) => {
     if (!await confirmDelete('team member')) return;
     try {
-      await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+
+      // fetch() only rejects on a network failure, so a 409/500 used to fall
+      // straight through to the success toast below. The row stayed in the
+      // list while the UI claimed the person had been removed, which is why
+      // deleting appeared to do nothing at all.
+      if (!res.ok || json.success === false) {
+        const msg = json.error || `Could not remove team member (HTTP ${res.status}).`;
+        toast.error(msg, { duration: 10000 });
+        // Anyone with payroll or reporting dependencies cannot be hard-deleted.
+        // Terminating is the right action there, so offer it directly.
+        if (json.code === 'STAFF_HAS_DEPENDENCIES') setTerminateTarget(staff.find(s => s.id === id) || { id });
+        return;
+      }
+
       toast.success('Team member removed');
       fetchStaff();
-    } catch { toast.error('Failed to delete'); }
+    } catch (err) {
+      toast.error(`Failed to delete: ${err.message}`);
+    }
+  };
+
+  // Termination keeps the employment record and payroll history, ends the
+  // person's access, and is the correct action for anyone who has actually
+  // worked here. Hard deletion is for records created in error.
+  const terminateStaff = async () => {
+    if (!terminateTarget) return;
+    setTerminating(true);
+    try {
+      const res = await fetchWithAuth('/api/staff/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          staff_id: terminateTarget.id,
+          action_type: 'termination',
+          reason: terminateReason || null,
+          effective_date: terminateDate || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        toast.error(json.error || `Could not terminate (HTTP ${res.status}).`, { duration: 10000 });
+        return;
+      }
+      toast.success(`${terminateTarget.name || 'Team member'} terminated. Their login has been disabled and sessions revoked.`);
+      setTerminateTarget(null);
+      setTerminateReason('');
+      setTerminateDate('');
+      fetchStaff();
+    } catch (err) {
+      toast.error(`Failed to terminate: ${err.message}`);
+    } finally {
+      setTerminating(false);
+    }
+  };
+
+  const reactivateStaff = async (s) => {
+    try {
+      const res = await fetchWithAuth('/api/staff/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: s.id, action_type: 'reactivation' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        toast.error(json.error || `Could not reactivate (HTTP ${res.status}).`, { duration: 10000 });
+        return;
+      }
+      toast.success(`${s.name || 'Team member'} reactivated`);
+      fetchStaff();
+    } catch (err) {
+      toast.error(`Failed to reactivate: ${err.message}`);
+    }
   };
 
   const getPresence = (s) => {
@@ -725,8 +800,24 @@ export default function StaffPage() {
                       <Key className="w-3.5 h-3.5" />Create Account
                     </button>
                   )}
-                  <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
-                  <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => startEdit(s)} className="p-1.5 rounded hover:bg-muted" title="Edit"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
+                  {/* Terminate is the primary offboarding action: it ends access
+                      but keeps employment and payroll history. Hard delete stays
+                      available for records created in error. */}
+                  {s.is_active === false || String(s.status).toLowerCase() === 'terminated' ? (
+                    <button onClick={() => reactivateStaff(s)}
+                      className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-900/20"
+                      title="Reactivate — restores their login">
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => { setTerminateTarget(s); setTerminateReason(''); setTerminateDate(''); }}
+                      className="p-1.5 rounded hover:bg-amber-50 text-amber-600 dark:hover:bg-amber-900/20"
+                      title="Terminate — disables their login, keeps their records">
+                      <UserMinus className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={() => deleteStaff(s.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500 dark:hover:bg-red-900/20" title="Delete permanently"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             );
@@ -745,6 +836,56 @@ export default function StaffPage() {
             fetchStaff();
           }}
         />
+      )}
+
+      {/* ── TERMINATION DIALOG ──────────────────────────────────────────── */}
+      {terminateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <UserMinus className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="font-semibold text-foreground">Terminate {terminateTarget.name || 'team member'}</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ends employment and access. The employment record, payroll history and audit trail are kept.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setTerminateTarget(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-3 py-2 rounded-lg text-xs">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>Their login will be disabled and all active sessions revoked immediately.</span>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Effective date</label>
+              <input type="date" value={terminateDate} onChange={e => setTerminateDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
+              <p className="text-xs text-muted-foreground mt-1">Leave blank to use today.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Reason</label>
+              <textarea rows={3} value={terminateReason} onChange={e => setTerminateReason(e.target.value)}
+                placeholder="Recorded against the employment history"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={terminateStaff} disabled={terminating}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">
+                {terminating ? 'Terminating...' : 'Terminate'}
+              </button>
+              <button onClick={() => setTerminateTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm border border-border hover:bg-muted">Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
