@@ -13,29 +13,69 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_LABELS = { emergency_fund: 'Emergency Fund', operations: 'Operations', reinvestment: 'Reinvestment', founder_compensation: 'Founder Comp' };
 
+/**
+ * Coerce an API field that must be a list into a list.
+ *
+ * This is deliberately NOT a silent `|| []`. If the server ever changes shape
+ * again, the console names the exact field so the contract break is visible
+ * instead of surfacing later as ".map is not a function" in a minified bundle.
+ */
+function asArray(value, fieldName) {
+  if (Array.isArray(value)) return value;
+  if (value !== undefined && value !== null) {
+    console.error(
+      `[FinancialIntelligence] expected ${fieldName} to be an array, got ${
+        Object.prototype.toString.call(value)}. Rendering empty.`, value);
+  }
+  return [];
+}
+
 export default function FinancialIntelligencePage() {
   const [rules, setRules] = useState([]);
   const [summaries, setSummaries] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueEvents, setRevenueEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showRevenueForm, setShowRevenueForm] = useState(false);
   const [revForm, setRevForm] = useState({ source_type: 'deal_payment', source_reference: '', amount: '', description: '' });
   const toast = useToast();
 
   const fetchData = async () => {
+    setLoadError('');
     try {
       const [allocRes, revRes] = await Promise.all([
         fetchWithAuth('/api/capital-allocation').then(r => r.json ? r.json() : r),
         fetchWithAuth('/api/revenue-events').then(r => r.json ? r.json() : r),
       ]);
-      if (allocRes.success) {
-        setRules(allocRes.data || []);
-        setSummaries(allocRes.summaries || []);
-        setTotalRevenue(parseFloat(allocRes.total_revenue || 0));
+
+      // GET /api/capital-allocation responds with
+      //   { success, data: { rules[], allocations[], total_revenue } }
+      // This used to read allocRes.data straight into `rules`, so `rules` was
+      // set to the wrapper OBJECT. `|| []` could not catch it because an object
+      // is truthy, and the next render hit rules.map() -> "e.map is not a
+      // function". `summaries` and `total_revenue` were likewise read one level
+      // too high and silently resolved to [] and 0, so the page never showed
+      // allocation totals even when it did render.
+      if (allocRes?.success) {
+        const payload = allocRes.data ?? {};
+        setRules(asArray(payload.rules, 'capital-allocation.data.rules'));
+        setSummaries(asArray(payload.allocations, 'capital-allocation.data.allocations'));
+        setTotalRevenue(Number.parseFloat(payload.total_revenue) || 0);
+      } else {
+        setLoadError(allocRes?.error || 'Could not load capital allocation policy.');
       }
-      if (revRes.success) setRevenueEvents(revRes.data || []);
-    } catch (err) { console.error(err); }
+
+      // GET /api/revenue-events responds with { success, data: [...] }
+      if (revRes?.success) {
+        setRevenueEvents(asArray(revRes.data, 'revenue-events.data'));
+      } else {
+        setLoadError(prev => prev || revRes?.error || 'Could not load revenue events.');
+      }
+    } catch (err) {
+      console.error('[FinancialIntelligence] load failed:', err);
+      setLoadError('Could not reach the server. Check your connection and retry.');
+    }
     setLoading(false);
   };
 
@@ -66,6 +106,19 @@ export default function FinancialIntelligencePage() {
         <p className="text-sm text-muted-foreground mt-1">Capital allocation, revenue tracking, and budget management</p>
       </div>
 
+      {/* A failed load used to render as a silently empty page. Say what broke
+          and offer a way out. */}
+      {loadError && (
+        <div className="flex items-start justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{loadError}</span>
+          </div>
+          <button onClick={() => { setLoading(true); fetchData(); }}
+            className="shrink-0 underline hover:no-underline font-medium">Retry</button>
+        </div>
+      )}
+
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border p-4">
@@ -87,6 +140,11 @@ export default function FinancialIntelligencePage() {
       {/* Allocation Rules */}
       <div className="bg-card rounded-xl border p-5">
         <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2"><PieChart className="w-5 h-5" /> Capital Allocation Policy</h2>
+        {rules.length === 0 && !loadError && (
+          <p className="text-sm text-muted-foreground">
+            No allocation rules defined yet. Revenue will not be split across categories until you add one.
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {rules.map(rule => {
             const c = CATEGORY_COLORS[rule.category] || CATEGORY_COLORS.operations;

@@ -214,7 +214,11 @@ export const menuItems = [
     submenu: [
       { label: 'Dashboard', href: '/app/intelligence', description: 'Role-based intelligence overview', permission: 'intelligence.view' },
       { label: 'Tech Stacks', href: '/app/tech-intelligence', description: 'Reusable technology stacks', permission: 'systems.view' },
-      { label: 'Engineering', href: '/app/engineering', description: 'Bugs, features & tech tracking', permission: 'bug_tracking.view' },
+      // Points at /app/issues, which is the real (previously nav-orphaned)
+      // engineering surface: auto-logged errors plus manual issue reports.
+      // /app/engineering never existed as a page; /app/engineering/page.js is
+      // now a redirect here so older links keep working.
+      { label: 'Engineering', href: '/app/issues', description: 'Errors, bugs & issue tracking', permission: 'bug_tracking.view' },
       { label: 'Issue Intelligence', href: '/app/issue-intelligence', description: 'Root causes & resolutions', permission: 'issue_intelligence.view' },
       { label: 'Financial', href: '/app/financial-intelligence', description: 'Capital allocation & revenue', permission: 'finance.view' },
       { label: 'HRM', href: '/app/hrm', description: 'Employees & departments', permission: 'hrm.view' },

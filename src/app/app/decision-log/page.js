@@ -26,6 +26,80 @@ const STATUS_COLORS = {
   deferred: 'bg-orange-100 text-orange-700',
 };
 
+/**
+ * Hoisted to module scope on purpose.
+ *
+ * This used to be declared inside DecisionLogPage. Every keystroke calls
+ * setForm, which re-renders the page and creates a NEW function identity for
+ * this component. React compares element types by identity, so it unmounted
+ * the whole form and mounted a fresh one on each character — the input lost
+ * focus after every letter, which is why typing felt limited to one
+ * character at a time. At module scope the identity is stable and the inputs
+ * keep their DOM nodes and focus.
+ */
+function DecisionForm({ form, setForm, saving, departments, onSubmit, submitLabel }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className="block text-sm text-muted-foreground mb-1">Title *</label>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" placeholder="What was decided?" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm text-muted-foreground mb-1">Description</label>
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Category</label>
+          <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Priority</label>
+          <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
+            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Status</label>
+          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
+            {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Decision Date</label>
+          <input type="date" value={form.decision_date} onChange={e => setForm(f => ({ ...f, decision_date: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Department</label>
+          <select value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
+            <option value="">None</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Tags (comma-separated)</label>
+          <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="architecture, budget, hiring" className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm text-muted-foreground mb-1">Context / Reasoning</label>
+          <textarea value={form.context} onChange={e => setForm(f => ({ ...f, context: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" placeholder="Why was this decision made?" />
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Alternatives Considered</label>
+          <textarea value={form.alternatives} onChange={e => setForm(f => ({ ...f, alternatives: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
+        </div>
+        <div>
+          <label className="block text-sm text-muted-foreground mb-1">Expected Consequences</label>
+          <textarea value={form.consequences} onChange={e => setForm(f => ({ ...f, consequences: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
+        </div>
+      </div>
+      <button onClick={onSubmit} disabled={saving || !form.title.trim()} className="px-6 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50" style={{ background: 'var(--theme-primary, #3b82f6)' }}>{saving ? 'Saving...' : submitLabel}</button>
+    </div>
+  );
+}
+
 export default function DecisionLogPage() {
   const [decisions, setDecisions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -147,66 +221,6 @@ export default function DecisionLogPage() {
     setEditing(true);
   };
 
-  const DecisionForm = ({ onSubmit, submitLabel }) => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm text-muted-foreground mb-1">Title *</label>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" placeholder="What was decided?" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm text-muted-foreground mb-1">Description</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Category</label>
-          <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Priority</label>
-          <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
-            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Status</label>
-          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
-            {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Decision Date</label>
-          <input type="date" value={form.decision_date} onChange={e => setForm(f => ({ ...f, decision_date: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Department</label>
-          <select value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm">
-            <option value="">None</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Tags (comma-separated)</label>
-          <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="architecture, budget, hiring" className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm text-muted-foreground mb-1">Context / Reasoning</label>
-          <textarea value={form.context} onChange={e => setForm(f => ({ ...f, context: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" placeholder="Why was this decision made?" />
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Alternatives Considered</label>
-          <textarea value={form.alternatives} onChange={e => setForm(f => ({ ...f, alternatives: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
-        </div>
-        <div>
-          <label className="block text-sm text-muted-foreground mb-1">Expected Consequences</label>
-          <textarea value={form.consequences} onChange={e => setForm(f => ({ ...f, consequences: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none" />
-        </div>
-      </div>
-      <button onClick={onSubmit} disabled={saving || !form.title.trim()} className="px-6 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50" style={{ background: 'var(--theme-primary, #3b82f6)' }}>{saving ? 'Saving...' : submitLabel}</button>
-    </div>
-  );
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -271,7 +285,7 @@ export default function DecisionLogPage() {
         {showCreate ? (
           <div className="max-w-3xl">
             <h2 className="text-xl font-bold text-foreground mb-4">Log New Decision</h2>
-            <DecisionForm onSubmit={createDecision} submitLabel="Log Decision" />
+            <DecisionForm form={form} setForm={setForm} saving={saving} departments={departments} onSubmit={createDecision} submitLabel="Log Decision" />
           </div>
         ) : detail ? (
           <div className="max-w-3xl space-y-6">
@@ -298,7 +312,7 @@ export default function DecisionLogPage() {
             {editing ? (
               <div className="bg-card rounded-xl border p-5">
                 <h3 className="font-semibold mb-3">Edit Decision</h3>
-                <DecisionForm onSubmit={updateDecision} submitLabel="Update" />
+                <DecisionForm form={form} setForm={setForm} saving={saving} departments={departments} onSubmit={updateDecision} submitLabel="Update" />
               </div>
             ) : (
               <>

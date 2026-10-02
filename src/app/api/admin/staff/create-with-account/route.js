@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { requirePermission } from '@/lib/permissions.js';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -11,8 +12,16 @@ const pool = new Pool({
  * Create staff with user account in a single transaction
  */
 export async function POST(req) {
+  // This route had NO authentication. It creates a staff record AND a login
+  // account with a caller-supplied role_name, and will CREATE that role if it
+  // does not exist — so an anonymous caller could mint themselves an account
+  // with any privileges. Creating staff logins requires the same authority as
+  // assigning roles.
+  const perm = await requirePermission(req, 'staff.assign_any_role');
+  if (perm instanceof NextResponse) return perm;
+
   const client = await pool.connect();
-  
+
   try {
     const { staff_name, staff_email, username, password, role_name, department_id } = await req.json();
     
