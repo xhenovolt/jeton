@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/format-currency';
 export default function LedgerPage() {
   const [entries, setEntries] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ account_id: '', type: '', start_date: '', end_date: '' });
   const [accounts, setAccounts] = useState([]);
@@ -23,14 +24,36 @@ export default function LedgerPage() {
     try {
       const params = new URLSearchParams();
       if (filters.account_id) params.set('account_id', filters.account_id);
-      if (filters.type) params.set('type', filters.type);
-      if (filters.start_date) params.set('start_date', filters.start_date);
-      if (filters.end_date) params.set('end_date', filters.end_date);
+      if (filters.type) params.set('source_type', filters.type);
+      // The API reads from_date/to_date. Sending start_date/end_date meant the
+      // date filters were accepted by the form and then silently discarded.
+      if (filters.start_date) params.set('from_date', filters.start_date);
+      if (filters.end_date) params.set('to_date', filters.end_date);
       params.set('limit', '200');
       const res = await fetchWithAuth(`/api/ledger?${params}`);
       const json = await res.json();
-      if (json.success) { setEntries(json.data); setSummary(json.summary || null); }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      if (json.success) {
+        setEntries(Array.isArray(json.data) ? json.data : []);
+        setSummary(json.summary || null);
+
+        // The cards read total_credits/total_debits/net. When the API emitted
+        // total_income/total_expenses/net_position instead, every card showed
+        // USh 0 while the rows below displayed real transactions. Name the
+        // missing field rather than letting it render as a silent zero again.
+        if (json.summary) {
+          const missing = ['total_credits', 'total_debits', 'net']
+            .filter(k => json.summary[k] === undefined);
+          if (missing.length) {
+            console.error(`[Ledger] summary is missing ${missing.join(', ')} — totals will read zero.`, json.summary);
+          }
+        }
+      } else {
+        setLoadError(json.error || 'Could not load the ledger.');
+      }
+    } catch (err) {
+      console.error('[Ledger] load failed:', err);
+      setLoadError('Could not reach the server.');
+    } finally { setLoading(false); }
   };
 
 
@@ -40,6 +63,14 @@ export default function LedgerPage() {
         <h1 className="text-2xl font-bold text-foreground">Ledger</h1>
         <p className="text-sm text-muted-foreground mt-1">Immutable transaction history — the single source of truth</p>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <span>{loadError}</span>
+          <button onClick={() => { setLoading(true); fetchLedger(); }}
+            className="underline hover:no-underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
 
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -54,6 +85,9 @@ export default function LedgerPage() {
           <div className="bg-card rounded-xl border p-4">
             <div className="text-xs text-muted-foreground mb-1">Net</div>
             <div className={`text-xl font-bold ${parseFloat(summary.net) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(summary.net)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {summary.total_transactions} transaction{summary.total_transactions === 1 ? '' : 's'} in this view
+            </div>
           </div>
         </div>
       )}

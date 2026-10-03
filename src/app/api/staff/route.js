@@ -356,17 +356,37 @@ export async function DELETE(request) {
       }
     }
 
-    await client.query('DELETE FROM staff WHERE id = $1', [id]);
-
+    // Write the audit row BEFORE deleting the staff row.
+    //
+    // identity_audit_logs.staff_id references staff(id). This insert used to
+    // run *after* the DELETE, so it supplied a staff_id whose row no longer
+    // existed and raised
+    //   insert or update on table "identity_audit_logs" violates foreign key
+    //   constraint "identity_audit_logs_staff_id_fkey"
+    // which rolled the whole transaction back — staff deletion could never
+    // succeed. ON DELETE SET NULL does not help an insert of a dangling key;
+    // it only applies when the parent is removed while children already exist.
+    //
+    // Inserting first satisfies the constraint, and the SET NULL rule then
+    // nulls staff_id when the staff row goes, leaving the audit record intact.
+    // The full identity is preserved in before_state regardless.
     await client.query(
       `INSERT INTO identity_audit_logs (action, user_id, staff_id, actor_id, before_state, metadata)
        VALUES ('delete_staff', $1, $2, $3, $4, $5)`,
       [
         linkedUserId, id, auth.userId,
         JSON.stringify({ staff: staffSnapshot, user: userSnapshot }),
-        JSON.stringify({ cascade_user: cascadeUser }),
+        // staff_id is about to become NULL by the FK rule, so keep the id and
+        // name here too — otherwise the audit trail loses who this was.
+        JSON.stringify({
+          cascade_user: cascadeUser,
+          deleted_staff_id: id,
+          deleted_staff_name: staffSnapshot.name ?? null,
+        }),
       ]
     );
+
+    await client.query('DELETE FROM staff WHERE id = $1', [id]);
 
     await client.query('COMMIT');
     return NextResponse.json({ success: true, cascaded_user: cascadeUser && !!linkedUserId });

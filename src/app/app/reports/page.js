@@ -18,6 +18,7 @@ export default function ReportsPage() {
   const [reportType, setReportType] = useState('overview');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { fetchReport(); }, [reportType]);
 
@@ -26,9 +27,48 @@ export default function ReportsPage() {
     try {
       const res = await fetchWithAuth(`/api/reports?type=${reportType}`);
       const json = await res.json();
-      if (json.success) setData(json.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      if (json.success) {
+        setData(json.data);
+        setLoadError('');
+      } else {
+        setLoadError(json.error || 'Could not load reports.');
+      }
+    } catch (err) {
+      console.error('[Reports] load failed:', err);
+      setLoadError('Could not reach the server.');
+    } finally { setLoading(false); }
   };
+
+  /**
+   * Overview totals, read from where the API actually puts them.
+   *
+   * GET /api/reports?type=overview responds with
+   *   { financial: { total_income, total_expenses, net_position },
+   *     accounts: [ { name, balance, ... } ], ... }
+   *
+   * The cards used to read data.total_income / data.total_expenses /
+   * data.total_balance at the top level. Those are all undefined — the figures
+   * live under data.financial — so every card rendered USh 0 while the account
+   * list right below them, which did read data.accounts correctly, showed real
+   * balances. Hence zero totals beside non-zero accounts.
+   *
+   * total_balance has no API field at all; it is the sum of account balances.
+   */
+  const overview = (() => {
+    const fin = data?.financial ?? {};
+    const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
+    const income = Number.parseFloat(fin.total_income) || 0;
+    const expenses = Number.parseFloat(fin.total_expenses) || 0;
+    return {
+      total_balance: accounts.reduce((sum, a) => sum + (Number.parseFloat(a.balance) || 0), 0),
+      total_income: income,
+      total_expenses: expenses,
+      // Prefer the figure the database computed; fall back to deriving it.
+      net_position: fin.net_position !== undefined
+        ? Number.parseFloat(fin.net_position) || 0
+        : income - Math.abs(expenses),
+    };
+  })();
 
 
   return (
@@ -37,6 +77,13 @@ export default function ReportsPage() {
         <h1 className="text-2xl font-bold text-foreground">Reports</h1>
         <p className="text-sm text-muted-foreground mt-1">Financial and business intelligence</p>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <span>{loadError}</span>
+          <button onClick={fetchReport} className="underline hover:no-underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         {[
@@ -58,10 +105,10 @@ export default function ReportsPage() {
       ) : reportType === 'overview' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Balance" value={formatCurrency(data.total_balance)} icon={DollarSign} color="blue" />
-            <StatCard label="Total Income" value={formatCurrency(data.total_income)} icon={TrendingUp} color="emerald" />
-            <StatCard label="Total Expenses" value={formatCurrency(data.total_expenses)} icon={TrendingDown} color="red" />
-            <StatCard label="Net Position" value={formatCurrency((data.total_income || 0) - Math.abs(data.total_expenses || 0))} icon={BarChart3} color="purple" />
+            <StatCard label="Total Balance" value={formatCurrency(overview.total_balance)} icon={DollarSign} color="blue" />
+            <StatCard label="Total Income" value={formatCurrency(overview.total_income)} icon={TrendingUp} color="emerald" />
+            <StatCard label="Total Expenses" value={formatCurrency(overview.total_expenses)} icon={TrendingDown} color="red" />
+            <StatCard label="Net Position" value={formatCurrency(overview.net_position)} icon={BarChart3} color="purple" />
           </div>
           {data.accounts?.length > 0 && (
             <div className="bg-card rounded-xl border p-5">
