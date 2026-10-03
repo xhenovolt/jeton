@@ -190,6 +190,7 @@ export const menuItems = [
       { label: 'Budgets', href: '/app/finance/budgets', description: 'Spending limits', permission: 'budgets.view' },
       { label: '---', href: '#', description: '', permission: null },
       { label: 'Banking', href: '/app/finance/banking', description: 'Internal banking system', permission: 'finance.manage' },
+      { label: 'MarzPay', href: '/app/finance/marzpay', description: 'Mobile money accounts & collections', permission: 'finance.manage' },
       { label: 'Employee Loans', href: '/app/finance/loans', description: 'Peer-to-peer loans', permission: 'finance.manage' },
       { label: 'Salary Advances', href: '/app/finance/advances', description: 'Advance disbursements', permission: 'finance.manage' },
     ],
