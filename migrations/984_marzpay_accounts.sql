@@ -29,7 +29,12 @@
 --   GET  /send-money/services      200  disbursement providers
 --   GET  /balance                  403  IP_WHITELIST_REQUIRED
 --   GET  /account                  403  IP_WHITELIST_REQUIRED
--- Balance is therefore read from /transactions, which is not IP-restricted.
+--
+-- Balance is read from /transactions, which returns account.current_balance
+-- and is NOT IP-restricted. Do NOT turn on MarzPay's IP whitelist to unlock
+-- /balance: this deployment runs on Vercel, whose functions egress from a
+-- rotating IP pool, so a whitelist would start 403-ing live collections as
+-- soon as Vercel moved the function. /transactions gives the same figure.
 --
 -- SAFETY
 --

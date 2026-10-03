@@ -18,12 +18,22 @@
  *   GET  /collect-money/{uuid}     authoritative status of a collection
  *   GET  /transactions             transaction list + account.current_balance
  *   GET  /send-money/services      disbursement providers
- *   GET  /balance, /account        403 IP_WHITELIST_REQUIRED on this account,
- *                                  so balance is read from /transactions
+ *   GET  /balance, /account        403 IP_WHITELIST_REQUIRED
+ *
+ * DO NOT enable MarzPay's IP whitelist for this deployment. Jeton runs on
+ * Vercel, whose serverless functions egress from a rotating pool of IPs with
+ * no stable address outside Enterprise static-IP. Whitelisting would let
+ * requests succeed from whichever IP was registered and then start failing
+ * with 403 the moment Vercel moved the function — intermittently breaking
+ * live collections, which is far worse than not having /balance.
+ *
+ * Balance is therefore read from GET /transactions, which returns
+ * data.account.current_balance and is NOT IP-restricted. That endpoint covers
+ * everything /balance would have given us, so nothing is lost.
  */
 
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
-import { query } from '@/lib/db.js';
+import { query, withTransaction } from '@/lib/db.js';
 import { encryptSecret, decryptSecret, maskCredential } from '@/lib/encryption.js';
 
 const DEFAULT_BASE = 'https://wallet.wearemarz.com/api/v1';
@@ -470,8 +480,152 @@ export function verifyWebhookSignature(rawBody, header, secret, nowMs = Date.now
   return a.length === b.length && timingSafeEqual(a, b) ? 'valid' : 'invalid';
 }
 
+// ──────────────────────────────── reconciliation ────────────────────────────
+
+/**
+ * Accounting summary for one MarzPay account, in the same shape the rest of
+ * finance uses (credits / debits / net), plus how much is still unposted.
+ *
+ * Figures come from marzpay_transactions — what Jeton initiated and confirmed
+ * — not from the provider's own list, so they are reproducible and auditable.
+ */
+export async function getAccountingSummary(accountId) {
+  const r = await query(
+    `SELECT
+       COALESCE(SUM(amount) FILTER (WHERE direction = 'collection' AND status = 'completed'), 0) AS total_credits,
+       COALESCE(SUM(amount) FILTER (WHERE direction = 'disbursement' AND status = 'completed'), 0) AS total_debits,
+       COUNT(*) FILTER (WHERE status = 'completed')                      AS completed_count,
+       COUNT(*) FILTER (WHERE status = 'pending')                        AS pending_count,
+       COUNT(*) FILTER (WHERE status = 'failed')                         AS failed_count,
+       COUNT(*)                                                          AS total_count,
+       COALESCE(SUM(amount) FILTER (
+         WHERE status = 'completed' AND direction = 'collection' AND ledger_entry_id IS NULL), 0) AS unreconciled_amount,
+       COUNT(*) FILTER (
+         WHERE status = 'completed' AND direction = 'collection' AND ledger_entry_id IS NULL)     AS unreconciled_count,
+       COALESCE(SUM(amount) FILTER (WHERE ledger_entry_id IS NOT NULL), 0) AS reconciled_amount,
+       COUNT(*) FILTER (WHERE ledger_entry_id IS NOT NULL)                AS reconciled_count
+     FROM marzpay_transactions
+     WHERE ($1::uuid IS NULL OR account_id = $1::uuid)`,
+    [accountId || null]
+  );
+  const s = r.rows[0];
+  const credits = Number(s.total_credits);
+  const debits = Number(s.total_debits);
+  return {
+    total_credits: credits,
+    total_debits: debits,
+    net: credits - debits,
+    completed_count: Number(s.completed_count),
+    pending_count: Number(s.pending_count),
+    failed_count: Number(s.failed_count),
+    total_count: Number(s.total_count),
+    unreconciled_amount: Number(s.unreconciled_amount),
+    unreconciled_count: Number(s.unreconciled_count),
+    reconciled_amount: Number(s.reconciled_amount),
+    reconciled_count: Number(s.reconciled_count),
+  };
+}
+
+/** Completed collections not yet posted to the internal ledger. */
+export async function getUnreconciled(accountId = null) {
+  const r = await query(
+    `SELECT t.id, t.reference, t.provider_uuid, t.amount, t.currency,
+            t.phone_number, t.provider, t.description, t.created_at,
+            a.name AS marzpay_account, a.ledger_account_id
+       FROM marzpay_transactions t
+       JOIN marzpay_accounts a ON a.id = t.account_id
+      WHERE t.status = 'completed'
+        AND t.direction = 'collection'
+        AND t.ledger_entry_id IS NULL
+        AND ($1::uuid IS NULL OR t.account_id = $1::uuid)
+      ORDER BY t.created_at ASC`,
+    [accountId || null]
+  );
+  return r.rows;
+}
+
+/**
+ * Post completed MarzPay collections into the internal ledger.
+ *
+ * Each transaction is handled in its own database transaction: the ledger row
+ * is inserted and marzpay_transactions.ledger_entry_id is set together, so a
+ * crash between the two is impossible. ledger_entry_id is checked inside that
+ * transaction and is covered by a partial unique index, so running this twice
+ * posts nothing twice — no double-counted revenue.
+ *
+ * Returns a per-transaction result rather than a single boolean, because one
+ * unmapped account should not stop the rest from reconciling.
+ */
+export async function reconcile({ accountId = null, userId = null } = {}) {
+  const pending = await getUnreconciled(accountId);
+  const results = [];
+
+  for (const t of pending) {
+    if (!t.ledger_account_id) {
+      results.push({
+        id: t.id, reference: t.reference, posted: false,
+        error: `"${t.marzpay_account}" has no internal account mapped, so there is nowhere to post this. Set one on the account first.`,
+      });
+      continue;
+    }
+
+    try {
+      const entryId = await withTransaction(async (tx) => {
+        // Re-check inside the transaction: another request may have posted it
+        // between getUnreconciled() and here.
+        const still = await tx(
+          `SELECT ledger_entry_id FROM marzpay_transactions WHERE id = $1 FOR UPDATE`, [t.id]);
+        if (still.rows[0]?.ledger_entry_id) return null;
+
+        const led = await tx(
+          `INSERT INTO ledger
+             (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
+           VALUES ($1,$2,$3,'payment',$4,$5,'revenue',$6,$7)
+           RETURNING id`,
+          [
+            t.ledger_account_id,
+            t.amount,                       // positive: money in
+            t.currency || 'UGX',
+            t.id,
+            `MarzPay collection ${t.reference}${t.phone_number ? ` from ${t.phone_number}` : ''}` +
+              `${t.description ? ` — ${t.description}` : ''}`,
+            (t.created_at instanceof Date ? t.created_at : new Date(t.created_at))
+              .toISOString().split('T')[0],
+            userId,
+          ]
+        );
+
+        await tx(
+          `UPDATE marzpay_transactions
+              SET ledger_entry_id = $2, reconciled_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [t.id, led.rows[0].id]
+        );
+        return led.rows[0].id;
+      });
+
+      results.push(
+        entryId
+          ? { id: t.id, reference: t.reference, posted: true, ledger_entry_id: entryId, amount: Number(t.amount) }
+          : { id: t.id, reference: t.reference, posted: false, error: 'Already reconciled' }
+      );
+    } catch (err) {
+      results.push({ id: t.id, reference: t.reference, posted: false, error: err.message });
+    }
+  }
+
+  const posted = results.filter(r => r.posted);
+  return {
+    considered: pending.length,
+    posted: posted.length,
+    amount_posted: posted.reduce((s, r) => s + r.amount, 0),
+    results,
+  };
+}
+
 export default {
   listAccounts, getAccountPublic, createAccount, rotateCredentials, setDefaultAccount,
   verifyAccount, getCollectionServices, getDisbursementServices, getTransactions,
   collectMoney, getCollectionStatus, verifyWebhookSignature, envCredentials,
+  getAccountingSummary, getUnreconciled, reconcile,
 };

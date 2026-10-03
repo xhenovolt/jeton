@@ -10,19 +10,28 @@
  *   - collection status        (GET /collect-money/{uuid})
  *   - provider lists for collection and disbursement
  *
- * There is deliberately no balance widget fed by /balance and no payout
- * button: /balance and /account answer 403 IP_WHITELIST_REQUIRED for this
- * account, and no disbursement call has been verified end to end. Balance is
- * read from the /transactions payload, which is not IP-restricted.
+ * Balance comes from the /transactions payload, not MarzPay's /balance
+ * endpoint. /balance answers 403 IP_WHITELIST_REQUIRED, and enabling that
+ * whitelist would be actively harmful here: Vercel functions egress from a
+ * rotating IP pool, so collections would start failing the moment the
+ * function moved. /transactions is not IP-restricted and carries the same
+ * figure.
+ *
+ * There is also no payout button — disbursement providers are listed because
+ * the account genuinely has them, but no send-money call has been verified
+ * end to end.
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, X, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, Wallet,
-  KeyRound, Star, Trash2, Send, Loader2,
+  KeyRound, Star, Trash2, Send, Loader2, ArrowUpRight, ArrowDownRight, BookOpen,
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
+// The same helper /finance/ledger, /reports and the rest of finance use, so
+// MarzPay figures are formatted identically rather than with a local variant.
+import { formatCurrency } from '@/lib/format-currency';
 
 const STATUS_STYLES = {
   verified:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -32,7 +41,7 @@ const STATUS_STYLES = {
 };
 
 const fmt = (n, c = 'UGX') =>
-  n === null || n === undefined || n === '' ? '—' : `${c} ${Number(n).toLocaleString()}`;
+  n === null || n === undefined || n === '' ? '—' : formatCurrency(n, c || 'UGX');
 
 export default function MarzPayPage() {
   const toast = useToast();
@@ -59,6 +68,12 @@ export default function MarzPayPage() {
   const [collectFor, setCollectFor] = useState(null);
   const [collectForm, setCollectForm] = useState({ amount: '', phone: '', description: '' });
   const [collecting, setCollecting] = useState(false);
+
+  // Accounting position: MarzPay's own figures beside what the internal
+  // ledger holds, plus anything still waiting to be posted.
+  const [acct, setAcct] = useState(null);
+  const [acctLoading, setAcctLoading] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   const loadAccounts = useCallback(async () => {
     try {
@@ -100,7 +115,62 @@ export default function MarzPayPage() {
     }
   }, [toast]);
 
-  useEffect(() => { if (selected) loadTransactions(selected); }, [selected, loadTransactions]);
+  const loadAccounting = useCallback(async (id) => {
+    if (!id) return;
+    setAcctLoading(true);
+    try {
+      const res = await fetchWithAuth(`/api/finance/marzpay/reconcile?account_id=${id}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        toast.error(json.error || `Could not load the accounting position (HTTP ${res.status}).`, { duration: 9000 });
+        setAcct(null);
+        return;
+      }
+      setAcct(json);
+    } catch {
+      toast.error('Could not reach the server.');
+    } finally {
+      setAcctLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!selected) return;
+    loadTransactions(selected);
+    loadAccounting(selected);
+  }, [selected, loadTransactions, loadAccounting]);
+
+  const runReconcile = async () => {
+    if (!acct?.unreconciled?.length) return;
+    const total = acct.unreconciled.reduce((s, u) => s + u.amount, 0);
+    if (!confirm(
+      `Post ${acct.unreconciled.length} completed collection(s) totalling ${fmt(total)} into the ledger?\n\n` +
+      `They will appear in Ledger, Reports and Financial Intelligence as revenue. Running this again will not post them twice.`
+    )) return;
+
+    setReconciling(true);
+    try {
+      const res = await fetchWithAuth('/api/finance/marzpay/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: selected }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        toast.error(json.error || 'Reconciliation failed.', { duration: 10000 });
+        return;
+      }
+      if (json.failures?.length) {
+        toast.error(`${json.failures.length} could not be posted: ${json.failures[0].error}`, { duration: 12000 });
+      }
+      toast.success(json.message, { duration: 9000 });
+      loadAccounting(selected);
+    } catch {
+      toast.error('Could not reach the server.');
+    } finally {
+      setReconciling(false);
+    }
+  };
 
   const verify = async (id) => {
     setVerifying(id);
@@ -494,11 +564,150 @@ export default function MarzPayPage() {
         </div>
       )}
 
+      {/* ── ACCOUNTING ──────────────────────────────────────────────────── */}
+      {current && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <BookOpen className="w-4 h-4" /> Accounting — {current.name}
+            </h2>
+            <button onClick={() => loadAccounting(current.id)} disabled={acctLoading}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:underline disabled:opacity-50">
+              <RefreshCw className={`w-3.5 h-3.5 ${acctLoading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+
+          {acctLoading && !acct ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : !acct ? (
+            <div className="text-sm text-muted-foreground">No accounting data for this account.</div>
+          ) : (
+            <>
+              {/* Same three-card shape as /finance/ledger, so the numbers read
+                  the same way across finance. */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-card rounded-xl border p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <ArrowUpRight className="w-3.5 h-3.5" /> Credits (Collections)
+                  </div>
+                  <div className="text-xl font-bold text-emerald-600">{fmt(acct.summary.total_credits)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{acct.summary.completed_count} completed</div>
+                </div>
+                <div className="bg-card rounded-xl border p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <ArrowDownRight className="w-3.5 h-3.5" /> Debits (Payouts)
+                  </div>
+                  <div className="text-xl font-bold text-red-600">{fmt(acct.summary.total_debits)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {acct.summary.total_debits === 0 ? 'no disbursements recorded' : 'completed'}
+                  </div>
+                </div>
+                <div className="bg-card rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground mb-1">Net through MarzPay</div>
+                  <div className={`text-xl font-bold ${acct.summary.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {fmt(acct.summary.net)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {acct.summary.total_count} transaction{acct.summary.total_count === 1 ? '' : 's'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Provider-side vs book-side, side by side. If these disagree,
+                  something is unposted — which is exactly what the panel below
+                  is for. */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-card rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground mb-1">In the ledger</div>
+                  <div className="text-lg font-semibold text-foreground">{fmt(acct.books.ledger_total)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{acct.books.ledger_entries} entries posted</div>
+                </div>
+                <div className="bg-card rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground mb-1">Reconciled</div>
+                  <div className="text-lg font-semibold text-foreground">{fmt(acct.summary.reconciled_amount)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{acct.summary.reconciled_count} transactions</div>
+                </div>
+                <div className={`rounded-xl border p-4 ${acct.summary.unreconciled_count > 0 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-card'}`}>
+                  <div className="text-xs text-muted-foreground mb-1">Awaiting posting</div>
+                  <div className={`text-lg font-semibold ${acct.summary.unreconciled_count > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-foreground'}`}>
+                    {fmt(acct.summary.unreconciled_amount)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">{acct.summary.unreconciled_count} transactions</div>
+                </div>
+              </div>
+
+              {/* Pending / failed, so money in flight is never invisible. */}
+              {(acct.summary.pending_count > 0 || acct.summary.failed_count > 0) && (
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  {acct.summary.pending_count > 0 && <span>{acct.summary.pending_count} pending</span>}
+                  {acct.summary.failed_count > 0 && <span>{acct.summary.failed_count} failed</span>}
+                </div>
+              )}
+
+              {/* ── RECONCILIATION ─────────────────────────────────────── */}
+              {acct.unreconciled.length > 0 ? (
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Not yet in the ledger</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Posting these makes them appear as revenue in Ledger, Reports and Financial Intelligence. Running it twice posts nothing twice.
+                      </p>
+                    </div>
+                    <button onClick={runReconcile} disabled={reconciling}
+                      className="flex items-center gap-1 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 shrink-0">
+                      {reconciling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+                      {reconciling ? 'Posting...' : `Post ${acct.unreconciled.length} to ledger`}
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                          <th className="text-left px-4 py-2 font-medium">Reference</th>
+                          <th className="text-left px-4 py-2 font-medium">From</th>
+                          <th className="text-left px-4 py-2 font-medium">Description</th>
+                          <th className="text-right px-4 py-2 font-medium">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {acct.unreconciled.map(u => (
+                          <tr key={u.id}>
+                            <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{u.reference}</td>
+                            <td className="px-4 py-2 text-muted-foreground">{u.phone_number ?? '—'}</td>
+                            <td className="px-4 py-2 text-foreground max-w-xs truncate">
+                              {u.description ?? '—'}
+                              {!u.mapped && (
+                                <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">
+                                  no internal account mapped
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right font-medium text-emerald-600 whitespace-nowrap">
+                              +{fmt(u.amount, u.currency)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-4 py-3 rounded-lg text-sm">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  Every completed collection is posted to the ledger.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── BALANCE, PROVIDERS, TRANSACTIONS ────────────────────────────── */}
       {current && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-foreground">{current.name}</h2>
+            <h2 className="font-semibold text-foreground">Provider activity — {current.name}</h2>
             <button onClick={() => loadTransactions(current.id)} disabled={txLoading}
               className="flex items-center gap-1 text-sm text-blue-600 hover:underline disabled:opacity-50">
               <RefreshCw className={`w-3.5 h-3.5 ${txLoading ? 'animate-spin' : ''}`} /> Refresh

@@ -6,10 +6,11 @@ import { getTransactions, getCollectionServices, getDisbursementServices } from 
  * GET /api/finance/marzpay/accounts/[id]/transactions
  *
  * Transactions plus the account balance. The balance comes from the
- * /transactions payload because MarzPay's dedicated /balance endpoint answers
- * 403 IP_WHITELIST_REQUIRED until the server IP is whitelisted in their
- * dashboard — reported through `balance_note` so the UI can say why rather
- * than showing a blank figure.
+ * /transactions payload rather than MarzPay's dedicated /balance endpoint,
+ * which answers 403 IP_WHITELIST_REQUIRED. That is left alone deliberately:
+ * on Vercel the function egress IP rotates, so a whitelist would break live
+ * collections intermittently. /transactions is not IP-restricted and carries
+ * the same figure.
  *
  * ?include=services also returns the collection and disbursement providers
  * this account may actually use, so the UI offers only real capabilities.
