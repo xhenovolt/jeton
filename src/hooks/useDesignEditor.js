@@ -9,6 +9,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 
 const AUTOSAVE_INTERVAL_MS = 5000;
+// How many undo steps to retain. Snapshots are whole layer arrays, which is
+// cheap for documents of this size and far simpler to reason about than a
+// command log.
+const HISTORY_LIMIT = 50;
 
 function cloneLayer(layer) {
   return { ...layer, id: uuid() };
@@ -20,30 +24,87 @@ export function useDesignEditor({ initialDesign, designId }) {
   );
   const [layers, setLayers] = useState(initialDesign?.layers || []);
   const [selectedId, setSelectedId] = useState(null);
-  const [historyStack, setHistoryStack] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);
 
-  // Push to undo history (defined before updateLayers)
-  const pushHistory = useCallback((newLayers) => {
-    setHistoryStack(prev => {
-      const trimmed = prev.slice(0, historyIndex + 1);
-      return [...trimmed, newLayers].slice(-50); // keep last 50 states
-    });
-    setHistoryIndex(prev => Math.min(prev + 1, 49));
-  }, [historyIndex]);
+  /**
+   * Undo history.
+   *
+   * This used to be three pieces of dead state: pushHistory existed but was
+   * never called from anywhere, there were no undo/redo functions at all, and
+   * the editor imported an Undo2 icon with nothing behind it. So history was
+   * recorded nowhere and could not be stepped through.
+   *
+   * It is now a single ref holding past/future stacks of layer snapshots.
+   * A ref rather than state because every mutation reads the current stacks
+   * while writing them, and going through setState would mean a mutation could
+   * record against a stale stack. Only the counts are mirrored into state, so
+   * the toolbar can enable or disable its buttons and re-render when they
+   * change.
+   */
+  const history = useRef({ past: [], future: [] });
+  const [historyCounts, setHistoryCounts] = useState({ undo: 0, redo: 0 });
 
-  // Update layers + mark dirty
-  const updateLayers = useCallback((fn) => {
+  const syncHistoryCounts = useCallback(() => {
+    setHistoryCounts({
+      undo: history.current.past.length,
+      redo: history.current.future.length,
+    });
+  }, []);
+
+  /**
+   * Update layers and record the PREVIOUS state as an undo step.
+   *
+   * Recording the prior value (rather than the new one) is what makes undo
+   * restore what the user actually had. Any new edit clears the redo stack,
+   * which is the behaviour every editor has: you cannot redo down a branch you
+   * have just diverged from.
+   */
+  const updateLayers = useCallback((fn, { recordHistory = true } = {}) => {
     setLayers(prev => {
       const next = typeof fn === 'function' ? fn(prev) : fn;
+      if (next === prev) return prev;          // no-op, nothing to record
+      if (recordHistory) {
+        history.current.past = [...history.current.past, prev].slice(-HISTORY_LIMIT);
+        history.current.future = [];
+        syncHistoryCounts();
+      }
       setIsDirty(true);
       return next;
     });
-  }, []);
+  }, [syncHistoryCounts]);
+
+  const undo = useCallback(() => {
+    const { past, future } = history.current;
+    if (!past.length) return;
+    setLayers(current => {
+      history.current = {
+        past: past.slice(0, -1),
+        future: [current, ...future].slice(0, HISTORY_LIMIT),
+      };
+      syncHistoryCounts();
+      setIsDirty(true);
+      return past[past.length - 1];
+    });
+    setSelectedId(null); // the selected layer may no longer exist
+  }, [syncHistoryCounts]);
+
+  const redo = useCallback(() => {
+    const { past, future } = history.current;
+    if (!future.length) return;
+    setLayers(current => {
+      history.current = {
+        past: [...past, current].slice(-HISTORY_LIMIT),
+        future: future.slice(1),
+      };
+      syncHistoryCounts();
+      setIsDirty(true);
+      return future[0];
+    });
+    setSelectedId(null);
+  }, [syncHistoryCounts]);
 
   // ─── Layer mutations ────────────────────────────────────────────
 
@@ -72,15 +133,18 @@ export function useDesignEditor({ initialDesign, designId }) {
 
   const cloneSelected = useCallback(() => {
     if (!selectedId) return;
-    setLayers(prev => {
+    // Routed through updateLayers so duplicating is undoable. It previously
+    // called setLayers directly, which skipped history entirely.
+    let cloneId = null;
+    updateLayers(prev => {
       const src = prev.find(l => l.id === selectedId);
       if (!src) return prev;
       const clone = { ...cloneLayer(src), x: src.x + 20, y: src.y + 20, zIndex: prev.length };
-      setSelectedId(clone.id);
-      setIsDirty(true);
+      cloneId = clone.id;
       return [...prev, clone];
     });
-  }, [selectedId]);
+    if (cloneId) setSelectedId(cloneId);
+  }, [selectedId, updateLayers]);
 
   // ─── Layering ───────────────────────────────────────────────────
 
@@ -191,5 +255,11 @@ export function useDesignEditor({ initialDesign, designId }) {
     addLayer, updateLayer, removeLayer, cloneSelected,
     bringForward, sendBackward, bringToFront, sendToBack,
     updateCanvas, save,
+    // History. canUndo/canRedo let the toolbar disable its buttons instead of
+    // offering an action that silently does nothing.
+    undo, redo,
+    canUndo: historyCounts.undo > 0,
+    canRedo: historyCounts.redo > 0,
+    undoDepth: historyCounts.undo,
   };
 }

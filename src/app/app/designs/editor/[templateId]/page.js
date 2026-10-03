@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  Save, Download, Eye, EyeOff, Undo2, ArrowLeft,
+  Save, Download, Eye, EyeOff, Undo2, Redo2, ArrowLeft,
   Layers, ChevronLeft, ChevronRight, Pencil
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
@@ -117,6 +117,7 @@ export default function DesignEditorPage() {
 
   const editor = useDesignEditor({ initialDesign, designId: actualDesignId });
 
+
   const handleSaveName = useCallback(async (name) => {
     setEditingName(false);
     setDesignName(name);
@@ -135,6 +136,46 @@ export default function DesignEditorPage() {
     await editor.save();
     toast.success('Design saved');
   }, [editor, toast]);
+
+  /**
+   * Keyboard shortcuts.
+   *
+   * Declared after handleManualSave on purpose: it is a `const`, so naming it
+   * in this effect's dependency array any earlier would hit the temporal dead
+   * zone and throw during render.
+   *
+   * Guarded against firing while the user is typing — without the editable
+   * check, Ctrl+Z in the name field would undo the document instead of the
+   * text, and Delete would remove the selected layer mid-sentence.
+   */
+  useEffect(() => {
+    const isEditable = (el) =>
+      el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+    const onKey = (e) => {
+      if (isEditable(e.target)) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (mod && key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) editor.redo(); else editor.undo();
+        return;
+      }
+      if (mod && key === 'y') { e.preventDefault(); editor.redo(); return; }
+      if (mod && key === 'd') { e.preventDefault(); editor.cloneSelected(); return; }
+      if (mod && key === 's') { e.preventDefault(); handleManualSave(); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && editor.selectedId) {
+        e.preventDefault();
+        editor.removeLayer(editor.selectedId);
+        return;
+      }
+      if (e.key === 'Escape') editor.setSelectedId(null);
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editor, handleManualSave]);
 
   const handleLoadTemplate = useCallback((template) => {
     if (confirm('Load this template? Current layers will be replaced.')) {
@@ -195,6 +236,22 @@ export default function DesignEditorPage() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          {/* Undo2 was imported but never used — there was no undo at all.
+              These are disabled when there is nothing to step to, rather than
+              offering a button that silently does nothing. */}
+          <button onClick={editor.undo} disabled={!editor.canUndo}
+            title="Undo (Ctrl+Z)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg hover:bg-muted/50 text-muted-foreground disabled:opacity-40 disabled:hover:bg-transparent">
+            <Undo2 className="w-3.5 h-3.5" />
+            Undo
+          </button>
+          <button onClick={editor.redo} disabled={!editor.canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg hover:bg-muted/50 text-muted-foreground disabled:opacity-40 disabled:hover:bg-transparent">
+            <Redo2 className="w-3.5 h-3.5" />
+            Redo
+          </button>
+          <div className="w-px h-5 bg-border mx-1" />
           <button onClick={() => editor.setPreviewMode(p => !p)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg hover:bg-muted/50 text-muted-foreground">
             {editor.previewMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
