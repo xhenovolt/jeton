@@ -12,6 +12,7 @@ const CATEGORIES = ['office','software','marketing','travel','meals','equipment'
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '', category: '', period_start: '', period_end: '' });
   const [editId, setEditId] = useState(null);
@@ -19,8 +20,31 @@ export default function BudgetsPage() {
   const toast = useToast();
 
   const fetchBudgets = async () => {
-    try { const res = await fetchWithAuth('/api/budgets'); const j = await res.json(); if (j.success) setBudgets(j.data); } catch (err) { console.error(err); } finally { setLoading(false); }
+    setLoadError('');
+    try {
+      const res = await fetchWithAuth('/api/budgets');
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.success === false) {
+        setLoadError(j.error || `Could not load budgets (HTTP ${res.status}).`);
+        return;
+      }
+      setBudgets(Array.isArray(j.data) ? j.data : []);
+    } catch (err) {
+      console.error('[Budgets] load failed:', err);
+      setLoadError('Could not reach the server.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // This was the whole bug behind "the budgets page loads forever".
+  //
+  // useEffect was imported but never used, so fetchBudgets() was defined and
+  // never called: `loading` stayed true for the lifetime of the page and no
+  // request was ever made. The spinner was not waiting on a slow query — there
+  // was nothing in flight at all, which is why raising any timeout would have
+  // changed nothing.
+  useEffect(() => { fetchBudgets(); }, []);
 
   const submit = async (e) => {
     e.preventDefault(); setSaving(true);
@@ -96,9 +120,17 @@ export default function BudgetsPage() {
         </form>
       )}
 
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <span>{loadError}</span>
+          <button onClick={() => { setLoading(true); fetchBudgets(); }}
+            className="underline hover:no-underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
-      ) : budgets.length === 0 ? (
+      ) : loadError ? null : budgets.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No budgets yet. Set spending limits to track your expenses.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
