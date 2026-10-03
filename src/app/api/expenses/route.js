@@ -15,6 +15,7 @@ export async function GET(request) {
     const category = searchParams.get('category');
     const from_date = searchParams.get('from_date');
     const to_date = searchParams.get('to_date');
+    const sort = searchParams.get('sort') || 'newest';
 
     const params = [];
     let sql = `SELECT e.*, a.name as account_name FROM expenses e JOIN accounts a ON e.account_id = a.id WHERE 1=1`;
@@ -34,9 +35,35 @@ export async function GET(request) {
     sql += scopeFilter.clause;
     params.push(...scopeFilter.params);
 
-    sql += ` ORDER BY e.expense_date DESC`;
+    // Ordering is sorted server-side and always fully deterministic.
+    //
+    // This was `ORDER BY e.expense_date DESC` alone. Several expenses commonly
+    // share one date, and with no tiebreaker Postgres is free to return those
+    // rows in any order — and to return them in a DIFFERENT order next time.
+    // That is why a just-recorded expense would sometimes appear behind older
+    // ones from the same day and then move on refresh.
+    //
+    // Every option below ends with created_at DESC, id DESC, so rows can never
+    // tie and the list is stable across requests.
+    const ORDER_BY = {
+      newest:         'e.expense_date DESC, e.created_at DESC, e.id DESC',
+      oldest:         'e.expense_date ASC,  e.created_at ASC,  e.id ASC',
+      highest_amount: 'e.amount DESC, e.created_at DESC, e.id DESC',
+      lowest_amount:  'e.amount ASC,  e.created_at DESC, e.id DESC',
+      category:       'e.category ASC NULLS LAST, e.expense_date DESC, e.created_at DESC, e.id DESC',
+      account:        'a.name ASC NULLS LAST, e.expense_date DESC, e.created_at DESC, e.id DESC',
+      vendor:         'e.vendor ASC NULLS LAST, e.expense_date DESC, e.created_at DESC, e.id DESC',
+    };
+    // Whitelisted lookup, never interpolated from the query string.
+    sql += ` ORDER BY ${ORDER_BY[sort] || ORDER_BY.newest}`;
+
     const result = await query(sql, params);
-    return NextResponse.json({ success: true, data: result.rows });
+    return NextResponse.json({
+      success: true,
+      data: result.rows,
+      sort: ORDER_BY[sort] ? sort : 'newest',
+      sort_options: Object.keys(ORDER_BY),
+    });
   } catch (error) {
     console.error('[Expenses] GET error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch expenses' }, { status: 500 });

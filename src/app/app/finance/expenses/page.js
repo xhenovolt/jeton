@@ -17,16 +17,34 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' });
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState('newest');
+  const [loadError, setLoadError] = useState('');
   const toast = useToast();
 
   useEffect(() => {
-    fetchExpenses();
     fetchWithAuth('/api/accounts').then(r => r.json()).then(j => { if (j.success) setAccounts(j.data); }).catch(() => {});
     fetchWithAuth('/api/budgets').then(r => r.json()).then(j => { if (j.success) setBudgets(j.data); }).catch(() => {});
   }, []);
 
+  // Sorting is done by the server, not in the browser: the list is ordered by
+  // columns the client does not necessarily hold, and sorting a page's worth of
+  // rows locally would reorder only what happens to be loaded.
+  useEffect(() => { fetchExpenses(); }, [sort]);
+
   const fetchExpenses = async () => {
-    try { const res = await fetchWithAuth('/api/expenses'); const j = await res.json(); if (j.success) setExpenses(j.data); } catch (err) { console.error(err); } finally { setLoading(false); }
+    setLoadError('');
+    try {
+      const res = await fetchWithAuth(`/api/expenses?sort=${encodeURIComponent(sort)}`);
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.success === false) {
+        setLoadError(j.error || `Could not load expenses (HTTP ${res.status}).`);
+        return;
+      }
+      setExpenses(Array.isArray(j.data) ? j.data : []);
+    } catch (err) {
+      console.error('[Expenses] load failed:', err);
+      setLoadError('Could not reach the server.');
+    } finally { setLoading(false); }
   };
 
   const submit = async (e) => {
@@ -100,9 +118,38 @@ export default function ExpensesPage() {
         </form>
       )}
 
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <span>{loadError}</span>
+          <button onClick={() => { setLoading(true); fetchExpenses(); }}
+            className="underline hover:no-underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
+
+      {/* Sort runs on the server so it applies to the whole list, not just the
+          rows already loaded. Default is newest first. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {loading ? 'Loading…' : `${expenses.length} expense${expenses.length === 1 ? '' : 's'}`}
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Sort</span>
+          <select value={sort} onChange={e => { setLoading(true); setSort(e.target.value); }}
+            className="px-3 py-1.5 border border-border rounded-lg bg-background text-foreground text-sm">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="highest_amount">Highest amount</option>
+            <option value="lowest_amount">Lowest amount</option>
+            <option value="category">Category</option>
+            <option value="account">Account</option>
+            <option value="vendor">Vendor</option>
+          </select>
+        </label>
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
-      ) : expenses.length === 0 ? (
+      ) : loadError ? null : expenses.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">No expenses recorded yet</div>
       ) : (
         <div className="bg-card rounded-xl border divide-y">
