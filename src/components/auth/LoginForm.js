@@ -58,6 +58,17 @@ export default function LoginForm() {
         return;
       }
 
+      // Drop any cached permissions from a previous account on this browser.
+      //
+      // PermissionProvider hydrates synchronously from localStorage so the
+      // sidebar paints immediately, but the cache key is fixed and carries no
+      // identity. Signing in as a different user therefore painted the
+      // PREVIOUS user's role and permissions until /api/auth/me landed — which
+      // is how a superadmin login could show "User · Limited Access" and look
+      // fixed only after a reload. Clearing it here means the first paint is a
+      // skeleton rather than someone else's access level.
+      try { window.localStorage.removeItem('jeton.auth.v1'); } catch { /* ignore */ }
+
       // Redirect to forced password reset if flagged
       if (data.requirePasswordReset) {
         router.push('/setup-password');
@@ -127,6 +138,10 @@ export default function LoginForm() {
         setError(authData.error || 'Biometric authentication failed');
         return;
       }
+
+      // Same reason as the password path: never paint the previous account's
+      // permissions after a different user signs in.
+      try { window.localStorage.removeItem('jeton.auth.v1'); } catch { /* ignore */ }
 
       router.push('/app/dashboard');
     } catch {

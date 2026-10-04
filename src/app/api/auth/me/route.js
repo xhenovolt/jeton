@@ -92,10 +92,17 @@ export async function GET(request) {
       rbacRoles = rolesResult.rows.map(r => r.name);
     } catch (_) { /* RBAC tables may not exist yet */ }
 
-    // Fetch permissions using cached system
+    // Fetch permissions.
+    //
+    // This catch used to swallow EVERY failure and leave permissions as [],
+    // still answering HTTP 200. An empty array is indistinguishable from "this
+    // user is permitted nothing", so a transient failure here presented as a
+    // permissions decision: the client showed "Limited Access" and a reload
+    // fixed it. A database outage must not be reported as an access level.
     let permissions = [];
     let hierarchyLevel = 5;
     let authorityLevel = user.authority_level ?? 10;
+    let permissionsDegraded = false;
     try {
       if (isSuperadmin) {
         permissions = ['*'];
@@ -108,7 +115,21 @@ export async function GET(request) {
           getUserAuthorityLevel(user.id),
         ]);
       }
-    } catch (_) { /* RBAC tables may not exist yet */ }
+    } catch (error) {
+      // A suspended or unreachable database is temporary. Surface it as 503 so
+      // the client retries, rather than telling the user they have no access.
+      if (error?.name === 'DatabaseUnavailableError' || error?.code === 'EDBDOWN') {
+        return NextResponse.json(
+          { error: 'Database temporarily unavailable. Please retry.', code: 'DB_UNAVAILABLE' },
+          { status: 503, headers: { 'Retry-After': '3' } }
+        );
+      }
+      // Anything else (e.g. RBAC tables genuinely absent) degrades, but the
+      // response now says so instead of implying an empty permission set is
+      // the user's real access level.
+      console.error('[auth/me] permission load failed:', error?.message);
+      permissionsDegraded = true;
+    }
 
     // Count pending approval requests for this user (if they have authority)
     let pendingApprovals = 0;
@@ -147,6 +168,9 @@ export async function GET(request) {
           first_login_completed: user.first_login_completed ?? true,
           pending_approvals: pendingApprovals,
           created_at: user.created_at,
+          // True when the permission list could not be read. The client must
+          // not present an empty list as a deliberate access level.
+          permissions_degraded: permissionsDegraded,
         },
       },
       { status: 200 }

@@ -23,9 +23,9 @@
 
 /**
  * Contract:
- *   - Returns null ONLY when we're actively loading AND have no user
- *     yet — the caller should render a skeleton, not iterate the value.
- *   - Returns [] when the user is authenticated but denied every item.
+ *   - Returns null whenever the user is UNKNOWN — still loading, or the
+ *     lookup failed. The caller should render a skeleton, not iterate it.
+ *   - Returns [] only when the user IS known and is denied every item.
  *   - Returns the filtered array otherwise.
  *
  * Every consumer must handle the null case (coerce with `|| []` at
@@ -33,11 +33,22 @@
  * with for-of / spread will throw "Symbol.iterator, X is null" and
  * crash the layout tree — Sidebar, Navbar, and MobileDrawer all
  * import this and must stay in sync.
+ *
+ * WHY null RATHER THAN [] FOR AN UNKNOWN USER
+ *
+ * This previously returned [] once permLoading went false with no user, which
+ * is how a failed /api/auth/me became an empty sidebar: a loading failure was
+ * rendered as "you are permitted nothing". For a superadmin that is plainly
+ * wrong, and reloading the page was the only way out.
+ *
+ * An unknown user is never a legitimate denial. Someone genuinely signed out
+ * never reaches here — middleware redirects them to /login — so the only way
+ * to have no user inside the app shell is that we failed to read one. That is
+ * a skeleton, not a verdict.
  */
 export function filterMenuByPermissions(menuItems, ctx) {
-  const { user, permLoading, hierarchyLevel, hasPermission, hasModuleAccess } = ctx;
-  if (permLoading && !user) return null;
-  if (!user) return [];
+  const { user, hierarchyLevel, hasPermission, hasModuleAccess } = ctx;
+  if (!user) return null;
   if (user.is_superadmin) return menuItems;
 
   return menuItems.reduce((acc, item) => {

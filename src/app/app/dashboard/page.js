@@ -104,7 +104,13 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { user, hasPermission, hasModuleAccess, loading: permLoading } = usePermissions();
+  const {
+    user, hasPermission, hasModuleAccess,
+    loading: permLoading,
+    warmingUp: permWarmingUp,
+    unavailable: permUnavailable,
+    refreshPermissions,
+  } = usePermissions();
 
   // Helper: only render a widget if user has the required permission
   const can = (perm) => {
@@ -167,10 +173,18 @@ export default function DashboardPage() {
   const ops        = wd.operations          || {};
   const attention  = wd.attention_items     || [];
 
-  // Derive role label for header
-  const roleLabel = user?.is_superadmin
-    ? 'Superadmin'
-    : (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User');
+  // Derive role label for the header.
+  //
+  // When `user` is null the role is UNKNOWN, not 'User'. Defaulting to 'User'
+  // is what produced "User Dashboard · User" for a superadmin whose
+  // /api/auth/me call had not landed — it stated a role as fact that had never
+  // been read.
+  const roleKnown = !!user;
+  const roleLabel = !roleKnown
+    ? ''
+    : user.is_superadmin
+      ? 'Superadmin'
+      : (user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User');
 
   const isAdmin = user?.is_superadmin || user?.role === 'admin';
 
@@ -197,10 +211,12 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {isAdmin ? 'System Dashboard' : `${roleLabel} Dashboard`}
+            {isAdmin ? 'System Dashboard' : roleKnown ? `${roleLabel} Dashboard` : 'Dashboard'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {user?.name || user?.email} · {roleLabel}
+            {roleKnown
+              ? `${user.name || user.email} · ${roleLabel}`
+              : 'Identifying your account…'}
           </p>
         </div>
         <div className="text-xs text-muted-foreground">Auto-refreshes every 30s</div>
@@ -461,8 +477,37 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── No-Access fallback for very restricted users ─────────────────── */}
-      {!can('finance.view') && !can('deals.view') && !can('prospects.view') && (
+      {/* ── Permissions could not be determined ──────────────────────────────
+          This is NOT the same as having no access, and must never be shown as
+          though it were. can() returns false whenever `user` is null, so the
+          "Limited Access" panel below used to fire while permissions were
+          merely unknown — which is why a first login could report
+          "your role has not been granted access" to a superadmin, and a
+          reload fixed it. Reloading was re-fetching /api/auth/me. */}
+      {!user && (
+        <div className="bg-card rounded-xl border border-border p-8 text-center">
+          <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-medium mb-1">
+            {permWarmingUp ? 'Loading your permissions…' : 'Could not load your permissions'}
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            {permWarmingUp
+              ? 'The backend is waking up. This usually takes a few seconds after a quiet period.'
+              : 'Your access level is unknown, so the dashboard is not showing modules. This is a loading problem, not a permissions decision.'}
+          </p>
+          {!permWarmingUp && (
+            <button
+              onClick={() => { refreshPermissions(); setLoading(true); setRefreshKey(k => k + 1); }}
+              className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── No-Access fallback, only when the user IS known ──────────────── */}
+      {user && !can('finance.view') && !can('deals.view') && !can('prospects.view') && (
         <div className="bg-card rounded-xl border border-border p-8 text-center">
           <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium mb-1">Limited Access</p>
