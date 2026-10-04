@@ -30,6 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Build and dev output captured to a file. b9.log (493 lines of `next build`
+# output) was committed by accident; this stops that recurring.
+*.log
+dev-server.log
+build-*.log
+
 # env files (can opt-in for committing if needed)
 .env*
 env.local
