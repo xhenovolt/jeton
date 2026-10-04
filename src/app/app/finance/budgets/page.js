@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { PiggyBank, Plus, X, Edit, Trash2 } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/fetch-client';
+import { fetchWithAuth, requestOk, requestError } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
@@ -22,13 +22,12 @@ export default function BudgetsPage() {
   const fetchBudgets = async () => {
     setLoadError('');
     try {
-      const res = await fetchWithAuth('/api/budgets');
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || j.success === false) {
-        setLoadError(j.error || `Could not load budgets (HTTP ${res.status}).`);
+      const json = await fetchWithAuth('/api/budgets');
+      if (!requestOk(json)) {
+        setLoadError(requestError(json, 'Could not load budgets.'));
         return;
       }
-      setBudgets(Array.isArray(j.data) ? j.data : []);
+      setBudgets(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
       console.error('[Budgets] load failed:', err);
       setLoadError('Could not reach the server.');
@@ -59,8 +58,16 @@ export default function BudgetsPage() {
       };
       const url = editId ? `/api/budgets/${editId}` : '/api/budgets';
       const method = editId ? 'PUT' : 'POST';
-      const res = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { toast.success(editId ? 'Budget updated' : 'Budget created'); setShowForm(false); setEditId(null); setForm({ name: '', amount: '', category: '', period_start: '', period_end: '' }); fetchBudgets(); }
+      const json = await fetchWithAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, editId ? 'Could not update the budget.' : 'Could not create the budget.'), { duration: 9000 });
+        return;
+      }
+      toast.success(editId ? 'Budget updated' : 'Budget created');
+      setShowForm(false);
+      setEditId(null);
+      setForm({ name: '', amount: '', category: '', period_start: '', period_end: '' });
+      fetchBudgets();
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -71,7 +78,17 @@ export default function BudgetsPage() {
 
   const deleteBudget = async (id) => {
     if (!await confirmDelete('budget')) return;
-    try { await fetchWithAuth(`/api/budgets/${id}`, { method: 'DELETE' }); toast.success('Budget deleted'); fetchBudgets(); } catch { toast.error('Failed to delete'); }
+    try {
+      // The result was never checked: a refused delete still reported success
+      // while the budget stayed on screen.
+      const json = await fetchWithAuth(`/api/budgets/${id}`, { method: 'DELETE' });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not delete the budget.'), { duration: 9000 });
+        return;
+      }
+      toast.success('Budget deleted');
+      fetchBudgets();
+    } catch { toast.error('Failed to delete'); }
   };
 
 

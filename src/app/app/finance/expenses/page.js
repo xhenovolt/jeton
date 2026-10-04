@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/fetch-client';
+import { fetchWithAuth, requestOk, requestError } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
@@ -22,8 +22,14 @@ export default function ExpensesPage() {
   const toast = useToast();
 
   useEffect(() => {
-    fetchWithAuth('/api/accounts').then(r => r.json()).then(j => { if (j.success) setAccounts(j.data); }).catch(() => {});
-    fetchWithAuth('/api/budgets').then(r => r.json()).then(j => { if (j.success) setBudgets(j.data); }).catch(() => {});
+    // fetchWithAuth already resolves to the parsed body, so there is no
+    // .json() hop to make here.
+    fetchWithAuth('/api/accounts')
+      .then(j => { if (requestOk(j)) setAccounts(Array.isArray(j.data) ? j.data : []); })
+      .catch(() => {});
+    fetchWithAuth('/api/budgets')
+      .then(j => { if (requestOk(j)) setBudgets(Array.isArray(j.data) ? j.data : []); })
+      .catch(() => {});
   }, []);
 
   // Sorting is done by the server, not in the browser: the list is ordered by
@@ -34,13 +40,12 @@ export default function ExpensesPage() {
   const fetchExpenses = async () => {
     setLoadError('');
     try {
-      const res = await fetchWithAuth(`/api/expenses?sort=${encodeURIComponent(sort)}`);
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || j.success === false) {
-        setLoadError(j.error || `Could not load expenses (HTTP ${res.status}).`);
+      const json = await fetchWithAuth(`/api/expenses?sort=${encodeURIComponent(sort)}`);
+      if (!requestOk(json)) {
+        setLoadError(requestError(json, 'Could not load expenses.'));
         return;
       }
-      setExpenses(Array.isArray(j.data) ? j.data : []);
+      setExpenses(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
       console.error('[Expenses] load failed:', err);
       setLoadError('Could not reach the server.');
@@ -53,14 +58,34 @@ export default function ExpensesPage() {
       const body = { ...form, amount: parseFloat(form.amount) };
       if (!body.budget_id) delete body.budget_id;
       if (!body.vendor) delete body.vendor;
-      const res = await fetchWithAuth('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if ((await res.json()).success) { toast.success('Expense recorded'); setShowForm(false); setForm({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' }); fetchExpenses(); }
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+      const json = await fetchWithAuth('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not record the expense.'), { duration: 9000 });
+        return;
+      }
+      toast.success('Expense recorded');
+      setShowForm(false);
+      setForm({ account_id: '', amount: '', category: 'other', description: '', vendor: '', budget_id: '' });
+      fetchExpenses();
+    } catch (err) {
+      console.error('[Expenses] save failed:', err);
+      toast.error('Could not reach the server.');
+    } finally { setSaving(false); }
   };
 
   const deleteExpense = async (id) => {
     if (!await confirmDelete('expense')) return;
-    try { await fetchWithAuth(`/api/expenses/${id}`, { method: 'DELETE' }); toast.success('Expense deleted'); fetchExpenses(); } catch { toast.error('Failed to delete'); }
+    try {
+      // The result was never checked, so a refused delete still showed
+      // "Expense deleted" while the row stayed in the list.
+      const json = await fetchWithAuth(`/api/expenses/${id}`, { method: 'DELETE' });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not delete the expense.'), { duration: 9000 });
+        return;
+      }
+      toast.success('Expense deleted');
+      fetchExpenses();
+    } catch { toast.error('Failed to delete'); }
   };
 
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);

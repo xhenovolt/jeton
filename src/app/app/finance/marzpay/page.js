@@ -27,7 +27,7 @@ import {
   Plus, X, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, Wallet,
   KeyRound, Star, Trash2, Send, Loader2, ArrowUpRight, ArrowDownRight, BookOpen,
 } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/fetch-client';
+import { fetchWithAuth, requestOk, requestError } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 // The same helper /finance/ledger, /reports and the rest of finance use, so
 // MarzPay figures are formatted identically rather than with a local variant.
@@ -77,10 +77,9 @@ export default function MarzPayPage() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const res = await fetchWithAuth('/api/finance/marzpay/accounts');
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        setError(json.error || `Could not load accounts (HTTP ${res.status}).`);
+      const json = await fetchWithAuth('/api/finance/marzpay/accounts');
+      if (!requestOk(json)) {
+        setError(requestError(json, 'Could not load accounts.'));
         return;
       }
       const list = Array.isArray(json.data) ? json.data : [];
@@ -100,10 +99,9 @@ export default function MarzPayPage() {
     if (!id) return;
     setTxLoading(true);
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/transactions?include=services&per_page=25`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Could not load transactions (HTTP ${res.status}).`, { duration: 9000 });
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/transactions?include=services&per_page=25`);
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not load transactions.'), { duration: 9000 });
         setTxData(null);
         return;
       }
@@ -119,10 +117,9 @@ export default function MarzPayPage() {
     if (!id) return;
     setAcctLoading(true);
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/reconcile?account_id=${id}`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Could not load the accounting position (HTTP ${res.status}).`, { duration: 9000 });
+      const json = await fetchWithAuth(`/api/finance/marzpay/reconcile?account_id=${id}`);
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not load the accounting position.'), { duration: 9000 });
         setAcct(null);
         return;
       }
@@ -150,13 +147,12 @@ export default function MarzPayPage() {
 
     setReconciling(true);
     try {
-      const res = await fetchWithAuth('/api/finance/marzpay/reconcile', {
+      const json = await fetchWithAuth('/api/finance/marzpay/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account_id: selected }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
+      if (!requestOk(json)) {
         toast.error(json.error || 'Reconciliation failed.', { duration: 10000 });
         return;
       }
@@ -175,8 +171,7 @@ export default function MarzPayPage() {
   const verify = async (id) => {
     setVerifying(id);
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/verify`, { method: 'POST' });
-      const json = await res.json().catch(() => ({}));
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/verify`, { method: 'POST' });
       if (json.ok) toast.success(json.message || 'MarzPay accepted the credentials');
       else toast.error(json.error || 'Verification failed', { duration: 9000 });
       loadAccounts();
@@ -191,14 +186,13 @@ export default function MarzPayPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetchWithAuth('/api/finance/marzpay/accounts', {
+      const json = await fetchWithAuth('/api/finance/marzpay/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(addForm),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Could not add the account (HTTP ${res.status}).`, { duration: 9000 });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not add the account.'), { duration: 9000 });
         return;
       }
       toast.success(`"${json.data.name}" added. Verify it to confirm the credentials work.`);
@@ -222,13 +216,12 @@ export default function MarzPayPage() {
     }
     setSaving(true);
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/accounts/${rotateFor.id}`, {
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${rotateFor.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rotateForm),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
+      if (!requestOk(json)) {
         toast.error(json.error || 'Could not rotate the credentials.', { duration: 9000 });
         return;
       }
@@ -245,13 +238,12 @@ export default function MarzPayPage() {
 
   const patch = async (id, body, okMsg) => {
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}`, {
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
+      if (!requestOk(json)) {
         toast.error(json.error || 'Update failed.', { duration: 9000 });
         return;
       }
@@ -263,9 +255,8 @@ export default function MarzPayPage() {
   const removeAccount = async (a) => {
     if (!confirm(`Remove "${a.name}"? Accounts that have moved money cannot be removed.`)) return;
     try {
-      const res = await fetchWithAuth(`/api/finance/marzpay/accounts/${a.id}`, { method: 'DELETE' });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${a.id}`, { method: 'DELETE' });
+      if (!requestOk(json)) {
         toast.error(json.error || 'Could not remove the account.', { duration: 10000 });
         return;
       }
@@ -283,14 +274,13 @@ export default function MarzPayPage() {
 
     setCollecting(true);
     try {
-      const res = await fetchWithAuth('/api/finance/marzpay/collect', {
+      const json = await fetchWithAuth('/api/finance/marzpay/collect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...collectForm, amount: amt, account_id: collectFor.id }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Collection failed (HTTP ${res.status}).`, { duration: 12000 });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Collection failed.'), { duration: 12000 });
         return;
       }
       toast.success(json.message || 'Collection requested.', { duration: 9000 });

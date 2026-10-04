@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, Users, Trash2, X, ChevronRight, Building2, Pencil, Search, Shield, Circle, UserPlus, UserCheck, Lock, Eye, EyeOff, Key, UserMinus, RotateCcw, AlertTriangle } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/fetch-client';
+import { fetchWithAuth, requestOk, requestError } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
 import { confirmDelete } from '@/lib/confirm';
 import { usePermissions } from '@/components/providers/PermissionProvider';
@@ -31,9 +31,11 @@ function CreateAccountModal({ staff, onClose, onSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || 'Failed to create account');
+      // Same trap as above: `res` is the parsed body, so res.ok is undefined
+      // and `!res.ok` would reject every successful account creation.
+      const data = res;
+      if (!requestOk(data)) {
+        setError(requestError(data, 'Failed to create account'));
       } else {
         onSuccess(data.user);
       }
@@ -344,23 +346,21 @@ export default function StaffPage() {
   const deleteStaff = async (id) => {
     if (!await confirmDelete('team member')) return;
     try {
-      const res = await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' });
-      const json = await res.json().catch(() => ({}));
+      // fetchWithAuth returns the PARSED BODY, not a Response. Reading res.ok
+      // here gave undefined, so `!res.ok` was always true and this reported
+      // failure — "HTTP undefined" — even when the delete had succeeded.
+      // requestOk() checks the transport result and `success` together.
+      const json = await fetchWithAuth(`/api/staff?id=${id}`, { method: 'DELETE' });
 
-      // fetch() only rejects on a network failure, so a 409/500 used to fall
-      // straight through to the success toast below. The row stayed in the
-      // list while the UI claimed the person had been removed, which is why
-      // deleting appeared to do nothing at all.
-      if (!res.ok || json.success === false) {
-        const msg = json.error || `Could not remove team member (HTTP ${res.status}).`;
-        toast.error(msg, { duration: 10000 });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not remove team member.'), { duration: 10000 });
         // Anyone with payroll or reporting dependencies cannot be hard-deleted.
         // Terminating is the right action there, so offer it directly.
-        if (json.code === 'STAFF_HAS_DEPENDENCIES') setTerminateTarget(staff.find(s => s.id === id) || { id });
+        if (json?.code === 'STAFF_HAS_DEPENDENCIES') setTerminateTarget(staff.find(s => s.id === id) || { id });
         return;
       }
 
-      toast.success('Team member removed');
+      toast.success(json.message || 'Team member removed');
       fetchStaff();
     } catch (err) {
       toast.error(`Failed to delete: ${err.message}`);
@@ -374,7 +374,7 @@ export default function StaffPage() {
     if (!terminateTarget) return;
     setTerminating(true);
     try {
-      const res = await fetchWithAuth('/api/staff/actions', {
+      const json = await fetchWithAuth('/api/staff/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -384,9 +384,8 @@ export default function StaffPage() {
           effective_date: terminateDate || null,
         }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Could not terminate (HTTP ${res.status}).`, { duration: 10000 });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not terminate this team member.'), { duration: 10000 });
         return;
       }
       toast.success(`${terminateTarget.name || 'Team member'} terminated. Their login has been disabled and sessions revoked.`);
@@ -403,14 +402,13 @@ export default function StaffPage() {
 
   const reactivateStaff = async (s) => {
     try {
-      const res = await fetchWithAuth('/api/staff/actions', {
+      const json = await fetchWithAuth('/api/staff/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staff_id: s.id, action_type: 'reactivation' }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        toast.error(json.error || `Could not reactivate (HTTP ${res.status}).`, { duration: 10000 });
+      if (!requestOk(json)) {
+        toast.error(requestError(json, 'Could not reactivate this team member.'), { duration: 10000 });
         return;
       }
       toast.success(`${s.name || 'Team member'} reactivated`);
