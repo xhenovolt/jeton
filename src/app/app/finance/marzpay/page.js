@@ -22,7 +22,7 @@
  * end to end.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Plus, X, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, Wallet,
   KeyRound, Star, Trash2, Send, Loader2, ArrowUpRight, ArrowDownRight, BookOpen,
@@ -71,9 +71,38 @@ export default function MarzPayPage() {
 
   // Accounting position: MarzPay's own figures beside what the internal
   // ledger holds, plus anything still waiting to be posted.
+  // Set when any loader reports MARZPAY_UNDECRYPTABLE, so the condition is
+  // shown as a persistent, actionable panel instead of a transient toast.
+  const [undecryptable, setUndecryptable] = useState(null);
+
   const [acct, setAcct] = useState(null);
   const [acctLoading, setAcctLoading] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+
+  // Three loaders run for the same account, and a credential failure breaks
+  // all of them, so the same sentence arrived as five identical toasts.
+  // Collapse repeats of one message within a short window.
+  const lastToast = useRef({ msg: '', at: 0 });
+  const toastOnce = useCallback((msg, opts) => {
+    const now = Date.now();
+    if (lastToast.current.msg === msg && now - lastToast.current.at < 8000) return;
+    lastToast.current = { msg, at: now };
+    toast.error(msg, opts);
+  }, [toast]);
+
+  /**
+   * Recognise the undecryptable-credential case and surface it once, as a
+   * panel. Returns true when it handled the failure so the caller can skip
+   * its own toast.
+   */
+  const noteCredentialProblem = useCallback((json, accountId = null) => {
+    const msg = json?.error || '';
+    if (json?.code === 'MARZPAY_UNDECRYPTABLE' || /could not be decrypted|cannot be decrypted/i.test(msg)) {
+      setUndecryptable({ id: accountId, message: msg });
+      return true;
+    }
+    return false;
+  }, []);
 
   const loadAccounts = useCallback(async () => {
     try {
@@ -101,7 +130,9 @@ export default function MarzPayPage() {
     try {
       const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/transactions?include=services&per_page=25`);
       if (!requestOk(json)) {
-        toast.error(requestError(json, 'Could not load transactions.'), { duration: 9000 });
+        if (!noteCredentialProblem(json, id)) {
+          toastOnce(requestError(json, 'Could not load transactions.'), { duration: 9000 });
+        }
         setTxData(null);
         return;
       }
@@ -119,7 +150,9 @@ export default function MarzPayPage() {
     try {
       const json = await fetchWithAuth(`/api/finance/marzpay/reconcile?account_id=${id}`);
       if (!requestOk(json)) {
-        toast.error(requestError(json, 'Could not load the accounting position.'), { duration: 9000 });
+        if (!noteCredentialProblem(json, id)) {
+          toastOnce(requestError(json, 'Could not load the accounting position.'), { duration: 9000 });
+        }
         setAcct(null);
         return;
       }
@@ -173,7 +206,9 @@ export default function MarzPayPage() {
     try {
       const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/verify`, { method: 'POST' });
       if (json.ok) toast.success(json.message || 'MarzPay accepted the credentials');
-      else toast.error(json.error || 'Verification failed', { duration: 9000 });
+      else if (!noteCredentialProblem(json, id)) {
+        toastOnce(json.error || 'Verification failed', { duration: 9000 });
+      }
       loadAccounts();
     } catch {
       toast.error('Could not reach the server.');
@@ -226,6 +261,8 @@ export default function MarzPayPage() {
         return;
       }
       toast.success('Credentials replaced. Verify the account to confirm the new ones work.');
+      // Re-encrypted with this deployment's key, so the condition is resolved.
+      setUndecryptable(null);
       setRotateFor(null);
       setRotateForm({ api_key: '', api_secret: '', webhook_secret: '' });
       loadAccounts();
@@ -317,6 +354,50 @@ export default function MarzPayPage() {
         <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
           <span>{error}</span>
           <button onClick={() => { setLoading(true); loadAccounts(); }} className="underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
+
+      {/* A credential that this deployment cannot decrypt is a configuration
+          problem with two concrete remedies, so it gets a persistent panel
+          rather than a toast that scrolls away. */}
+      {undecryptable && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-medium text-amber-900 dark:text-amber-200">
+                Stored credentials cannot be read by this deployment
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-300 mt-1">
+                The key and secret were encrypted with a different
+                <code className="mx-1 px-1 rounded bg-amber-100 dark:bg-amber-900/40">ENCRYPTION_KEY</code>
+                than this environment holds. Nothing is lost and the account is still valid at MarzPay.
+              </p>
+              <ul className="text-sm text-amber-800 dark:text-amber-300 mt-2 space-y-1 list-disc pl-5">
+                <li>
+                  Set <code className="px-1 rounded bg-amber-100 dark:bg-amber-900/40">ENCRYPTION_KEY</code> to
+                  the value used when the credentials were saved, then <strong>redeploy</strong> — Vercel only
+                  applies environment changes to a new deployment.
+                </li>
+                <li>
+                  Or press <strong>Replace credentials</strong> below and paste the key and secret again. They are
+                  re-encrypted with the key this deployment has, which fixes it without any environment change.
+                </li>
+              </ul>
+              {undecryptable.id && (
+                <button
+                  onClick={() => {
+                    const a = accounts.find(x => x.id === undecryptable.id) || undecryptable;
+                    setRotateFor(a);
+                    setRotateForm({ api_key: '', api_secret: '', webhook_secret: '' });
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700"
+                >
+                  <KeyRound className="w-3.5 h-3.5" /> Replace credentials
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

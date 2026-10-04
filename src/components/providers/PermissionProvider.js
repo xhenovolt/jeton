@@ -24,7 +24,7 @@
  * session cookie name so it never leaks across accounts.
  */
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Isomorphic layout effect. useLayoutEffect on the client runs after
@@ -101,11 +101,16 @@ export function PermissionProvider({ children }) {
     pendingApprovals: 0,
     loading: true,
     hydratedFromCache: false,
-    // True while the backend is answering 503 and we are still retrying, so
-    // the UI can say "waking up" instead of "you have no access".
+    // True while the backend is unreachable and we are still retrying, so the
+    // UI can say "waking up" instead of "you have no access".
     warmingUp: false,
     unavailable: false,
+    attempts: 0,
   });
+
+  // Handle for the pending auto-retry, so it can be cancelled on unmount and
+  // replaced rather than stacking timers.
+  const retryTimer = useRef(null);
 
   // Cache hydration runs after commit but before paint on the client.
   // If a cached user exists, swap it in synchronously and mark loading
@@ -141,7 +146,18 @@ export function PermissionProvider({ children }) {
    * the account has no access.
    */
   const loadPermissions = useCallback(async (attempt = 1) => {
-    const MAX_ATTEMPTS = 4;
+    // Retry for as long as the app is open, rather than giving up after a few
+    // goes and leaving a button for the user to press. A suspended database
+    // always comes back, so stopping only to ask the user to click Retry is
+    // asking them to do the loop's job — the same reason reloading the page
+    // "fixed" this before.
+    //
+    // Backoff grows and then holds at 15s, so a long outage costs a handful of
+    // requests per minute rather than a tight loop.
+    const delayFor = (n) => Math.min(700 * 2 ** (n - 1), 15000);
+    const scheduleRetry = (n) => {
+      retryTimer.current = setTimeout(() => loadPermissions(n + 1), delayFor(n));
+    };
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
 
@@ -153,25 +169,22 @@ export function PermissionProvider({ children }) {
         return;
       }
 
-      // Backend not ready. Keep any cached state visible and come back.
+      // Backend not ready. Keep any cached state visible and keep coming back.
       if (res.status === 503 || res.status === 504) {
-        if (attempt < MAX_ATTEMPTS) {
-          const after = Number(res.headers.get('Retry-After'));
-          const delay = Number.isFinite(after) && after > 0
-            ? Math.min(after * 1000, 5000)
-            : Math.min(700 * 2 ** (attempt - 1), 4000);
-          setState(prev => ({ ...prev, warmingUp: true }));
-          setTimeout(() => loadPermissions(attempt + 1), delay);
-          return;
-        }
-        // Out of attempts. Leave cached permissions in place if we have them
-        // rather than blanking the sidebar.
-        setState(prev => ({ ...prev, loading: false, warmingUp: false, unavailable: true }));
+        const after = Number(res.headers.get('Retry-After'));
+        const delay = Number.isFinite(after) && after > 0
+          ? Math.min(after * 1000, 15000)
+          : delayFor(attempt);
+        setState(prev => ({ ...prev, warmingUp: true, attempts: attempt }));
+        retryTimer.current = setTimeout(() => loadPermissions(attempt + 1), delay);
         return;
       }
 
+      // Any other non-OK answer: keep trying too. A 500 during a cold start or
+      // a deploy is transient, and the alternative is a dead sidebar.
       if (!res.ok) {
-        setState(prev => ({ ...prev, loading: false, warmingUp: false }));
+        setState(prev => ({ ...prev, warmingUp: true, attempts: attempt }));
+        scheduleRetry(attempt);
         return;
       }
 
@@ -189,15 +202,17 @@ export function PermissionProvider({ children }) {
         unavailable: false,
       });
     } catch {
-      // Network flake. Retry a read like this rather than giving up on the
-      // first stumble; keep cached state meanwhile.
-      if (attempt < MAX_ATTEMPTS) {
-        setState(prev => ({ ...prev, warmingUp: true }));
-        setTimeout(() => loadPermissions(attempt + 1), Math.min(700 * 2 ** (attempt - 1), 4000));
-        return;
-      }
-      setState(prev => ({ ...prev, loading: false, warmingUp: false, unavailable: true }));
+      // Offline or a network stumble. Keep cached state and keep retrying;
+      // the connection will come back.
+      setState(prev => ({ ...prev, warmingUp: true, attempts: attempt }));
+      scheduleRetry(attempt);
     }
+  }, []);
+
+  // Cancel any pending retry on unmount so a timer cannot fire into a dead
+  // tree.
+  useEffect(() => () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
   }, []);
 
   useEffect(() => {

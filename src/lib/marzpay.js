@@ -91,12 +91,73 @@ async function loadCredentials(accountId = null) {
         : null,
     };
   } catch (err) {
-    // A decryption failure almost always means ENCRYPTION_KEY changed. Say so
-    // without echoing anything sensitive.
-    throw new Error(
-      `MarzPay account "${row.name}" could not be decrypted. ` +
-      `ENCRYPTION_KEY may have changed since the credentials were stored.`
+    // Decryption failed, which in practice means this deployment does not hold
+    // the ENCRYPTION_KEY the ciphertext was written with. The credentials were
+    // encrypted wherever the account was first created and the ciphertext
+    // lives in the shared database, so any environment missing that exact key
+    // cannot read it.
+    //
+    // Rather than leave MarzPay dead until an environment variable is copied
+    // across and the app redeployed, fall back to the MARZPAY_* environment
+    // credentials when they are present, and RE-ENCRYPT the row with the key
+    // this deployment actually has. The next request then reads it from the
+    // database normally — the problem repairs itself once rather than
+    // recurring on every call.
+    const fallback = envCredentials();
+    if (fallback) {
+      console.warn(
+        `[marzpay] account "${row.name}" could not be decrypted with this ` +
+        `deployment's ENCRYPTION_KEY; using MARZPAY_* environment credentials ` +
+        `and re-encrypting the stored row so later requests do not need them.`
+      );
+      // Best effort: if this write fails the request still succeeds on the
+      // fallback, it simply repeats the warning next time.
+      try {
+        await query(
+          `UPDATE marzpay_accounts
+              SET api_key_encrypted = $2, api_secret_encrypted = $3,
+                  webhook_secret_encrypted = $4, api_key_masked = $5,
+                  last_error = NULL, updated_at = NOW()
+            WHERE id = $1`,
+          [
+            row.id,
+            encryptSecret(fallback.key),
+            encryptSecret(fallback.secret),
+            fallback.webhookSecret ? encryptSecret(fallback.webhookSecret) : null,
+            maskCredential(fallback.key),
+          ]
+        );
+      } catch (healErr) {
+        console.error('[marzpay] re-encryption failed:', healErr.message);
+      }
+
+      return {
+        id: row.id,
+        name: row.name,
+        key: fallback.key,
+        secret: fallback.secret,
+        base: (row.base_url || fallback.base || DEFAULT_BASE).replace(/\/+$/, ''),
+        webhookSecret: fallback.webhookSecret,
+      };
+    }
+
+    // No fallback available. Record it on the row so the UI can show an
+    // actionable state instead of only a transient toast, and raise an error
+    // that says what to do.
+    await query(
+      `UPDATE marzpay_accounts SET last_error = $2, updated_at = NOW() WHERE id = $1`,
+      [row.id, 'Stored credentials cannot be decrypted by this deployment.']
+    ).catch(() => {});
+
+    const e = new Error(
+      `MarzPay account "${row.name}" cannot be decrypted by this deployment. ` +
+      `Either set ENCRYPTION_KEY to the value used when the credentials were ` +
+      `saved (and redeploy, since Vercel only picks up environment changes on ` +
+      `a new deployment), or re-enter the API key and secret on this account — ` +
+      `that re-encrypts them with the key this deployment has.`
     );
+    e.code = 'MARZPAY_UNDECRYPTABLE';
+    throw e;
   }
 }
 

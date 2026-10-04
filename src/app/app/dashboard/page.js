@@ -16,7 +16,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   BarChart3, Users, Handshake, DollarSign, TrendingUp, Calendar,
   ArrowUpRight, ArrowDownRight, Wallet, Activity, AlertTriangle,
@@ -103,12 +103,15 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  // Pending auto-retry timer, cleared between runs so retries cannot stack.
+  const autoRetry = useRef(null);
 
   const {
     user, hasPermission, hasModuleAccess,
     loading: permLoading,
     warmingUp: permWarmingUp,
     unavailable: permUnavailable,
+    attempts: permAttempts,
     refreshPermissions,
   } = usePermissions();
 
@@ -134,16 +137,19 @@ export default function DashboardPage() {
           return;
         }
 
-        // Still unavailable after the retries. Say so, rather than leaving an
-        // empty dashboard that reads as "the company has no data".
+        // fetchWithAuth has already retried. If it is still unavailable, keep
+        // trying on a timer rather than stopping and offering a button —
+        // the condition clears by itself once the database is awake.
         setLoadError(
           json?.code === 'DB_UNAVAILABLE'
-            ? 'The database is still waking up. This can take a few seconds after a quiet period.'
-            : requestError(json, 'Could not load the dashboard.')
+            ? 'The database is still waking up. Retrying automatically…'
+            : requestError(json, 'Could not load the dashboard. Retrying automatically…')
         );
+        autoRetry.current = setTimeout(() => setRefreshKey(k => k + 1), 5000);
       } catch (err) {
         console.error('Dashboard fetch failed:', err);
-        setLoadError('Could not reach the server.');
+        setLoadError('Could not reach the server. Retrying automatically…');
+        autoRetry.current = setTimeout(() => setRefreshKey(k => k + 1), 5000);
       } finally {
         setLoading(false);
       }
@@ -152,7 +158,10 @@ export default function DashboardPage() {
     if (!permLoading) {
       fetchData();
       const interval = setInterval(fetchData, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        if (autoRetry.current) clearTimeout(autoRetry.current);
+      };
     }
     // refreshKey lets the Retry button re-run this effect on demand rather
     // than waiting out the 30s poll.
@@ -195,15 +204,11 @@ export default function DashboardPage() {
       {/* The dashboard used to render with every figure at zero when the
           database was still waking, which is indistinguishable from a company
           that has no data. Say which it is, and offer a retry. */}
+      {/* Retries happen on a timer; this only reports what is going on. */}
       {loadError && (
-        <div className="flex items-center justify-between gap-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg text-sm">
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
           <span>{loadError}</span>
-          <button
-            onClick={() => { setLoading(true); setLoadError(''); setRefreshKey(k => k + 1); }}
-            className="underline hover:no-underline font-medium shrink-0"
-          >
-            Retry
-          </button>
         </div>
       )}
 
@@ -486,23 +491,16 @@ export default function DashboardPage() {
           reload fixed it. Reloading was re-fetching /api/auth/me. */}
       {!user && (
         <div className="bg-card rounded-xl border border-border p-8 text-center">
-          <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-foreground font-medium mb-1">
-            {permWarmingUp ? 'Loading your permissions…' : 'Could not load your permissions'}
+          <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-3 animate-pulse" />
+          <p className="text-foreground font-medium mb-1">Loading your permissions…</p>
+          <p className="text-sm text-muted-foreground">
+            The backend is waking up. This usually takes a few seconds after a quiet period
+            {permAttempts > 1 ? ` — attempt ${permAttempts}` : ''}.
           </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {permWarmingUp
-              ? 'The backend is waking up. This usually takes a few seconds after a quiet period.'
-              : 'Your access level is unknown, so the dashboard is not showing modules. This is a loading problem, not a permissions decision.'}
-          </p>
-          {!permWarmingUp && (
-            <button
-              onClick={() => { refreshPermissions(); setLoading(true); setRefreshKey(k => k + 1); }}
-              className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Retry
-            </button>
-          )}
+          {/* No Retry button here on purpose. PermissionProvider keeps
+              retrying on its own with backoff until it succeeds, so asking
+              the user to press anything would be asking them to do the
+              loop's job. */}
         </div>
       )}
 

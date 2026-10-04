@@ -57,8 +57,13 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(payload);
   } catch (error) {
-    if (/could not be decrypted/.test(error.message)) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (error.code === 'MARZPAY_UNDECRYPTABLE' || /cannot be decrypted|could not be decrypted|ENCRYPTION_KEY/.test(error.message)) {
+      // A configuration problem, not a server fault. The code lets the UI
+      // show the two concrete remedies instead of a bare message.
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code || 'MARZPAY_UNDECRYPTABLE' },
+        { status: 503 }
+      );
     }
     console.error('[MarzPay] transactions error:', error.message);
     return NextResponse.json({ success: false, error: 'Failed to load MarzPay transactions' }, { status: 500 });
