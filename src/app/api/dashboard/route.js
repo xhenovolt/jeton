@@ -77,18 +77,33 @@ async function widgetMyProspects({ userId, dataScope, departmentId }) {
   return rows;
 }
 
+/**
+ * Swallow a widget's own failure, but never a database outage.
+ *
+ * Each widget wraps its query in a catch so one missing table cannot take the
+ * whole dashboard down. That is right for a missing table — the widget simply
+ * shows nothing. It is wrong for a suspended database: the catch turned a
+ * total outage into a tidy set of zeros returned with HTTP 200, so a cold
+ * start looked exactly like a company with no income, no accounts and no
+ * deals. Re-throwing the outage lets the route answer 503 with Retry-After,
+ * and the client retries instead of believing the zeros.
+ */
+function rethrowIfDbDown(error) {
+  if (error?.name === 'DatabaseUnavailableError' || error?.code === 'EDBDOWN') throw error;
+}
+
 async function widgetFinancialSummary() {
   try {
     const { rows } = await query(`SELECT * FROM v_financial_summary`);
     return rows[0] || { total_income: 0, total_expenses: 0, net_position: 0 };
-  } catch { return { total_income: 0, total_expenses: 0, net_position: 0 }; }
+  } catch (e) { rethrowIfDbDown(e); return { total_income: 0, total_expenses: 0, net_position: 0 }; }
 }
 
 async function widgetAccountBalances() {
   try {
     const { rows } = await query(`SELECT * FROM v_account_balances WHERE is_active = true ORDER BY balance DESC`);
     return rows;
-  } catch { return []; }
+  } catch (e) { rethrowIfDbDown(e); return []; }
 }
 
 async function widgetRecentExpenses({ userId, dataScope, departmentId }) {
@@ -110,7 +125,7 @@ async function widgetBudgetStatus() {
        FROM budgets WHERE is_active = true ORDER BY period_start DESC LIMIT 6`
     );
     return rows;
-  } catch { return []; }
+  } catch (e) { rethrowIfDbDown(e); return []; }
 }
 
 async function widgetPaymentSummary({ userId, dataScope, departmentId }) {
@@ -172,7 +187,7 @@ async function widgetAttentionItems({ userId, dataScope }) {
       ) dd
     `);
     return rows;
-  } catch { return []; }
+  } catch (e) { rethrowIfDbDown(e); return []; }
 }
 
 async function widgetRecentActivity({ userId, dataScope }) {
@@ -190,14 +205,14 @@ async function widgetRecentActivity({ userId, dataScope }) {
       params
     );
     return rows;
-  } catch { return []; }
+  } catch (e) { rethrowIfDbDown(e); return []; }
 }
 
 async function widgetMonthlyFinancials() {
   try {
     const { rows } = await query(`SELECT * FROM v_monthly_financials LIMIT 12`);
     return rows;
-  } catch { return []; }
+  } catch (e) { rethrowIfDbDown(e); return []; }
 }
 
 async function widgetAdminStats() {
@@ -214,7 +229,7 @@ async function widgetAdminStats() {
       total_clients: parseInt(clientsR.rows[0]?.count || 0),
       total_roles:   parseInt(rolesR.rows[0]?.count   || 0),
     };
-  } catch { return { total_users: 0, total_staff: 0, total_clients: 0, total_roles: 0 }; }
+  } catch (e) { rethrowIfDbDown(e); return { total_users: 0, total_staff: 0, total_clients: 0, total_roles: 0 }; }
 }
 
 // ─── Widget registry ─────────────────────────────────────────────────────────
@@ -280,7 +295,7 @@ export async function GET(request) {
     // 1. Load user's permissions (for widget selection)
     const userPermissions = auth.is_superadmin
       ? ['*']
-      : (await import('@/lib/permissions.js').then(m => m.getUserPermissions(userId)).catch(() => []));
+      : (await import('@/lib/permissions.js').then(m => m.getUserPermissions(userId)).catch((e) => { rethrowIfDbDown(e); return []; }));
 
     // 2. Determine widget list: from dashboard_configs, otherwise auto-infer
     let widgetDefs = [];
@@ -300,7 +315,7 @@ export async function GET(request) {
       if (configResult.rows[0]?.widgets) {
         widgetDefs = configResult.rows[0].widgets;
       }
-    } catch { /* table may not exist yet */ }
+    } catch (e) { rethrowIfDbDown(e); /* table may not exist yet */ }
 
     if (widgetDefs.length === 0) {
       widgetDefs = inferWidgetsFromPermissions(userPermissions);
@@ -344,6 +359,15 @@ export async function GET(request) {
       },
     });
   } catch (error) {
+    // A suspended database is a temporary condition, not a dashboard fault.
+    // Answer 503 with Retry-After so the client retries instead of rendering
+    // an empty dashboard that looks like "you have no data".
+    if (error?.name === 'DatabaseUnavailableError' || error?.code === 'EDBDOWN') {
+      return NextResponse.json(
+        { success: false, error: 'Database temporarily unavailable. Please retry.', code: 'DB_UNAVAILABLE' },
+        { status: 503, headers: { 'Retry-After': '3' } }
+      );
+    }
     console.error('[Dashboard API] Error:', error.message);
     return NextResponse.json({ success: false, error: 'Failed to load dashboard' }, { status: 500 });
   }

@@ -81,6 +81,8 @@ const PermissionContext = createContext({
   pendingApprovals: 0,
   loading: true,
   hydratedFromCache: false,
+  warmingUp: false,
+  unavailable: false,
   hasPermission: () => false,
   hasAnyPermission: () => false,
   hasModuleAccess: () => false,
@@ -99,6 +101,10 @@ export function PermissionProvider({ children }) {
     pendingApprovals: 0,
     loading: true,
     hydratedFromCache: false,
+    // True while the backend is answering 503 and we are still retrying, so
+    // the UI can say "waking up" instead of "you have no access".
+    warmingUp: false,
+    unavailable: false,
   });
 
   // Cache hydration runs after commit but before paint on the client.
@@ -114,18 +120,61 @@ export function PermissionProvider({ children }) {
       pendingApprovals: cached.user.pending_approvals ?? 0,
       loading: false,
       hydratedFromCache: true,
+      warmingUp: false,
+      unavailable: false,
     });
   }, []);
 
-  const loadPermissions = useCallback(async () => {
+  /**
+   * Load the current user, retrying while the database is waking up.
+   *
+   * /api/auth/me answers 503 with { code: 'DB_UNAVAILABLE' } and a Retry-After
+   * header when Neon's compute is suspended — db.js fails fast by design
+   * rather than holding the request open. This function previously treated
+   * that 503 exactly like a hard failure: it set loading:false with no user,
+   * so permissions were empty, the sidebar rendered as if nothing were
+   * permitted, and the only way out was for the user to reload the page. The
+   * reload was doing the retry that belonged here.
+   *
+   * Now it retries with backoff, honouring Retry-After, and reports
+   * `warmingUp` so the UI can say the backend is waking rather than implying
+   * the account has no access.
+   */
+  const loadPermissions = useCallback(async (attempt = 1) => {
+    const MAX_ATTEMPTS = 4;
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) {
-        // 401 means the session is dead — flush cache and stop pretending.
-        if (res.status === 401) clearCache();
-        setState(prev => ({ ...prev, loading: false }));
+      const res = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
+
+      // 401 is a real answer: the session is dead. Stop, and flush the cache
+      // so a signed-out user is not shown a stale menu.
+      if (res.status === 401) {
+        clearCache();
+        setState(prev => ({ ...prev, user: null, permissions: [], loading: false, warmingUp: false }));
         return;
       }
+
+      // Backend not ready. Keep any cached state visible and come back.
+      if (res.status === 503 || res.status === 504) {
+        if (attempt < MAX_ATTEMPTS) {
+          const after = Number(res.headers.get('Retry-After'));
+          const delay = Number.isFinite(after) && after > 0
+            ? Math.min(after * 1000, 5000)
+            : Math.min(700 * 2 ** (attempt - 1), 4000);
+          setState(prev => ({ ...prev, warmingUp: true }));
+          setTimeout(() => loadPermissions(attempt + 1), delay);
+          return;
+        }
+        // Out of attempts. Leave cached permissions in place if we have them
+        // rather than blanking the sidebar.
+        setState(prev => ({ ...prev, loading: false, warmingUp: false, unavailable: true }));
+        return;
+      }
+
+      if (!res.ok) {
+        setState(prev => ({ ...prev, loading: false, warmingUp: false }));
+        return;
+      }
+
       const data = await res.json();
       const user = data.user;
       writeCache(user);
@@ -136,12 +185,18 @@ export function PermissionProvider({ children }) {
         pendingApprovals: user.pending_approvals ?? 0,
         loading: false,
         hydratedFromCache: false,
+        warmingUp: false,
+        unavailable: false,
       });
     } catch {
-      // Network flake — keep whatever cached state we have. Do NOT flip
-      // to loading:false if we started from cache, because that would
-      // hide the sidebar again.
-      setState(prev => ({ ...prev, loading: false }));
+      // Network flake. Retry a read like this rather than giving up on the
+      // first stumble; keep cached state meanwhile.
+      if (attempt < MAX_ATTEMPTS) {
+        setState(prev => ({ ...prev, warmingUp: true }));
+        setTimeout(() => loadPermissions(attempt + 1), Math.min(700 * 2 ** (attempt - 1), 4000));
+        return;
+      }
+      setState(prev => ({ ...prev, loading: false, warmingUp: false, unavailable: true }));
     }
   }, []);
 

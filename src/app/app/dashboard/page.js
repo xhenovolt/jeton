@@ -22,7 +22,7 @@ import {
   ArrowUpRight, ArrowDownRight, Wallet, Activity, AlertTriangle,
   Clock, Zap, ExternalLink, Shield, Target, UserCheck,
 } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/fetch-client';
+import { fetchWithAuth, requestOk, requestError } from '@/lib/fetch-client';
 import { formatCurrency } from '@/lib/format-currency';
 import { usePermissions } from '@/components/providers/PermissionProvider';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
@@ -101,6 +101,8 @@ const ATTENTION_ICONS = {
 export default function DashboardPage() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { user, hasPermission, hasModuleAccess, loading: permLoading } = usePermissions();
 
@@ -114,11 +116,28 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res  = await fetchWithAuth('/api/dashboard');
-        const json = await res.json();
-        if (json.success) setData(json.data);
+        // fetchWithAuth now retries a GET through a 503 + Retry-After, which
+        // is what the backend sends while the database wakes from suspend.
+        // Before that, the very first load after an idle period got a 503,
+        // showed nothing, and the user had to reload by hand.
+        const json = await fetchWithAuth('/api/dashboard');
+
+        if (requestOk(json)) {
+          setData(json.data);
+          setLoadError('');
+          return;
+        }
+
+        // Still unavailable after the retries. Say so, rather than leaving an
+        // empty dashboard that reads as "the company has no data".
+        setLoadError(
+          json?.code === 'DB_UNAVAILABLE'
+            ? 'The database is still waking up. This can take a few seconds after a quiet period.'
+            : requestError(json, 'Could not load the dashboard.')
+        );
       } catch (err) {
         console.error('Dashboard fetch failed:', err);
+        setLoadError('Could not reach the server.');
       } finally {
         setLoading(false);
       }
@@ -129,7 +148,9 @@ export default function DashboardPage() {
       const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
-  }, [permLoading]);
+    // refreshKey lets the Retry button re-run this effect on demand rather
+    // than waiting out the 30s poll.
+  }, [permLoading, refreshKey]);
 
   if (loading || permLoading) {
     return (
@@ -156,6 +177,21 @@ export default function DashboardPage() {
   return (
     <PageTransition>
     <div className="space-y-6 p-6">
+
+      {/* The dashboard used to render with every figure at zero when the
+          database was still waking, which is indistinguishable from a company
+          that has no data. Say which it is, and offer a retry. */}
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg text-sm">
+          <span>{loadError}</span>
+          <button
+            onClick={() => { setLoading(true); setLoadError(''); setRefreshKey(k => k + 1); }}
+            className="underline hover:no-underline font-medium shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
