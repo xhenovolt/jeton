@@ -169,7 +169,30 @@ export default function MarzPayPage() {
     if (!selected) return;
     loadTransactions(selected);
     loadAccounting(selected);
-  }, [selected, loadTransactions, loadAccounting]);
+
+    // MarzPay figures go stale the moment money moves, and a screen showing a
+    // minutes-old balance as current is the problem this page is meant to
+    // avoid. Re-read on an interval, and whenever the tab regains focus, so
+    // what is on screen is what the provider says now.
+    const interval = setInterval(() => {
+      loadAccounts();
+      loadTransactions(selected);
+      loadAccounting(selected);
+    }, 60000);
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      loadAccounts();
+      loadTransactions(selected);
+      loadAccounting(selected);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [selected, loadTransactions, loadAccounting, loadAccounts]);
 
   const syncBalance = async () => {
     if (!selected) return;
@@ -534,13 +557,38 @@ export default function MarzPayPage() {
                   {a.description && <p className="text-sm text-muted-foreground mt-1">{a.description}</p>}
                   <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                     <span className="font-mono">{a.api_key_masked}</span>
-                    {a.last_known_balance !== null && (
-                      <span className="text-foreground font-medium">
-                        balance {fmt(a.last_known_balance, a.last_known_currency || 'UGX')}
+
+                    {/* Live from MarzPay, or explicitly marked as not.
+                        This previously printed last_known_balance — a cached
+                        column — as plain "balance", which is how the screen
+                        came to claim USh 995 while the wallet held USh 5. */}
+                    {a.balance_is_live ? (
+                      <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        {fmt(a.live_balance, a.live_currency || 'UGX')}
+                        <span className="font-normal text-muted-foreground">live from MarzPay</span>
                       </span>
+                    ) : a.last_known_balance !== null ? (
+                      <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        {fmt(a.last_known_balance, a.last_known_currency || 'UGX')}
+                        <span className="font-normal">
+                          cached{a.last_synced_at ? ` · last read ${new Date(a.last_synced_at).toLocaleString()}` : ''}
+                          {' '}— not current
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">balance unavailable</span>
                     )}
-                    {a.last_verified_at && <span>verified {new Date(a.last_verified_at).toLocaleString()}</span>}
+
+                    {a.last_verified_at && <span>credentials checked {new Date(a.last_verified_at).toLocaleString()}</span>}
                   </div>
+
+                  {!a.balance_is_live && a.balance_error && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
+                      Live balance unavailable: {a.balance_error}
+                    </p>
+                  )}
                   {a.last_error && (
                     <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400 mt-2">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{a.last_error}
@@ -691,11 +739,18 @@ export default function MarzPayPage() {
                   whole section read as zeros on a wallet with real history —
                   which looks broken rather than merely unreconciled. */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">At MarzPay</p>
+                <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    At MarzPay · live
+                  </p>
                   {acct.provider && (
                     <span className="text-xs text-muted-foreground">
-                      last {acct.provider.transaction_count} of the provider&apos;s history
+                      {acct.provider.transaction_count} transaction{acct.provider.transaction_count === 1 ? '' : 's'}
+                      {acct.provider.complete
+                        ? ' (full history)'
+                        : ` (first ${acct.provider.pages_read} page(s) — totals are partial)`}
+                      {acct.provider.read_at ? ` · read ${new Date(acct.provider.read_at).toLocaleTimeString()}` : ''}
                     </span>
                   )}
                 </div>

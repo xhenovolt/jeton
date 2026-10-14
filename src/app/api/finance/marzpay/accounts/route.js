@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
-import { listAccounts, createAccount } from '@/lib/marzpay.js';
+import { listAccounts, listAccountsLive, createAccount } from '@/lib/marzpay.js';
 
 /**
  * GET /api/finance/marzpay/accounts — list MarzPay accounts.
@@ -14,7 +14,26 @@ export async function GET(request) {
   if (perm instanceof NextResponse) return perm;
 
   try {
-    return NextResponse.json({ success: true, data: await listAccounts() });
+    // Balances are read LIVE from MarzPay by default.
+    //
+    // The row carries last_known_balance, but that is a cache of whatever the
+    // balance was when something last happened to look. Serving it as
+    // "balance" had the screen reporting USh 995 while the wallet held USh 5.
+    // MarzPay owns this number, so MarzPay is asked for it. Each account that
+    // cannot be read is flagged balance_is_live: false with the cached value
+    // and a reason, so the UI can label it rather than pass it off as current.
+    //
+    // ?live=0 returns the stored rows only, for callers that just need the
+    // list and must not trigger outbound calls.
+    const live = new URL(request.url).searchParams.get('live') !== '0';
+    const data = live ? await listAccountsLive() : await listAccounts();
+
+    return NextResponse.json({
+      success: true,
+      data,
+      balances_live: live,
+      read_at: new Date().toISOString(),
+    });
   } catch (error) {
     console.error('[MarzPay] accounts GET error:', error.message);
     return NextResponse.json({ success: false, error: 'Failed to load MarzPay accounts' }, { status: 500 });

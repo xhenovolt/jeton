@@ -57,6 +57,56 @@ export async function listAccounts() {
   return r.rows;
 }
 
+/**
+ * The accounts, each with its balance read LIVE from MarzPay.
+ *
+ * last_known_balance exists on the row, but it is a cache: it is whatever the
+ * balance was the last time something happened to call this. Showing it as
+ * "balance" meant the screen reported USh 995 while the wallet actually held
+ * USh 5 — Jeton stating a provider figure it had not checked. For anything
+ * MarzPay owns, MarzPay is the only source of truth.
+ *
+ * Each account is queried concurrently. A failure degrades to the cached value
+ * and is flagged `balance_is_live: false` with the time it was last read, so
+ * the UI can say "cached" rather than present a stale number as current.
+ */
+export async function listAccountsLive({ concurrency = 4 } = {}) {
+  const accounts = await listAccounts();
+
+  const results = [];
+  for (let i = 0; i < accounts.length; i += concurrency) {
+    const slice = accounts.slice(i, i + concurrency);
+    const settled = await Promise.all(slice.map(async (a) => {
+      if (!a.is_active) {
+        return { ...a, balance_is_live: false, balance_error: 'Account is inactive — not queried.' };
+      }
+      try {
+        // perPage 1 keeps this cheap: the balance rides along on the response.
+        const t = await getTransactions(a.id, { perPage: 1 });
+        if (!t.ok) return { ...a, balance_is_live: false, balance_error: t.error };
+        return {
+          ...a,
+          balance_is_live: true,
+          live_balance: t.balance ? Number(t.balance.raw) : null,
+          live_balance_formatted: t.balance?.formatted ?? null,
+          live_currency: t.balance?.currency ?? null,
+          live_read_at: new Date().toISOString(),
+          provider_account_uuid: t.account_uuid ?? a.provider_account_uuid,
+        };
+      } catch (err) {
+        return {
+          ...a,
+          balance_is_live: false,
+          balance_error: err.code === 'MARZPAY_UNDECRYPTABLE' ? err.message : 'Could not reach MarzPay.',
+          balance_error_code: err.code ?? null,
+        };
+      }
+    }));
+    results.push(...settled);
+  }
+  return results;
+}
+
 export async function getAccountPublic(id) {
   const r = await query(
     `SELECT ${PUBLIC_ACCOUNT_COLUMNS} FROM marzpay_accounts WHERE id = $1`, [id]);
@@ -694,30 +744,84 @@ export async function reconcile({ accountId = null, userId = null } = {}) {
  * imported. Showing provider-side figures beside the Jeton-side ones makes the
  * difference legible instead of looking like a broken page.
  */
-export async function getProviderSummary(accountId, { perPage = 100 } = {}) {
-  const t = await getTransactions(accountId, { perPage });
-  if (!t.ok) return { ok: false, error: t.error };
+export async function getProviderSummary(accountId, { perPage = 100, maxPages = 20 } = {}) {
+  // Walk the provider's pages so the totals cover its whole history rather
+  // than one window. A single window produced totals that silently excluded
+  // older activity, which is its own form of wrong number.
+  //
+  // maxPages caps the walk so one enormous account cannot hang the request;
+  // `complete` says whether the end was actually reached, and the UI must not
+  // present a truncated total as a lifetime figure.
+  let credits = 0, debits = 0, pending = 0, counted = 0;
+  let balance = null;
+  let accountUuid = null;
+  let complete = false;
+  let page = 1;
+  const seen = new Set();
 
-  let credits = 0, debits = 0, pending = 0;
-  for (const tx of t.transactions) {
-    const amt = Number(tx.amount) || 0;
-    if (tx.status !== 'completed') { pending++; continue; }
-    if (tx.type === 'credit') credits += amt;
-    else if (tx.type === 'debit') debits += amt;
+  for (; page <= maxPages; page++) {
+    const t = await getTransactions(accountId, { perPage, page });
+    if (!t.ok) {
+      // Page 1 failing is a real failure; later pages mean partial totals.
+      if (page === 1) return { ok: false, error: t.error };
+      break;
+    }
+    if (page === 1) { balance = t.balance; accountUuid = t.account_uuid; }
+
+    const rows = t.transactions ?? [];
+    let fresh = 0;
+    for (const tx of rows) {
+      // MarzPay has returned repeats across pages; dedupe on uuid so a
+      // transaction cannot be counted twice.
+      const key = tx.uuid || `${tx.reference}:${tx.created_at}:${tx.amount}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fresh++;
+      counted++;
+
+      const amt = Number(tx.amount) || 0;
+      if (tx.status !== 'completed') { pending++; continue; }
+      if (tx.type === 'credit') credits += amt;
+      else if (tx.type === 'debit') debits += amt;
+    }
+
+    // Short page, or nothing new, means the end.
+    if (rows.length < perPage || fresh === 0) { complete = true; break; }
   }
 
   return {
     ok: true,
-    balance: t.balance,
+    balance,
+    account_uuid: accountUuid,
     total_credits: credits,
     total_debits: debits,
     net: credits - debits,
-    transaction_count: t.transactions.length,
+    transaction_count: counted,
     pending_count: pending,
-    // The provider pages its history, so these totals cover the window read,
-    // not all time. Said plainly so the figure is not mistaken for a lifetime
-    // total.
-    window: perPage,
+    pages_read: Math.min(page, maxPages),
+    complete,
+    read_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * The provider's transaction list, straight through, for display.
+ *
+ * Nothing is read from marzpay_transactions here: that table records what
+ * Jeton initiated, which is a different and much smaller set. Showing it as
+ * "MarzPay transactions" would misreport the account.
+ */
+export async function getProviderTransactions(accountId, { perPage = 50, page = 1 } = {}) {
+  const t = await getTransactions(accountId, { perPage, page });
+  if (!t.ok) return { ok: false, error: t.error };
+  return {
+    ok: true,
+    balance: t.balance,
+    transactions: t.transactions,
+    account_uuid: t.account_uuid,
+    page,
+    per_page: perPage,
+    read_at: new Date().toISOString(),
   };
 }
 
@@ -811,7 +915,8 @@ export async function syncBalanceToLedger({ accountId = null, userId = null } = 
 }
 
 export default {
-  listAccounts, getAccountPublic, createAccount, rotateCredentials, setDefaultAccount,
+  listAccounts, listAccountsLive, getProviderTransactions,
+  getAccountPublic, createAccount, rotateCredentials, setDefaultAccount,
   verifyAccount, getCollectionServices, getDisbursementServices, getTransactions,
   collectMoney, getCollectionStatus, verifyWebhookSignature, envCredentials,
   getAccountingSummary, getUnreconciled, reconcile,
