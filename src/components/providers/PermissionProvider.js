@@ -89,17 +89,39 @@ const PermissionContext = createContext({
   refreshPermissions: () => {},
 });
 
-export function PermissionProvider({ children }) {
+/**
+ * @param {object}  props
+ * @param {object?} props.initialUser
+ *   The signed-in user, already resolved ON THE SERVER, in the same shape
+ *   /api/auth/me returns (see lib/current-user-full.js).
+ *
+ *   This is the difference between the sidebar and dashboard being right on
+ *   the first paint and being wrong until something refetches. Without it the
+ *   provider starts empty, every permission check answers "no", and the real
+ *   answer only arrives after a client round trip to /api/auth/me — which is
+ *   why a reload appeared to fix things, and why the Navbar (a client
+ *   component that fetched for itself) could show "Superadmin" while the
+ *   dashboard beside it said "User".
+ *
+ *   /app/layout.js supplies this. The root layout mounts this provider without
+ *   it, because /login and the public pages have no user to resolve and should
+ *   not pay for the RBAC joins.
+ */
+export function PermissionProvider({ children, initialUser = null }) {
   // Default state matches on both server and client to satisfy React's
   // hydration invariant. The useLayoutEffect below then replaces it
   // with the cached user before the browser paints, so the "empty"
   // state is never visible even though it exists briefly in the tree.
+  // Seeded from the server when available, so the very first render — the
+  // server-rendered HTML included — already knows who is signed in and what
+  // they may do. The identical initial value on server and client keeps
+  // hydration consistent.
   const [state, setState] = useState({
-    user: null,
-    permissions: [],
-    hierarchyLevel: 5,
-    pendingApprovals: 0,
-    loading: true,
+    user: initialUser,
+    permissions: initialUser?.permissions || [],
+    hierarchyLevel: initialUser?.hierarchy_level ?? 5,
+    pendingApprovals: initialUser?.pending_approvals ?? 0,
+    loading: !initialUser,
     hydratedFromCache: false,
     // True while the backend is unreachable and we are still retrying, so the
     // UI can say "waking up" instead of "you have no access".
@@ -116,6 +138,12 @@ export function PermissionProvider({ children }) {
   // If a cached user exists, swap it in synchronously and mark loading
   // false — the sidebar's first painted frame will show the real menu.
   useIsomorphicLayoutEffect(() => {
+    // The server already told us who this is; a cached copy could be older, or
+    // another account entirely. Never let it overwrite the authoritative seed.
+    if (initialUser) {
+      writeCache(initialUser);
+      return;
+    }
     const cached = readCache();
     if (!cached) return;
     setState({

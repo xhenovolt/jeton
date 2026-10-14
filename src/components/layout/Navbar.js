@@ -89,7 +89,6 @@ export function Navbar() {
   const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef(null);
 
-  useEffect(() => { fetchCurrentUser(); }, []);
 
   // Fetch notifications every 30 seconds
   const fetchNotifications = useCallback(async () => {
@@ -174,19 +173,23 @@ export function Navbar() {
     if (notifOpen) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }
   }, [notifOpen]);
 
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Deliberately NOT fetching /api/auth/me here any more.
+  //
+  // This component used to call it itself and keep the result in its own
+  // state, independently of PermissionProvider, which also calls it. Two
+  // calls, two pieces of state, two separate success/failure outcomes — so the
+  // page could show "Superadmin" in this bar while the dashboard beside it
+  // showed "User · Limited Access", from the same session, at the same moment.
+  // Whichever call happened to fail decided what that corner of the screen
+  // believed.
+  //
+  // The identity of the signed-in user has one source of truth: the context.
+  useEffect(() => {
+    if (permUser) setUser(permUser);
+    // Only stop showing the placeholder once the provider has an answer, so
+    // this bar never asserts an identity it has not actually read.
+    if (!permLoading) setLoading(false);
+  }, [permUser, permLoading]);
 
   const getAvatarText = () => {
     if (!user) return '?';

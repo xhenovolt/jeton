@@ -12,6 +12,7 @@ import { ChatWindow } from '@/components/communication/ChatWindow';
 import useChat from '@/hooks/useChat';
 import { api, confirmAction } from '@/lib/api-client';
 import { PageTransition } from '@/components/ui/PageTransition';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 
 // Lazy load heavy modals — only loaded when user opens them
 const NewConversationModal = lazy(() => import('@/components/communication/NewConversationModal').then(m => ({ default: m.NewConversationModal })));
@@ -23,14 +24,13 @@ export default function CommunicationPage() {
   const [showArchived, setShowArchived] = useState(false);
   const chat = useChat();
 
-  // Fetch current user ID
+  // Current user id from the shared context rather than a fourth concurrent
+  // /api/auth/me call. The identity of the signed-in user has one source of
+  // truth; independent copies drift and disagree.
+  const { user: permUser } = usePermissions();
   useEffect(() => {
-    api.get('/api/auth/me', { silent: true }).then(res => {
-      if (res.ok && res.data) {
-        setCurrentUserId(res.data.id || res.data.user?.id);
-      }
-    });
-  }, []);
+    if (permUser?.id) setCurrentUserId(permUser.id);
+  }, [permUser]);
 
   // Show chat errors as toasts — clear error immediately to prevent re-fire
   useEffect(() => {

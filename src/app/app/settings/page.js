@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Save, User, Lock, Bell, DollarSign, Palette, ChevronRight, MessageSquare, Building2, ShieldCheck, Briefcase } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import { usePermissions } from '@/components/providers/PermissionProvider';
 import Link from 'next/link';
 
 export default function SettingsPage() {
@@ -12,11 +13,20 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  // Reads the signed-in user from the shared context instead of calling
+  // /api/auth/me again.
+  //
+  // The previous version checked `j.success && j.data`, but /api/auth/me
+  // answers `{ user: {...} }` — there is no `success` or `data` field — so the
+  // condition was never true and this page never populated the profile form at
+  // all. It also meant a third concurrent auth call on every visit.
+  const { user: permUser } = usePermissions();
+
   useEffect(() => {
-    fetchWithAuth('/api/auth/me').then(r => r.json()).then(j => {
-      if (j.success && j.data) { setUser(j.data); setForm({ name: j.data.name || '', email: j.data.email || '' }); }
-    }).catch(() => {});
-  }, []);
+    if (!permUser) return;
+    setUser(permUser);
+    setForm({ name: permUser.name || '', email: permUser.email || '' });
+  }, [permUser]);
 
   const saveProfile = async () => {
     setError('');
