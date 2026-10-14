@@ -62,7 +62,11 @@ export async function GET(request, { params }) {
       // show the two concrete remedies instead of a bare message.
       return NextResponse.json(
         { success: false, error: error.message, code: error.code || 'MARZPAY_UNDECRYPTABLE' },
-        { status: 503 }
+        // 409, not 503: this is permanent until the key is supplied or the
+        // credentials are re-entered. 503 is the "backend is waking" signal
+        // that fetchWithAuth retries, which turned one config error into
+        // three failed attempts.
+        { status: 409 }
       );
     }
     console.error('[MarzPay] transactions error:', error.message);

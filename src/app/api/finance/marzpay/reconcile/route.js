@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
-import { getAccountingSummary, getUnreconciled, reconcile } from '@/lib/marzpay.js';
+import { getAccountingSummary, getUnreconciled, reconcile, getProviderSummary } from '@/lib/marzpay.js';
 
 /**
  * GET /api/finance/marzpay/reconcile?account_id=...
@@ -16,9 +16,14 @@ export async function GET(request) {
 
   try {
     const accountId = new URL(request.url).searchParams.get('account_id');
-    const [summary, pending] = await Promise.all([
+    const [summary, pending, provider] = await Promise.all([
       getAccountingSummary(accountId),
       getUnreconciled(accountId),
+      // Provider-side figures too. Without them the page reads as all zeros on
+      // a wallet that has genuine history outside Jeton, which looks broken
+      // rather than merely unreconciled. Failure here must not take the rest
+      // of the response down.
+      getProviderSummary(accountId).catch(e => ({ ok: false, error: e.message })),
     ]);
 
     // What the internal books currently hold for the mapped account, so the UI
@@ -45,6 +50,10 @@ export async function GET(request) {
         ledger_total: Number(booked.rows[0].ledger_total),
         ledger_entries: booked.rows[0].ledger_entries,
       },
+      // What MarzPay itself reports, so the UI can show provider reality
+      // beside Jeton's own records and name the gap between them.
+      provider: provider?.ok ? provider : null,
+      provider_error: provider?.ok ? null : (provider?.error ?? 'Provider figures unavailable'),
     });
   } catch (error) {
     console.error('[MarzPay] reconcile GET error:', error.message);

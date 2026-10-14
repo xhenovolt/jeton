@@ -78,6 +78,7 @@ export default function MarzPayPage() {
   const [acct, setAcct] = useState(null);
   const [acctLoading, setAcctLoading] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Three loaders run for the same account, and a credential failure breaks
   // all of them, so the same sentence arrived as five identical toasts.
@@ -169,6 +170,37 @@ export default function MarzPayPage() {
     loadTransactions(selected);
     loadAccounting(selected);
   }, [selected, loadTransactions, loadAccounting]);
+
+  const syncBalance = async () => {
+    if (!selected) return;
+    const p = acct?.provider;
+    const books = acct?.books?.ledger_total ?? 0;
+    if (p?.balance && !confirm(
+      `MarzPay holds ${fmt(p.balance.raw, p.balance.currency)} but the books show ${fmt(books)}.\n\n` +
+      `Post the difference as an adjustment so the MarzPay Wallet account matches the provider? ` +
+      `This covers wallet activity that did not go through Jeton.`
+    )) return;
+
+    setSyncing(true);
+    try {
+      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${selected}/sync-balance`, {
+        method: 'POST',
+      });
+      if (!requestOk(json)) {
+        if (!noteCredentialProblem(json, selected)) {
+          toastOnce(requestError(json, 'Could not sync the balance.'), { duration: 10000 });
+        }
+        return;
+      }
+      toast.success(json.message, { duration: 9000 });
+      loadAccounting(selected);
+      loadAccounts();
+    } catch {
+      toast.error('Could not reach the server.');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const runReconcile = async () => {
     if (!acct?.unreconciled?.length) return;
@@ -654,32 +686,90 @@ export default function MarzPayPage() {
             <div className="text-sm text-muted-foreground">No accounting data for this account.</div>
           ) : (
             <>
-              {/* Same three-card shape as /finance/ledger, so the numbers read
-                  the same way across finance. */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-card rounded-xl border p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <ArrowUpRight className="w-3.5 h-3.5" /> Credits (Collections)
-                  </div>
-                  <div className="text-xl font-bold text-emerald-600">{fmt(acct.summary.total_credits)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{acct.summary.completed_count} completed</div>
+              {/* ── AT MARZPAY ─────────────────────────────────────────────
+                  The provider's own figures. These used to be absent, so the
+                  whole section read as zeros on a wallet with real history —
+                  which looks broken rather than merely unreconciled. */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">At MarzPay</p>
+                  {acct.provider && (
+                    <span className="text-xs text-muted-foreground">
+                      last {acct.provider.transaction_count} of the provider&apos;s history
+                    </span>
+                  )}
                 </div>
-                <div className="bg-card rounded-xl border p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <ArrowDownRight className="w-3.5 h-3.5" /> Debits (Payouts)
+                {acct.provider ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-card rounded-xl border p-4">
+                      <div className="text-xs text-muted-foreground mb-1">Wallet balance</div>
+                      <div className="text-xl font-bold text-foreground">
+                        {acct.provider.balance ? fmt(acct.provider.balance.raw, acct.provider.balance.currency) : '—'}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">live from MarzPay</div>
+                    </div>
+                    <div className="bg-card rounded-xl border p-4">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <ArrowUpRight className="w-3.5 h-3.5" /> Money in
+                      </div>
+                      <div className="text-xl font-bold text-emerald-600">{fmt(acct.provider.total_credits)}</div>
+                      <div className="text-xs text-muted-foreground mt-1">completed credits in this window</div>
+                    </div>
+                    <div className="bg-card rounded-xl border p-4">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <ArrowDownRight className="w-3.5 h-3.5" /> Money out
+                      </div>
+                      <div className="text-xl font-bold text-red-600">{fmt(acct.provider.total_debits)}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        completed debits{acct.provider.pending_count > 0 ? ` · ${acct.provider.pending_count} pending` : ''}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-red-600">{fmt(acct.summary.total_debits)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {acct.summary.total_debits === 0 ? 'no disbursements recorded' : 'completed'}
+                ) : (
+                  <div className="bg-card rounded-xl border p-4 text-sm text-muted-foreground">
+                    {acct.provider_error || 'Provider figures unavailable.'}
                   </div>
-                </div>
-                <div className="bg-card rounded-xl border p-4">
-                  <div className="text-xs text-muted-foreground mb-1">Net through MarzPay</div>
-                  <div className={`text-xl font-bold ${acct.summary.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {fmt(acct.summary.net)}
+                )}
+              </div>
+
+              {/* ── RECORDED BY JETON ──────────────────────────────────────
+                  Deliberately separate from the figures above. This counts
+                  only what Jeton itself initiated, which is the right basis
+                  for reconciliation — and is legitimately zero on an account
+                  used outside Jeton. Labelling it stops that zero reading as
+                  a fault. */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Recorded by Jeton
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-card rounded-xl border p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> Collections
+                    </div>
+                    <div className="text-xl font-bold text-emerald-600">{fmt(acct.summary.total_credits)}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {acct.summary.completed_count} completed
+                      {acct.summary.total_count === 0 ? ' · none initiated here yet' : ''}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {acct.summary.total_count} transaction{acct.summary.total_count === 1 ? '' : 's'}
+                  <div className="bg-card rounded-xl border p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <ArrowDownRight className="w-3.5 h-3.5" /> Payouts
+                    </div>
+                    <div className="text-xl font-bold text-red-600">{fmt(acct.summary.total_debits)}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {acct.summary.total_debits === 0 ? 'no disbursements sent from Jeton' : 'completed'}
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-xl border p-4">
+                    <div className="text-xs text-muted-foreground mb-1">Net through Jeton</div>
+                    <div className={`text-xl font-bold ${acct.summary.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {fmt(acct.summary.net)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {acct.summary.total_count} transaction{acct.summary.total_count === 1 ? '' : 's'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -706,6 +796,55 @@ export default function MarzPayPage() {
                   <div className="text-xs text-muted-foreground mt-1">{acct.summary.unreconciled_count} transactions</div>
                 </div>
               </div>
+
+              {/* ── BALANCE GAP ────────────────────────────────────────────
+                  accounts has no balance column — a balance is the sum of that
+                  account's ledger rows. The MarzPay wallet therefore read zero
+                  in /finance/accounts while the provider held real money,
+                  because nothing had ever been posted for it. This names the
+                  gap and posts it as one adjustment. */}
+              {acct.provider?.balance && (() => {
+                const providerBal = Number(acct.provider.balance.raw) || 0;
+                const books = Number(acct.books?.ledger_total) || 0;
+                const gap = providerBal - books;
+                const matched = Math.abs(gap) < 0.005;
+                return (
+                  <div className={`rounded-xl border p-4 ${matched
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'}`}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${matched
+                          ? 'text-emerald-800 dark:text-emerald-300'
+                          : 'text-amber-900 dark:text-amber-200'}`}>
+                          {matched
+                            ? 'The books match the MarzPay balance'
+                            : `The books are out by ${fmt(gap, acct.provider.balance.currency)}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          MarzPay holds {fmt(providerBal, acct.provider.balance.currency)} ·
+                          {' '}the MarzPay Wallet account shows {fmt(books)}
+                          {matched ? '' : ' — which is why /finance/accounts reads the wrong figure.'}
+                        </p>
+                        {!matched && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Posting the difference as one adjustment is the honest correction: the
+                            provider&apos;s own history is not Jeton&apos;s record, and inventing ledger rows for it
+                            would fabricate history.
+                          </p>
+                        )}
+                      </div>
+                      {!matched && (
+                        <button onClick={syncBalance} disabled={syncing}
+                          className="flex items-center gap-1.5 text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 shrink-0">
+                          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+                          {syncing ? 'Posting…' : 'Match the books'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Pending / failed, so money in flight is never invisible. */}
               {(acct.summary.pending_count > 0 || acct.summary.failed_count > 0) && (

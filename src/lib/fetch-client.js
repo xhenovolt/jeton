@@ -54,6 +54,10 @@
 const RETRY_METHODS = new Set(['GET', 'HEAD']);
 const MAX_ATTEMPTS = 3;
 const RETRY_STATUSES = new Set([503, 504]);
+// Application codes that mean "this will not fix itself", so retrying only
+// delays the real message. A mis-keyed credential is the example: it needs a
+// person, not another attempt.
+const NON_RETRYABLE_CODES = new Set(['MARZPAY_UNDECRYPTABLE']);
 
 function retryDelayMs(res, attempt) {
   // Honour Retry-After when the server sends it, clamped so a large value
@@ -100,8 +104,19 @@ export async function fetchWithAuth(url, options = {}) {
 
     // Server is up but not ready — this is the Neon wake-up case.
     if (RETRY_STATUSES.has(res.status) && attempt < maxAttempts) {
-      await sleep(retryDelayMs(res, attempt));
-      continue;
+      // One exception: a 503 that carries a non-retryable application code is
+      // telling us the condition is permanent. Peek at the body before
+      // spending another attempt, and clone first so the real read below still
+      // has an unconsumed stream.
+      let permanent = false;
+      try {
+        const peek = await res.clone().json();
+        if (peek?.code && NON_RETRYABLE_CODES.has(peek.code)) permanent = true;
+      } catch { /* not JSON — treat as retryable */ }
+      if (!permanent) {
+        await sleep(retryDelayMs(res, attempt));
+        continue;
+      }
     }
     break;
   }

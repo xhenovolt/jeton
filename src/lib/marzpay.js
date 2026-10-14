@@ -684,9 +684,136 @@ export async function reconcile({ accountId = null, userId = null } = {}) {
   };
 }
 
+/**
+ * Totals taken from the PROVIDER's own transaction list.
+ *
+ * getAccountingSummary() above reports only what Jeton itself initiated, which
+ * is the right basis for reconciliation but reads as a page of zeros on an
+ * account that has been used outside Jeton — this wallet has real history
+ * (Airtel, airtime, bills) that predates the integration and was never
+ * imported. Showing provider-side figures beside the Jeton-side ones makes the
+ * difference legible instead of looking like a broken page.
+ */
+export async function getProviderSummary(accountId, { perPage = 100 } = {}) {
+  const t = await getTransactions(accountId, { perPage });
+  if (!t.ok) return { ok: false, error: t.error };
+
+  let credits = 0, debits = 0, pending = 0;
+  for (const tx of t.transactions) {
+    const amt = Number(tx.amount) || 0;
+    if (tx.status !== 'completed') { pending++; continue; }
+    if (tx.type === 'credit') credits += amt;
+    else if (tx.type === 'debit') debits += amt;
+  }
+
+  return {
+    ok: true,
+    balance: t.balance,
+    total_credits: credits,
+    total_debits: debits,
+    net: credits - debits,
+    transaction_count: t.transactions.length,
+    pending_count: pending,
+    // The provider pages its history, so these totals cover the window read,
+    // not all time. Said plainly so the figure is not mistaken for a lifetime
+    // total.
+    window: perPage,
+  };
+}
+
+/**
+ * Bring the internal account into line with the provider's balance.
+ *
+ * `accounts` has no balance column — a balance is the sum of that account's
+ * ledger rows. The MarzPay wallet therefore read zero while the provider held
+ * real money, because no entry had ever been posted for it.
+ *
+ * This posts the DIFFERENCE as a single adjustment, which is the honest
+ * correction: the provider's historical transactions are not Jeton's records
+ * and inventing ledger rows for them would fabricate history. One adjustment
+ * says "the books were out by this much, and here is when we noticed".
+ *
+ * Naturally idempotent: it posts the gap, so a second run computes a gap of
+ * zero and writes nothing.
+ */
+export async function syncBalanceToLedger({ accountId = null, userId = null } = {}) {
+  const acct = accountId
+    ? (await query(`SELECT * FROM marzpay_accounts WHERE id = $1`, [accountId])).rows[0]
+    : (await query(
+        `SELECT * FROM marzpay_accounts WHERE is_active = TRUE
+          ORDER BY is_default DESC, created_at ASC LIMIT 1`)).rows[0];
+
+  if (!acct) return { ok: false, error: 'No MarzPay account' };
+  if (!acct.ledger_account_id) {
+    return {
+      ok: false,
+      error: `"${acct.name}" has no internal account mapped, so there is nowhere to post the balance.`,
+    };
+  }
+
+  // Authoritative figure from the provider.
+  const t = await getTransactions(acct.id, { perPage: 1 });
+  if (!t.ok) return { ok: false, error: t.error };
+  if (!t.balance) return { ok: false, error: 'MarzPay did not return a balance.' };
+
+  const providerBalance = Number(t.balance.raw);
+  const currency = t.balance.currency || 'UGX';
+
+  const booked = await query(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM ledger WHERE account_id = $1`,
+    [acct.ledger_account_id]
+  );
+  const bookBalance = Number(booked.rows[0].total);
+  const difference = providerBalance - bookBalance;
+
+  if (Math.abs(difference) < 0.005) {
+    return {
+      ok: true, posted: false, provider_balance: providerBalance,
+      book_balance: bookBalance, difference: 0, currency,
+      message: 'The books already match the provider balance.',
+    };
+  }
+
+  const entryId = await withTransaction(async (tx) => {
+    const led = await tx(
+      `INSERT INTO ledger
+         (account_id, amount, currency, source_type, source_id, description, category, entry_date, created_by)
+       VALUES ($1,$2,$3,'adjustment',$4,$5,'adjustment',CURRENT_DATE,$6)
+       RETURNING id`,
+      [
+        acct.ledger_account_id,
+        difference,                       // signed: may correct either way
+        currency,
+        acct.id,
+        `MarzPay balance reconciliation — provider held ${currency} ${providerBalance.toLocaleString()}, ` +
+          `books showed ${currency} ${bookBalance.toLocaleString()}. ` +
+          `Adjustment covers activity on the wallet that was not recorded through Jeton.`,
+        userId,
+      ]
+    );
+    await tx(
+      `UPDATE marzpay_accounts
+          SET last_known_balance = $2, last_known_currency = $3,
+              last_synced_at = NOW(), updated_at = NOW()
+        WHERE id = $1`,
+      [acct.id, providerBalance, currency]
+    );
+    return led.rows[0].id;
+  });
+
+  return {
+    ok: true, posted: true, ledger_entry_id: entryId,
+    provider_balance: providerBalance, book_balance: bookBalance,
+    difference, currency,
+    message: `Posted an adjustment of ${currency} ${difference.toLocaleString()} so the ` +
+             `MarzPay wallet reads ${currency} ${providerBalance.toLocaleString()} in the books.`,
+  };
+}
+
 export default {
   listAccounts, getAccountPublic, createAccount, rotateCredentials, setDefaultAccount,
   verifyAccount, getCollectionServices, getDisbursementServices, getTransactions,
   collectMoney, getCollectionStatus, verifyWebhookSignature, envCredentials,
   getAccountingSummary, getUnreconciled, reconcile,
+  getProviderSummary, syncBalanceToLedger,
 };
