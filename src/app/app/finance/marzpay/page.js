@@ -32,6 +32,7 @@ import { useToast } from '@/components/ui/Toast';
 // The same helper /finance/ledger, /reports and the rest of finance use, so
 // MarzPay figures are formatted identically rather than with a local variant.
 import { formatCurrency } from '@/lib/format-currency';
+import { toE164Ug, COLLECTION_MIN_UGX, UG_PHONE_HINT } from '@/lib/phone-ug';
 
 const STATUS_STYLES = {
   verified:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -368,14 +369,22 @@ export default function MarzPayPage() {
     e.preventDefault();
     const amt = Number(collectForm.amount);
     if (!Number.isFinite(amt) || amt <= 0) { toast.error('Enter a valid amount.'); return; }
-    if (!confirm(`Request ${fmt(amt)} from ${collectForm.phone}? They will be prompted on their phone to approve it.`)) return;
+    if (amt < COLLECTION_MIN_UGX) {
+      toast.error(`MarzPay's minimum collection is ${fmt(COLLECTION_MIN_UGX)}.`);
+      return;
+    }
+    // Normalise before asking for confirmation, so the number in the prompt is
+    // the number MarzPay will actually dial.
+    const e164 = toE164Ug(collectForm.phone);
+    if (!e164) { toast.error(UG_PHONE_HINT); return; }
+    if (!confirm(`Request ${fmt(amt)} from ${e164}? They will be prompted on their phone to approve it.`)) return;
 
     setCollecting(true);
     try {
       const json = await fetchWithAuth('/api/finance/marzpay/collect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...collectForm, amount: amt, account_id: collectFor.id }),
+        body: JSON.stringify({ ...collectForm, amount: amt, phone: e164, account_id: collectFor.id }),
       });
       if (!requestOk(json)) {
         toast.error(requestError(json, 'Collection failed.'), { duration: 12000 });
@@ -711,15 +720,25 @@ export default function MarzPayPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Amount (UGX) *</label>
-              <input required type="number" min="1" step="1" value={collectForm.amount}
+              <input required type="number" min={COLLECTION_MIN_UGX} step="1" value={collectForm.amount}
                 onChange={e => setCollectForm(f => ({ ...f, amount: e.target.value }))}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm" />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                MarzPay&apos;s minimum is {fmt(COLLECTION_MIN_UGX)}. A provider fee is added on top for the customer.
+              </p>
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Customer phone *</label>
               <input required value={collectForm.phone} placeholder="0741341483 or +256741341483"
                 onChange={e => setCollectForm(f => ({ ...f, phone: e.target.value }))}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm" />
+              {collectForm.phone.trim() && (
+                toE164Ug(collectForm.phone)
+                  ? <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">
+                      Will be sent as {toE164Ug(collectForm.phone)}
+                    </p>
+                  : <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{UG_PHONE_HINT}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Description</label>

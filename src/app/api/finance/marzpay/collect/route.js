@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
-import { collectMoney, getCollectionStatus, invalidateProviderCache } from '@/lib/marzpay.js';
+import {
+  collectMoney, getCollectionStatus, invalidateProviderCache,
+} from '@/lib/marzpay.js';
+import { toE164Ug, COLLECTION_MIN_UGX, UG_PHONE_HINT } from '@/lib/phone-ug.js';
 
 /**
  * POST /api/finance/marzpay/collect — request money from a customer.
@@ -29,10 +32,20 @@ export async function POST(request) {
     if (!Number.isFinite(amt) || amt <= 0) {
       return NextResponse.json({ success: false, error: 'amount must be a positive number' }, { status: 400 });
     }
-    // Uganda mobile numbers, with or without the country code.
-    if (!phone || !/^(\+?256|0)?7\d{8}$/.test(String(phone).replace(/[\s-]/g, ''))) {
+    // MarzPay's own floor. Reject here so the customer is never prompted for
+    // an amount the provider will refuse anyway.
+    if (amt < COLLECTION_MIN_UGX) {
       return NextResponse.json(
-        { success: false, error: 'phone must be a valid Ugandan mobile number' }, { status: 400 });
+        { success: false, error: `MarzPay's minimum collection is ${COLLECTION_MIN_UGX} UGX.` },
+        { status: 400 });
+    }
+
+    // Normalise to E.164 here, not just validate. MarzPay requires the country
+    // code and rejects a local 07… number outright, which is what produced the
+    // opaque "Please check your input and try again" the user was seeing.
+    const e164 = toE164Ug(phone);
+    if (!e164) {
+      return NextResponse.json({ success: false, error: UG_PHONE_HINT }, { status: 400 });
     }
 
     // Prefer an explicit public origin; fall back to this request's origin so
@@ -43,7 +56,7 @@ export async function POST(request) {
     const result = await collectMoney({
       accountId: account_id || null,
       amount: amt,
-      phone: String(phone).replace(/[\s-]/g, ''),
+      phone: e164,
       description: description || 'Jeton collection',
       reference: reference || null,
       callbackUrl,
@@ -59,7 +72,7 @@ export async function POST(request) {
          amount: amt, currency: 'UGX',
          // Keep only the last four digits: enough to reconcile, not a full
          // customer phone number sitting in the audit log.
-         phone_last4: String(phone).slice(-4),
+         phone_last4: e164.slice(-4),
          reference: result.reference ?? reference ?? null,
          outcome: result.ok ? 'initiated' : (result.duplicate ? 'duplicate' : 'failed'),
          error: result.ok ? null : result.error,

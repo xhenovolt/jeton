@@ -35,6 +35,7 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { query, withTransaction } from '@/lib/db.js';
 import { encryptSecret, decryptSecret, maskCredential } from '@/lib/encryption.js';
+import { toE164Ug, COLLECTION_MIN_UGX, UG_PHONE_HINT } from '@/lib/phone-ug.js';
 
 const DEFAULT_BASE = 'https://wallet.wearemarz.com/api/v1';
 const TIMEOUT_MS = 25_000;
@@ -330,6 +331,24 @@ async function call(creds, method, path, body) {
   }
 }
 
+/**
+ * MarzPay's documented collection rules, learned by probing the live API
+ * rather than assumed:
+ *
+ *   phone_number  must be E.164 WITH the country code, e.g. +256712345678.
+ *                 A local "0741341483" is rejected outright — this is what
+ *                 produced "Please check your input and try again."
+ *   reference     must be a valid UUID. Any other string is rejected.
+ *   country       required, e.g. UG.
+ *   amount        minimum 500 UGX for a collection.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The phone and amount rules are shared with the browser, so they live in a
+// client-safe module. Re-exported here so server callers that already import
+// them from this module keep working.
+export { toE164Ug, COLLECTION_MIN_UGX, UG_PHONE_HINT };
+
 /** Turn a MarzPay error body into one short, non-sensitive sentence. */
 function errorMessage(r) {
   // Rate limiting deserves its own wording: "Too Many Attempts. (REQUEST_ERROR)"
@@ -339,8 +358,21 @@ function errorMessage(r) {
            'the figures below are the last ones it returned.';
   }
   const m = r.json?.message || r.json?.error || `MarzPay returned HTTP ${r.status}`;
+
+  // MarzPay returns a per-field `errors` object on a 422, and it is the only
+  // part that says what is actually wrong. Without it the user saw
+  // "Please check your input and try again. (VALIDATION_ERROR)", which names
+  // no field and gives no remedy.
+  const fields = r.json?.errors;
+  if (fields && typeof fields === 'object') {
+    const detail = Object.entries(fields)
+      .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs[0] : msgs}`)
+      .join(' · ');
+    if (detail) return String(detail).slice(0, 400);
+  }
+
   const code = r.json?.error_code;
-  return String(code ? `${m} (${code})` : m).slice(0, 240);
+  return String(code ? `${m} (${code})` : m).slice(0, 400);
 }
 
 /** MarzPay throttles with HTTP 429 and/or "Too Many Attempts." */
@@ -552,9 +584,27 @@ export async function collectMoney({
 
   const amt = Number(amount);
   if (!Number.isFinite(amt) || amt <= 0) return { ok: false, error: 'amount must be a positive number' };
-  if (!phone?.trim()) return { ok: false, error: 'phone is required' };
 
-  const ref = (reference?.trim() || randomUUID()).slice(0, 80);
+  // MarzPay refuses collections below 500 UGX. Say so here rather than letting
+  // the provider answer with a generic validation error.
+  if (amt < COLLECTION_MIN_UGX) {
+    return { ok: false, error: `MarzPay's minimum collection is ${COLLECTION_MIN_UGX} UGX.` };
+  }
+
+  // E.164 with the country code, which is what MarzPay requires. Jeton used to
+  // validate a local 07… number and then send it as typed, so the provider
+  // rejected it: "Please enter a valid phone number with country code".
+  const e164 = toE164Ug(phone);
+  if (!e164) {
+    return { ok: false, error: UG_PHONE_HINT };
+  }
+
+  // The reference MarzPay accepts must be a UUID. A caller-supplied key is
+  // honoured only when it already is one; otherwise a UUID is generated and
+  // the caller's key is carried in metadata so it stays traceable.
+  const callerRef = reference?.trim() || null;
+  const ref = callerRef && UUID_RE.test(callerRef) ? callerRef : randomUUID();
+  const extraMetadata = callerRef && ref !== callerRef ? [{ caller_reference: callerRef }] : [];
 
   let localId;
   try {
@@ -562,7 +612,7 @@ export async function collectMoney({
       `INSERT INTO marzpay_transactions
          (account_id, reference, direction, amount, currency, phone_number, description, status, initiated_by)
        VALUES ($1,$2,'collection',$3,'UGX',$4,$5,'pending',$6) RETURNING id`,
-      [creds.id, ref, amt, phone.trim(), description ?? null, userId]
+      [creds.id, ref, amt, e164, description ?? null, userId]
     );
     localId = ins.rows[0].id;
   } catch (e) {
@@ -582,11 +632,11 @@ export async function collectMoney({
     amount: amt,
     country: 'UG',
     reference: ref,
-    phone_number: phone.trim(),
+    phone_number: e164,
     description: String(description ?? 'Jeton collection').slice(0, 255),
     ...(callbackUrl ? { callback_url: String(callbackUrl).slice(0, 255) } : {}),
   };
-  const meta = marzMetadata(metadata);
+  const meta = marzMetadata([...(metadata ?? []), ...extraMetadata]);
 
   let r = await call(creds, 'POST', '/collect-money', meta.length ? { ...base, metadata: meta } : base);
   // Metadata is only a label; payments are matched by reference. If MarzPay
