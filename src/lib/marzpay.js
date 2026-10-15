@@ -81,16 +81,25 @@ export async function listAccountsLive({ concurrency = 4 } = {}) {
         return { ...a, balance_is_live: false, balance_error: 'Account is inactive — not queried.' };
       }
       try {
-        // perPage 1 keeps this cheap: the balance rides along on the response.
-        const t = await getTransactions(a.id, { perPage: 1 });
-        if (!t.ok) return { ...a, balance_is_live: false, balance_error: t.error };
+        // Goes through the shared snapshot cache, so listing accounts costs no
+        // provider call when the page has already read one in the last 20s.
+        // Previously this made its own request per account, on every load and
+        // every 60s tick, which is part of what MarzPay throttled.
+        const t = await getProviderSnapshot(a.id);
+        if (!t.ok) {
+          return {
+            ...a, balance_is_live: false, balance_error: t.error,
+            rate_limited: !!t.rate_limited,
+          };
+        }
         return {
           ...a,
-          balance_is_live: true,
+          balance_is_live: !t.cached,
           live_balance: t.balance ? Number(t.balance.raw) : null,
           live_balance_formatted: t.balance?.formatted ?? null,
           live_currency: t.balance?.currency ?? null,
-          live_read_at: new Date().toISOString(),
+          live_read_at: t.read_at,
+          rate_limited: !!t.rate_limited,
           provider_account_uuid: t.account_uuid ?? a.provider_account_uuid,
         };
       } catch (err) {
@@ -323,9 +332,68 @@ async function call(creds, method, path, body) {
 
 /** Turn a MarzPay error body into one short, non-sensitive sentence. */
 function errorMessage(r) {
+  // Rate limiting deserves its own wording: "Too Many Attempts. (REQUEST_ERROR)"
+  // tells the reader nothing about what to do.
+  if (isRateLimited(r)) {
+    return 'MarzPay is rate limiting this account. Jeton has stopped calling it for a moment — ' +
+           'the figures below are the last ones it returned.';
+  }
   const m = r.json?.message || r.json?.error || `MarzPay returned HTTP ${r.status}`;
   const code = r.json?.error_code;
   return String(code ? `${m} (${code})` : m).slice(0, 240);
+}
+
+/** MarzPay throttles with HTTP 429 and/or "Too Many Attempts." */
+function isRateLimited(r) {
+  return r.status === 429 || /too many attempts/i.test(String(r.json?.message ?? ''));
+}
+
+// ─────────────────────────── provider read cache ────────────────────────────
+//
+// WHY THIS EXISTS
+//
+// Reading provider state live is right, but the page was doing it per
+// component: listAccountsLive (1 call), the transactions loader with
+// include=services (3), and the accounting summary paginating up to 20 — five
+// to twenty-four calls per load, repeated on a 60s timer and on every tab
+// focus. MarzPay throttled it, which showed up as "Too Many Attempts." and
+// blocked the thing the page is for: starting a collection.
+//
+// One short-lived cache fixes it without going back to lying. A figure a few
+// seconds old, stamped with the time it was read, is honest; a cached figure
+// presented as current is not. Everything served from here carries read_at.
+const providerCache = new Map();
+const CACHE_TTL_MS = 20_000;
+// After a throttle, stop calling for long enough for the window to clear.
+const RATE_LIMIT_BACKOFF_MS = 60_000;
+const rateLimitedUntil = new Map();
+
+function cacheGet(key) {
+  const hit = providerCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) { providerCache.delete(key); return null; }
+  return hit.value;
+}
+
+function cacheSet(key, value) {
+  providerCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+/** Drop cached reads for an account, e.g. right after moving money. */
+export function invalidateProviderCache(accountId = null) {
+  if (!accountId) { providerCache.clear(); return; }
+  for (const k of providerCache.keys()) {
+    if (k.startsWith(`${accountId}:`)) providerCache.delete(k);
+  }
+}
+
+function throttledFor(accountId) {
+  const until = rateLimitedUntil.get(accountId);
+  if (!until) return 0;
+  const left = until - Date.now();
+  if (left <= 0) { rateLimitedUntil.delete(accountId); return 0; }
+  return left;
 }
 
 // ───────────────────────────────── operations ───────────────────────────────
@@ -744,7 +812,36 @@ export async function reconcile({ accountId = null, userId = null } = {}) {
  * imported. Showing provider-side figures beside the Jeton-side ones makes the
  * difference legible instead of looking like a broken page.
  */
-export async function getProviderSummary(accountId, { perPage = 100, maxPages = 20 } = {}) {
+/**
+ * Provider-side totals, taken from the shared snapshot.
+ *
+ * This used to walk up to 20 pages on every page load. Combined with the other
+ * loaders that was five to twenty-four provider calls per render, which is what
+ * MarzPay throttled with "Too Many Attempts." — and the throttle then blocked
+ * starting a collection, the one thing the page exists to do.
+ *
+ * One /transactions call at per_page=100 already carries the balance and, for
+ * any account under 100 transactions, the whole history. `complete` says
+ * whether that held. Use getProviderSummaryPaged() when a full walk is
+ * genuinely wanted.
+ */
+export async function getProviderSummary(accountId, { force = false } = {}) {
+  const snap = await getProviderSnapshot(accountId, { force });
+  if (!snap.ok) return { ok: false, error: snap.error, rate_limited: !!snap.rate_limited };
+  return {
+    ok: true,
+    balance: snap.balance,
+    account_uuid: snap.account_uuid,
+    ...snap.summary,
+    pages_read: 1,
+    read_at: snap.read_at,
+    cached: !!snap.cached,
+    rate_limited: !!snap.rate_limited,
+  };
+}
+
+/** Full multi-page walk. Only for an explicit request — it costs one call per page. */
+export async function getProviderSummaryPaged(accountId, { perPage = 100, maxPages = 20 } = {}) {
   // Walk the provider's pages so the totals cover its whole history rather
   // than one window. A single window produced totals that silently excluded
   // older activity, which is its own form of wrong number.
@@ -802,6 +899,148 @@ export async function getProviderSummary(accountId, { perPage = 100, maxPages = 
     complete,
     read_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Everything the MarzPay page needs about an account, from ONE provider call.
+ *
+ * /transactions returns the balance alongside the rows, so a single request at
+ * per_page=100 yields the live balance, the transaction list, and totals over
+ * the full history for any account with fewer than 100 transactions — which is
+ * this one (43). That replaces the five-to-twenty-four calls the page used to
+ * make, which is what MarzPay was throttling.
+ *
+ * `complete` is true when the page came back short, meaning the end of the
+ * history was reached; the UI must not call a truncated total a lifetime one.
+ *
+ * Served from a 20s cache and stamped with read_at. If MarzPay has throttled
+ * us, the last good snapshot is returned with rate_limited set rather than
+ * hammering a closed door.
+ */
+export async function getProviderSnapshot(accountId, { perPage = 100, force = false } = {}) {
+  const key = `${accountId}:snapshot:${perPage}`;
+
+  if (!force) {
+    const hit = cacheGet(key);
+    if (hit) return { ...hit, cached: true };
+  }
+
+  const backoff = throttledFor(accountId);
+  if (backoff > 0) {
+    const stale = providerCache.get(key)?.value;
+    return stale
+      ? { ...stale, cached: true, rate_limited: true, retry_in_ms: backoff }
+      : {
+          ok: false, rate_limited: true, retry_in_ms: backoff,
+          error: 'MarzPay is rate limiting this account. Waiting before trying again.',
+        };
+  }
+
+  const creds = await loadCredentials(accountId);
+  if (!creds) return { ok: false, error: 'No active MarzPay account' };
+
+  const r = await call(creds, 'GET', `/transactions?per_page=${perPage}&page=1`);
+
+  if (isRateLimited(r)) {
+    rateLimitedUntil.set(accountId, Date.now() + RATE_LIMIT_BACKOFF_MS);
+    const stale = providerCache.get(key)?.value;
+    return stale
+      ? { ...stale, cached: true, rate_limited: true, retry_in_ms: RATE_LIMIT_BACKOFF_MS }
+      : { ok: false, rate_limited: true, retry_in_ms: RATE_LIMIT_BACKOFF_MS, error: errorMessage(r) };
+  }
+  if (!r.ok) return { ok: false, error: errorMessage(r) };
+
+  const bal = r.json?.data?.account?.current_balance ?? null;
+  const rows = r.json?.data?.transactions ?? [];
+
+  const transactions = rows.map(t => ({
+    uuid: t.uuid ?? null,
+    reference: t.reference ?? null,
+    provider_reference: t.provider_reference ?? null,
+    amount: t.amount?.raw == null ? null : Number(t.amount.raw),
+    amount_formatted: t.amount?.formatted ?? null,
+    currency: t.amount?.currency ?? null,
+    type: t.type ?? null,
+    status: t.status ?? null,
+    description: t.description ?? null,
+    provider: t.provider ?? null,
+    phone_number: t.phone_number ?? null,
+    created_at: t.timeline?.created_at ?? null,
+    updated_at: t.timeline?.updated_at ?? null,
+  }));
+
+  let credits = 0, debits = 0, pending = 0;
+  for (const t of transactions) {
+    const amt = Number(t.amount) || 0;
+    if (t.status !== 'completed') { pending++; continue; }
+    if (t.type === 'credit') credits += amt;
+    else if (t.type === 'debit') debits += amt;
+  }
+
+  const balance = bal
+    ? { raw: Number(bal.raw), formatted: bal.formatted, currency: bal.currency }
+    : null;
+
+  // Keep the row's cached copy fresh for the places that cannot make a live
+  // call, but never let it be the thing the UI presents as current.
+  if (balance) {
+    await query(
+      `UPDATE marzpay_accounts
+          SET last_known_balance = $2, last_known_currency = $3,
+              last_synced_at = NOW(), updated_at = NOW()
+        WHERE id = $1`,
+      [accountId, balance.raw, balance.currency]
+    ).catch(() => {});
+  }
+
+  return cacheSet(key, {
+    ok: true,
+    balance,
+    account_uuid: r.json?.data?.account?.uuid ?? null,
+    transactions,
+    summary: {
+      total_credits: credits,
+      total_debits: debits,
+      net: credits - debits,
+      transaction_count: transactions.length,
+      pending_count: pending,
+      complete: rows.length < perPage,
+    },
+    read_at: new Date().toISOString(),
+    cached: false,
+    rate_limited: false,
+  });
+}
+
+/**
+ * Collection and disbursement providers. Cached far longer than balances —
+ * MarzPay's service catalogue changes rarely, and fetching it on every page
+ * load was two of the calls that triggered the throttle.
+ */
+export async function getServicesCached(accountId) {
+  const key = `${accountId}:services`;
+  const hit = providerCache.get(key);
+  // 10 minutes: a service list is effectively static within a session.
+  if (hit && Date.now() - hit.at < 600_000) return { ...hit.value, cached: true };
+
+  if (throttledFor(accountId) > 0) {
+    return hit ? { ...hit.value, cached: true } : { ok: false, error: 'Rate limited' };
+  }
+
+  const [collect, send] = await Promise.all([
+    getCollectionServices(accountId),
+    getDisbursementServices(accountId),
+  ]);
+  return cacheSet(key, {
+    ok: collect.ok || send.ok,
+    collection: collect.ok ? collect.providers : [],
+    disbursement: send.ok ? send.providers : [],
+    errors: [
+      ...(collect.ok ? [] : [`collection: ${collect.error}`]),
+      ...(send.ok ? [] : [`disbursement: ${send.error}`]),
+    ],
+    cached: false,
+  });
 }
 
 /**
@@ -920,5 +1159,6 @@ export default {
   verifyAccount, getCollectionServices, getDisbursementServices, getTransactions,
   collectMoney, getCollectionStatus, verifyWebhookSignature, envCredentials,
   getAccountingSummary, getUnreconciled, reconcile,
-  getProviderSummary, syncBalanceToLedger,
+  getProviderSummary, getProviderSummaryPaged, getProviderSnapshot,
+  getServicesCached, invalidateProviderCache, syncBalanceToLedger,
 };

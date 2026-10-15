@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db.js';
 import { requirePermission } from '@/lib/permissions.js';
-import { collectMoney, getCollectionStatus } from '@/lib/marzpay.js';
+import { collectMoney, getCollectionStatus, invalidateProviderCache } from '@/lib/marzpay.js';
 
 /**
  * POST /api/finance/marzpay/collect — request money from a customer.
@@ -73,6 +73,10 @@ export async function POST(request) {
       // The provider refused. That is not a server fault, so 502 rather than 500.
       return NextResponse.json({ success: false, error: result.error, reference: result.reference }, { status: 502 });
     }
+
+    // Money has just moved, so the 20s read cache is stale by definition.
+    // Drop it rather than letting the page show a pre-collection balance.
+    invalidateProviderCache(account_id || null);
 
     return NextResponse.json({
       success: true,

@@ -79,6 +79,9 @@ export default function MarzPayPage() {
   const [acctLoading, setAcctLoading] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // Set when MarzPay throttles us, so the page can say so instead of showing
+  // "Too Many Attempts. (REQUEST_ERROR)" and losing its data.
+  const [rateLimited, setRateLimited] = useState(null);
 
   // Three loaders run for the same account, and a credential failure breaks
   // all of them, so the same sentence arrived as five identical toasts.
@@ -125,18 +128,31 @@ export default function MarzPayPage() {
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
 
-  const loadTransactions = useCallback(async (id) => {
+  const loadTransactions = useCallback(async (id, { force = false } = {}) => {
     if (!id) return;
     setTxLoading(true);
     try {
-      const json = await fetchWithAuth(`/api/finance/marzpay/accounts/${id}/transactions?include=services&per_page=25`);
+      const json = await fetchWithAuth(
+        `/api/finance/marzpay/accounts/${id}/transactions?include=services${force ? '&force=1' : ''}`);
       if (!requestOk(json)) {
+        // A throttle is not a failure to report as one: keep whatever is on
+        // screen and say that MarzPay has asked us to wait. Blanking the page
+        // would lose the figures the user can still act on.
+        if (json?.code === 'MARZPAY_RATE_LIMITED') {
+          setRateLimited({
+            message: json.error,
+            retryInMs: json.retry_in_ms ?? null,
+            at: Date.now(),
+          });
+          return;
+        }
         if (!noteCredentialProblem(json, id)) {
           toastOnce(requestError(json, 'Could not load transactions.'), { duration: 9000 });
         }
         setTxData(null);
         return;
       }
+      setRateLimited(null);
       setTxData(json);
     } catch {
       toast.error('Could not reach the server.');
@@ -170,29 +186,19 @@ export default function MarzPayPage() {
     loadTransactions(selected);
     loadAccounting(selected);
 
-    // MarzPay figures go stale the moment money moves, and a screen showing a
-    // minutes-old balance as current is the problem this page is meant to
-    // avoid. Re-read on an interval, and whenever the tab regains focus, so
-    // what is on screen is what the provider says now.
-    const interval = setInterval(() => {
-      loadAccounts();
-      loadTransactions(selected);
-      loadAccounting(selected);
-    }, 60000);
-
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      loadAccounts();
-      loadTransactions(selected);
-      loadAccounting(selected);
-    };
-    document.addEventListener('visibilitychange', onVisible);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [selected, loadTransactions, loadAccounting, loadAccounts]);
+    // No polling here, deliberately.
+    //
+    // A 60s timer plus a refetch on every tab focus, multiplied by three
+    // loaders that each hit MarzPay, is what got this account throttled —
+    // "Too Many Attempts." — and the throttle then blocked starting a
+    // collection, which is the whole point of the page.
+    //
+    // The figures stay honest without polling: each read is stamped with the
+    // time it was taken and shown next to the number, the server coalesces
+    // reads behind a 20s cache, and Refresh forces a fresh call. A balance
+    // labelled "read 14:32:07" is accurate; a balance silently refreshed every
+    // minute at the cost of being rate limited is not an improvement.
+  }, [selected, loadTransactions, loadAccounting]);
 
   const syncBalance = async () => {
     if (!selected) return;
@@ -409,6 +415,24 @@ export default function MarzPayPage() {
         <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
           <span>{error}</span>
           <button onClick={() => { setLoading(true); loadAccounts(); }} className="underline font-medium shrink-0">Retry</button>
+        </div>
+      )}
+
+      {/* MarzPay throttling. Shown as a condition that clears by itself, not
+          as an error — and the figures already on screen stay put, because
+          they are still the last thing MarzPay said. */}
+      {rateLimited && (
+        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 text-sm">
+          <Loader2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-spin" />
+          <div>
+            <p className="font-medium text-amber-900 dark:text-amber-200">MarzPay is rate limiting us</p>
+            <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+              Jeton has paused its calls
+              {rateLimited.retryInMs ? ` for about ${Math.ceil(rateLimited.retryInMs / 1000)}s` : ''}.
+              The figures shown are the last ones MarzPay returned. Collections and transfers still work —
+              this only affects reading the account.
+            </p>
+          </div>
         </div>
       )}
 
@@ -973,7 +997,7 @@ export default function MarzPayPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground">Provider activity — {current.name}</h2>
-            <button onClick={() => loadTransactions(current.id)} disabled={txLoading}
+            <button onClick={() => loadTransactions(current.id, { force: true })} disabled={txLoading}
               className="flex items-center gap-1 text-sm text-blue-600 hover:underline disabled:opacity-50">
               <RefreshCw className={`w-3.5 h-3.5 ${txLoading ? 'animate-spin' : ''}`} /> Refresh
             </button>
