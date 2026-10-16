@@ -142,8 +142,12 @@ export default function VerificationPortalPage() {
                 </TableCell>
                 <TableCell>{getStatusBadge(log.verification_status)}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={`/verify/${log.document_id}`} target="_blank" rel="noopener noreferrer">
+                  {/* Opens the document internally, not the public
+                      verification page. That page now requires the document's
+                      token, which staff viewing an access log do not have — so
+                      the old link always landed on "no matching document". */}
+                  <Button variant="ghost" size="sm" asChild title="Open this document">
+                    <a href={`/app/admin/documents/generated/${log.document_id}`}>
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </Button>

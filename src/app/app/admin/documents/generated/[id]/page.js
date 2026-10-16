@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 import { useToast } from '@/components/ui/Toast';
-import { renderDocumentBody } from '@/lib/doc-render';
 
 const fmtDate     = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -195,10 +194,21 @@ export default function GeneratedDocumentDetailPage({ params }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`/verify/${doc.unique_id}`} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted cursor-pointer">
-            <ExternalLink className="w-4 h-4" /> Public verify page
-          </a>
+          {/* The public page needs the document's verification token, so the
+              link is the one the API returned. Without it the page correctly
+              reports no matching document, which would look like a bug. */}
+          {doc.verification_url ? (
+            <a href={doc.verification_url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted cursor-pointer">
+              <ExternalLink className="w-4 h-4" /> Public verify page
+            </a>
+          ) : (
+            <span
+              title="Only a superadmin can read a document's verification token, which the public page requires."
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm text-muted-foreground cursor-not-allowed">
+              <ExternalLink className="w-4 h-4" /> Public verify page
+            </span>
+          )}
           <button onClick={handlePrint}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted cursor-pointer">
             <Printer className="w-4 h-4" /> Print / Save PDF
@@ -315,15 +325,26 @@ export default function GeneratedDocumentDetailPage({ params }) {
             </header>
           )}
 
-          <div className="text-[12pt] leading-relaxed"
-            dangerouslySetInnerHTML={{
-              __html: doc.rendered_body
-                ? (doc.body_format === 'html' || doc.body_format === 'rich'
-                    ? doc.rendered_body
-                    : renderDocumentBody(doc.rendered_body, doc.body_format || 'markdown'))
-                : '<p class="italic text-slate-500">Document body not available.</p>'
-            }}
-          />
+          {/* The frozen snapshot taken when the document was issued. The API
+              no longer re-renders from the live template, so editing a
+              template cannot change what this shows. `document_html` is a
+              complete HTML document, hence the iframe. */}
+          {doc.document_html ? (
+            <iframe
+              title="Issued document"
+              sandbox=""
+              srcDoc={doc.document_html}
+              className="w-full border-0"
+              style={{ minHeight: '240mm' }}
+            />
+          ) : (
+            <div className="text-[12pt] leading-relaxed">
+              <p className="italic text-slate-500">
+                {doc.content_snapshot_note
+                  || 'This document predates content snapshots, so its original text cannot be reproduced faithfully.'}
+              </p>
+            </div>
+          )}
 
           <footer className="mt-12 pt-6 border-t border-slate-300 flex items-end justify-between gap-6">
             <div className="text-xs text-slate-600 flex-1 min-w-0">

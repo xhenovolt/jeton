@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import { renderDocumentBody } from '@/lib/doc-render';
 
 /**
  * Public document verification page.
@@ -26,7 +25,12 @@ import { renderDocumentBody } from '@/lib/doc-render';
  */
 export default function VerificationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const documentId = params?.documentId;
+  // The token is the credential that authorises this read. Document references
+  // are sequential, so the server no longer accepts a bare id by default — a
+  // page that omitted the token would simply get "not found".
+  const token = searchParams?.get('token') ?? '';
   const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -42,7 +46,9 @@ export default function VerificationPage() {
     if (!documentId) return;
     (async () => {
       try {
-        const res = await fetch(`/api/documents/verify?id=${encodeURIComponent(documentId)}`);
+        const qs = new URLSearchParams({ id: documentId });
+        if (token) qs.set('token', token);
+        const res = await fetch(`/api/documents/verify?${qs}`);
         const json = await res.json();
         if (json.success) { setStatus('verified'); setData(json.data); }
         else { setStatus(json.status || 'error'); setError(json.error); setData(json.data); }
@@ -51,7 +57,7 @@ export default function VerificationPage() {
         setError('Failed to verify document: ' + err.message);
       }
     })();
-  }, [documentId]);
+  }, [documentId, token]);
 
   const handlePrint = () => { if (typeof window !== 'undefined') window.print(); };
 
@@ -92,7 +98,7 @@ export default function VerificationPage() {
             )}
             {isVerified && (
               <div className="text-sm text-slate-600 dark:text-slate-400">
-                ID <code className="font-mono">{data.id}</code> · Issued {fmtDate(data.generated_at)}
+                ID <code className="font-mono">{data.id}</code> · Issued {fmtDate(data.issued_at)}
                 {data.expires_at && <> · Expires {fmtDate(data.expires_at)}</>}
                 {' '}· {data.view_count} verification view{data.view_count === 1 ? '' : 's'}
               </div>
@@ -131,23 +137,50 @@ export default function VerificationPage() {
                 </header>
               )}
 
-              {/* Document body — placeholders already substituted server-side */}
-              <div className="text-[12pt] leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: data.rendered_body
-                    ? (data.body_format === 'html' || data.body_format === 'rich'
-                        ? data.rendered_body
-                        : renderDocumentBody(data.rendered_body, data.body_format || 'markdown'))
-                    : '<p class="italic text-slate-500">Document body not available.</p>'
-                }}
-              />
+              {/* The document body.
+                  `document_html` is the FROZEN snapshot taken when the document
+                  was issued — not a re-render of the current template — so what
+                  a holder sees here is what was actually issued. It is a
+                  complete HTML document, so it goes in a sandboxed iframe
+                  rather than into a div, which would nest <html>/<head>. */}
+              {data.document_html ? (
+                <iframe
+                  title="Document"
+                  sandbox=""
+                  srcDoc={data.document_html}
+                  className="w-full border-0"
+                  style={{ minHeight: '240mm' }}
+                />
+              ) : (
+                <div className="text-[12pt] leading-relaxed space-y-4">
+                  <p className="font-semibold text-slate-800">
+                    This reference is genuine and currently valid.
+                  </p>
+                  <p className="text-slate-600 text-[11pt]">
+                    The issuer has chosen not to publish document content on this page.
+                    Verification confirms that the reference below was issued by the
+                    organisation shown and has not been revoked or superseded — it does
+                    not reproduce the document itself.
+                  </p>
+                  {data.content_fingerprint && (
+                    <p className="text-slate-600 text-[11pt]">
+                      Content fingerprint:{' '}
+                      <code className="font-mono text-slate-900">{data.content_fingerprint}</code>
+                      <br />
+                      <span className="text-[10pt]">
+                        An authentic copy of this document produces the same fingerprint.
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Verification footer — QR + ID + chain of trust */}
               <footer className="mt-12 pt-6 border-t border-slate-300 flex items-end justify-between gap-6">
                 <div className="text-xs text-slate-600 flex-1 min-w-0">
                   <div className="font-semibold text-slate-700 mb-1">Authenticity Verification</div>
                   <div>Document ID: <code className="font-mono text-[11pt] text-slate-900">{data.id}</code></div>
-                  <div>Issued: {fmtDate(data.generated_at)}</div>
+                  <div>Issued: {fmtDate(data.issued_at)}</div>
                   {data.expires_at && <div>Expires: {fmtDate(data.expires_at)}</div>}
                   <div className="mt-2 break-all">
                     Scan the QR code or visit:<br />

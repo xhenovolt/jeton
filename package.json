@@ -7,7 +7,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "check:contrast": "node --input-type=module < scripts/check-contrast.js"
+    "check:contrast": "node --input-type=module < scripts/check-contrast.js",
+    "test": "node --import ./tests/_resolve.mjs tests/template-engine.test.mjs && node --import ./tests/_resolve.mjs tests/clause-engine.test.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",

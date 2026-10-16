@@ -188,15 +188,6 @@ export default function GeneratedPage() {
                       >
                         Manage
                       </Link>
-                      <a
-                        href={`/verify/${doc.unique_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:underline"
-                        title="Open the public verify page in a new tab"
-                      >
-                        Public
-                      </a>
                       {!doc.is_revoked && (
                         <button
                           onClick={() => handleRevoke(doc.id)}
